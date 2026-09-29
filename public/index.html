@@ -1,0 +1,3389 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" class="h-full">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>بوابة المساعد الدراسي</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+    darkMode: 'class',
+    theme: {
+        extend: {
+            colors: {
+                brand: {
+                    50: '#fff7ed', 100: '#ffedd5', 200: '#fed7aa',
+                    300: '#fdba74', 400: '#fb923c', 500: '#f97316',
+                    600: '#ea580c', 700: '#c2410c'
+                }
+            },
+            fontFamily: { sans: ['Inter', 'Cairo', 'sans-serif'] }
+        }
+    }
+};
+/* ============================================================
+   نظام تسجيل الدخول والمزامنة مع السيرفر
+   ============================================================ */
+
+/* عنوان السيرفر - فارغ يعني نفس النطاق */
+var API_BASE = '';
+
+/* الرمز الحالي للمستخدم (يُحفظ في localStorage) */
+var AUTH_TOKEN = null;
+var CURRENT_USER = null;
+
+/* إظهار تبويب معين (دخول أو إنشاء حساب) */
+function showAuthTab(tab) {
+    var loginBtn = document.getElementById('tabLoginBtn');
+    var registerBtn = document.getElementById('tabRegisterBtn');
+    var loginForm = document.getElementById('loginForm');
+    var registerForm = document.getElementById('registerForm');
+    
+    if (tab === 'login') {
+        loginBtn.classList.add('bg-brand-500', 'text-white');
+        loginBtn.classList.remove('text-slate-600', 'dark:text-slate-300');
+        registerBtn.classList.remove('bg-brand-500', 'text-white');
+        registerBtn.classList.add('text-slate-600', 'dark:text-slate-300');
+        loginForm.classList.remove('hidden');
+        registerForm.classList.add('hidden');
+    } else {
+        registerBtn.classList.add('bg-brand-500', 'text-white');
+        registerBtn.classList.remove('text-slate-600', 'dark:text-slate-300');
+        loginBtn.classList.remove('bg-brand-500', 'text-white');
+        loginBtn.classList.add('text-slate-600', 'dark:text-slate-300');
+        registerForm.classList.remove('hidden');
+        loginForm.classList.add('hidden');
+    }
+}
+
+/* إظهار خطأ في نموذج الدخول */
+function showLoginError(msg) {
+    var el = document.getElementById('loginError');
+    el.textContent = msg;
+    el.classList.remove('hidden');
+}
+function hideLoginError() {
+    document.getElementById('loginError').classList.add('hidden');
+}
+function showRegisterError(msg) {
+    var el = document.getElementById('registerError');
+    el.textContent = msg;
+    el.classList.remove('hidden');
+}
+function hideRegisterError() {
+    document.getElementById('registerError').classList.add('hidden');
+}
+
+/* إرسال طلب تسجيل الدخول */
+function submitLogin(e) {
+    e.preventDefault();
+    hideLoginError();
+    
+    var username = document.getElementById('loginUsername').value.trim();
+    var password = document.getElementById('loginPassword').value;
+    var btn = document.getElementById('loginSubmitBtn');
+    
+    if (!username || !password) {
+        showLoginError('املأ كل الحقول');
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.textContent = 'جار التحقق...';
+    
+    fetch(API_BASE + '/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ username: username, password: password })
+    })
+    .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, status: r.status, data: j }; }); })
+    .then(function(res) {
+        btn.disabled = false;
+        btn.textContent = 'دخول';
+        
+        if (!res.ok) {
+            showLoginError(res.data.message || 'اسم المستخدم أو كلمة السر غير صحيحة');
+            return;
+        }
+        
+        /* نجح الدخول */
+        AUTH_TOKEN = res.data.token;
+        CURRENT_USER = res.data.user;
+        try {
+            localStorage.setItem('study_auth_token', AUTH_TOKEN);
+            localStorage.setItem('study_current_user', JSON.stringify(CURRENT_USER));
+        } catch (e) {}
+        
+        onLoginSuccess();
+    })
+    .catch(function(err) {
+        btn.disabled = false;
+        btn.textContent = 'دخول';
+        showLoginError('تعذر الاتصال بالسيرفر. تحقق من الإنترنت.');
+        console.error(err);
+    });
+}
+
+/* إرسال طلب إنشاء حساب */
+function submitRegister(e) {
+    e.preventDefault();
+    hideRegisterError();
+    
+    var username = document.getElementById('registerUsername').value.trim();
+    var password = document.getElementById('registerPassword').value;
+    var password2 = document.getElementById('registerPassword2').value;
+    var btn = document.getElementById('registerSubmitBtn');
+    
+    if (!username || !password || !password2) {
+        showRegisterError('املأ كل الحقول');
+        return;
+    }
+    if (password !== password2) {
+        showRegisterError('كلمتا السر غير متطابقتين');
+        return;
+    }
+    if (password.length < 4) {
+        showRegisterError('كلمة السر قصيرة جدا');
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.textContent = 'جار الإنشاء...';
+    
+    fetch(API_BASE + '/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ username: username, password: password })
+    })
+    .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, status: r.status, data: j }; }); })
+    .then(function(res) {
+        btn.disabled = false;
+        btn.textContent = 'إنشاء الحساب';
+        
+        if (!res.ok) {
+            showRegisterError(res.data.message || 'تعذر إنشاء الحساب');
+            return;
+        }
+        
+        /* نجح الإنشاء */
+        AUTH_TOKEN = res.data.token;
+        CURRENT_USER = res.data.user;
+        try {
+            localStorage.setItem('study_auth_token', AUTH_TOKEN);
+            localStorage.setItem('study_current_user', JSON.stringify(CURRENT_USER));
+        } catch (e) {}
+        
+        onLoginSuccess();
+    })
+    .catch(function(err) {
+        btn.disabled = false;
+        btn.textContent = 'إنشاء الحساب';
+        showRegisterError('تعذر الاتصال بالسيرفر');
+        console.error(err);
+    });
+}
+
+/* عند نجاح الدخول أو الإنشاء */
+function onLoginSuccess() {
+    /* إخفاء شاشة تسجيل الدخول */
+    document.getElementById('authScreen').classList.add('hidden');
+    
+    /* جلب البيانات من السيرفر */
+    loadDataFromServer().then(function() {
+        /* عرض الواجهة الرئيسية */
+        if (typeof renderView === 'function') {
+            renderView();
+        }
+    }).catch(function(err) {
+        console.error('خطأ في جلب البيانات:', err);
+        alert('تعذر جلب البيانات من السيرفر');
+    });
+}
+
+/* جلب البيانات من السيرفر */
+function loadDataFromServer() {
+    return fetch(API_BASE + '/api/me', {
+        credentials: 'include',
+        headers: AUTH_TOKEN ? { 'Authorization': 'Bearer ' + AUTH_TOKEN } : {}
+    })
+    .then(function(r) {
+        if (r.status === 401) {
+            /* الجلسة انتهت */
+            logoutUser();
+            return Promise.reject('unauthorized');
+        }
+        return r.json();
+    })
+    .then(function(data) {
+        if (!data || !data.user) {
+            return Promise.reject('no data');
+        }
+        
+        var u = data.user;
+        
+        /* تحديث الحالة العامة */
+        appState.lang = u.lang || 'ar';
+        appState.darkMode = !!u.darkMode;
+        appState.profiles = [{
+            id: 'me',
+            name: u.name,
+            password: '',
+            avatar: u.avatar || DEFAULT_AVATAR,
+            grade: u.grade || '',
+            term: u.term || '',
+            examType: u.examType || '',
+            schoolYear: u.schoolYear || '',
+            subjects: u.subjects || [],
+            timetable: u.timetable || {},
+            homework: u.homework || []
+        }];
+        appState.activeUserId = 'me';
+        
+        /* إخفاء شاشة الحسابات المتعددة */
+        var homeView = document.getElementById('homeView');
+        if (homeView) homeView.classList.add('hidden');
+        
+        /* تطبيق اللغة والوضع */
+        if (typeof applyTheme === 'function') applyTheme();
+        if (typeof applyUILanguage === 'function') applyUILanguage();
+    });
+}
+
+/* حفظ البيانات على السيرفر */
+function saveStateToServer() {
+    if (!AUTH_TOKEN) return Promise.resolve();
+    
+    var p = null;
+    for (var i = 0; i < appState.profiles.length; i++) {
+        if (appState.profiles[i].id === 'me') { p = appState.profiles[i]; break; }
+    }
+    if (!p) return Promise.resolve();
+    
+    var body = {
+        name: p.name,
+        avatar: p.avatar,
+        grade: p.grade,
+        term: p.term,
+        examType: p.examType,
+        schoolYear: p.schoolYear,
+        subjects: p.subjects,
+        timetable: p.timetable,
+        homework: p.homework,
+        lang: appState.lang,
+        darkMode: appState.darkMode
+    };
+    
+    return fetch(API_BASE + '/api/me', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: Object.assign(
+            { 'Content-Type': 'application/json' },
+            AUTH_TOKEN ? { 'Authorization': 'Bearer ' + AUTH_TOKEN } : {}
+        ),
+        body: JSON.stringify(body)
+    })
+    .then(function(r) { return r.json(); })
+    .catch(function(err) {
+        console.error('فشل الحفظ على السيرفر:', err);
+    });
+}
+
+/* تسجيل الخروج */
+function logoutUser() {
+    fetch(API_BASE + '/api/logout', {
+        method: 'POST',
+        credentials: 'include'
+    }).catch(function() {});
+    
+    try {
+        localStorage.removeItem('study_auth_token');
+        localStorage.removeItem('study_current_user');
+    } catch (e) {}
+    
+    AUTH_TOKEN = null;
+    CURRENT_USER = null;
+    
+    /* إعادة تحميل الصفحة */
+    location.reload();
+}
+
+/* عند تحميل الصفحة: التحقق من وجود جلسة سابقة */
+function checkExistingSession() {
+    try {
+        var savedToken = localStorage.getItem('study_auth_token');
+        var savedUser = localStorage.getItem('study_current_user');
+        if (savedToken) {
+            AUTH_TOKEN = savedToken;
+            if (savedUser) CURRENT_USER = JSON.parse(savedUser);
+            
+            /* التحقق من صلاحية الرمز بطلب me */
+            return loadDataFromServer().then(function() {
+                document.getElementById('authScreen').classList.add('hidden');
+                if (typeof renderView === 'function') renderView();
+                return true;
+            }).catch(function() {
+                /* الرمز غير صالح */
+                AUTH_TOKEN = null;
+                CURRENT_USER = null;
+                try {
+                    localStorage.removeItem('study_auth_token');
+                    localStorage.removeItem('study_current_user');
+                } catch (e) {}
+                return false;
+            });
+        }
+    } catch (e) {
+        console.error(e);
+    }
+    return Promise.resolve(false);
+}
+</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+html, body { min-height: 100%; }
+html.dark, html.dark body { background: #0f172a !important; color: #e2e8f0; }
+html.dark { color-scheme: dark; }
+html.dark input, html.dark select, html.dark textarea { color-scheme: dark; }
+.dark input[type="date"]::-webkit-calendar-picker-indicator,
+.dark input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(1.2);
+    cursor: pointer;
+}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator { cursor: pointer; }
+.custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+.dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
+.tt-table { width: 100%; border-collapse: separate; border-spacing: 3px; min-width: 950px; }
+.tt-table th.tt-day-head { width: 90px; font-weight: 800; font-size: 11px; color: #c2410c; text-align: center; padding: 6px 4px; text-transform: uppercase; letter-spacing: .03em; }
+.dark .tt-table th.tt-day-head { color: #fdba74; }
+.tt-table th.tt-hour-head { font-weight: 800; font-size: 11px; color: #64748b; text-align: center; padding: 6px 4px; }
+.dark .tt-table th.tt-hour-head { color: #94a3b8; }
+.tt-table td.tt-day-cell { font-weight: 800; font-size: 11px; color: #64748b; text-align: center; vertical-align: middle; background: rgba(148,163,184,.08); border-radius: 8px; }
+.dark .tt-table td.tt-day-cell { color: #94a3b8; background: rgba(30,41,59,.5); }
+.tt-table td.tt-slot { padding: 0; }
+.tt-block { min-height: 56px; padding: 6px 8px; border-radius: 10px; font-size: 12px; line-height: 1.25; display: flex; flex-direction: column; justify-content: center; cursor: pointer; transition: transform .15s, box-shadow .15s; overflow: hidden; }
+.tt-block:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.1); }
+.tt-empty { background: rgba(148,163,184,.08); border: 1px dashed rgba(148,163,184,.35); min-height: 56px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 11px; }
+.dark .tt-empty { background: rgba(30,41,59,.6); border-color: rgba(71,85,105,.7); color: #64748b; }
+.tt-subject { background: rgba(249,115,22,.12); border: 1px solid rgba(249,115,22,.3); color: #9a3412; font-weight: 700; }
+.dark .tt-subject { background: rgba(249,115,22,.22); border-color: rgba(249,115,22,.5); color: #fed7aa; }
+.tt-subject.week-a { background: rgba(59,130,246,.12); border-color: rgba(59,130,246,.35); color: #1e40af; }
+.dark .tt-subject.week-a { background: rgba(59,130,246,.22); border-color: rgba(59,130,246,.55); color: #bfdbfe; }
+.tt-subject.week-b { background: rgba(34,197,94,.12); border-color: rgba(34,197,94,.35); color: #166534; }
+.dark .tt-subject.week-b { background: rgba(34,197,94,.22); border-color: rgba(34,197,94,.55); color: #bbf7d0; }
+.prio-urgent { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+.dark .prio-urgent { background: rgba(153,27,27,.4); color: #fecaca; border-color: rgba(239,68,68,.6); }
+.prio-medium { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+.dark .prio-medium { background: rgba(120,53,15,.4); color: #fde68a; border-color: rgba(245,158,11,.6); }
+.prio-normal { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+.dark .prio-normal { background: rgba(22,101,52,.4); color: #bbf7d0; border-color: rgba(34,197,94,.6); }
+.hw-done { text-decoration: line-through; opacity: .55; }
+.tab-btn { position: relative; transition: all .2s; }
+.tab-btn.active { color: #ea580c; }
+.dark .tab-btn.active { color: #fb923c; }
+.tab-btn.active::after { content: ''; position: absolute; bottom: -9px; left: 10%; right: 10%; height: 3px; background: currentColor; border-radius: 3px; }
+.form-label { display: block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: #475569; margin-bottom: 4px; }
+.dark .form-label { color: #cbd5e1; }
+.week-toggle { display: inline-flex; background: rgba(148,163,184,.15); border-radius: 10px; padding: 3px; gap: 2px; }
+.dark .week-toggle { background: rgba(51,65,85,.6); }
+.week-toggle button { padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; transition: all .15s; color: #475569; }
+.dark .week-toggle button { color: #cbd5e1; }
+.week-toggle button.active { background: #ea580c; color: #fff; }
+.profile-card .delete-user-btn { opacity: 0; transition: opacity .2s, transform .15s; }
+.profile-card:hover .delete-user-btn { opacity: 1; }
+.loading { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+/* قسم الرياضيات داخل بطاقة المادة */
+.section-header { display: flex; align-items: center; gap: 8px; padding: 6px 10px; margin: 4px 0; border-radius: 8px; background: rgba(249,115,22,.08); border-left: 3px solid #f97316; font-weight: 800; font-size: 12px; color: #9a3412; }
+.dark .section-header { background: rgba(249,115,22,.15); border-left-color: #fb923c; color: #fed7aa; }
+.section-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 6px; background: #f97316; color: #fff; font-size: 11px; font-weight: 900; }
+.dark .section-badge { background: #fb923c; color: #1e293b; }
+</style>
+</head>
+<body class="h-full font-sans antialiased text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-900 transition-colors duration-200">
+    <!-- ============================================================
+     شاشة تسجيل الدخول / إنشاء حساب
+     تظهر فقط عندما لا يكون المستخدم مسجلا
+     ============================================================ -->
+<div id="authScreen" class="fixed inset-0 z-[100] bg-slate-50 dark:bg-slate-900 flex items-center justify-center p-4">
+    <div class="w-full max-w-md">
+        
+        <!-- الشعار والعنوان -->
+        <div class="text-center mb-8">
+            <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-brand-600 to-amber-500 text-white flex items-center justify-center shadow-xl mx-auto mb-4">
+                <i class="fa-solid fa-graduation-cap text-3xl"></i>
+            </div>
+            <h1 class="text-2xl font-black text-slate-900 dark:text-white mb-1">بوابة المساعد الدراسي</h1>
+            <p class="text-sm text-slate-500 dark:text-slate-400">الثانية علوم 09</p>
+        </div>
+
+        <!-- البطاقة -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 p-6">
+            
+            <!-- التبويبات -->
+            <div class="grid grid-cols-2 gap-2 mb-6 bg-slate-100 dark:bg-slate-700 rounded-xl p-1">
+                <button id="tabLoginBtn" onclick="showAuthTab('login')" class="py-2 rounded-lg text-sm font-bold bg-brand-500 text-white transition-colors">
+                    تسجيل الدخول
+                </button>
+                <button id="tabRegisterBtn" onclick="showAuthTab('register')" class="py-2 rounded-lg text-sm font-bold text-slate-600 dark:text-slate-300 transition-colors">
+                    حساب جديد
+                </button>
+            </div>
+
+            <!-- نموذج تسجيل الدخول -->
+            <form id="loginForm" onsubmit="submitLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">اسم المستخدم</label>
+                    <input type="text" id="loginUsername" required class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="اسم المستخدم">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">كلمة السر</label>
+                    <input type="password" id="loginPassword" required class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="••••••••">
+                </div>
+                <p id="loginError" class="text-xs font-semibold text-red-500 text-center hidden"></p>
+                <button type="submit" id="loginSubmitBtn" class="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold shadow-md transition-colors">
+                    دخول
+                </button>
+            </form>
+
+            <!-- نموذج إنشاء حساب -->
+            <form id="registerForm" onsubmit="submitRegister(event)" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">اسم المستخدم</label>
+                    <input type="text" id="registerUsername" required minlength="3" class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="3 أحرف على الأقل">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">كلمة السر</label>
+                    <input type="password" id="registerPassword" required minlength="4" class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="4 أحرف على الأقل">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">تأكيد كلمة السر</label>
+                    <input type="password" id="registerPassword2" required class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" placeholder="أعد كتابة كلمة السر">
+                </div>
+                <p id="registerError" class="text-xs font-semibold text-red-500 text-center hidden"></p>
+                <button type="submit" id="registerSubmitBtn" class="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold shadow-md transition-colors">
+                    إنشاء الحساب
+                </button>
+            </form>
+
+        </div>
+
+        <p class="text-center text-[11px] text-slate-400 dark:text-slate-500 mt-6">
+            بياناتك محفوظة بأمان على السيرفر
+        </p>
+    </div>
+</div>
+
+<div id="app" class="min-h-screen flex flex-col">
+
+<header class="sticky top-0 z-30 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 shadow-sm">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
+<button onclick="navToHome()" class="flex items-center gap-2 group text-left">
+<div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-amber-500 text-white flex items-center justify-center shadow-md">
+<i class="fa-solid fa-graduation-cap text-lg"></i>
+</div>
+<div>
+<h1 class="font-bold text-lg leading-tight text-slate-900 dark:text-white" id="appNavTitle">—</h1>
+<p class="text-xs text-slate-500 dark:text-slate-400" id="appNavSubtitle">—</p>
+</div>
+</button>
+<div class="flex items-center gap-2 sm:gap-3">
+<div id="pomodoroWidget" class="hidden items-center gap-2 bg-slate-100 dark:bg-slate-700 rounded-lg px-2.5 py-1.5 border border-slate-200 dark:border-slate-600">
+<span id="pomodoroMode" class="text-[10px] font-black uppercase text-brand-600 dark:text-brand-400 w-12">—</span>
+<span id="timerDisplay" class="text-xs font-bold text-slate-700 dark:text-slate-200 w-10 text-center tabular-nums">25:00</span>
+<button onclick="togglePomodoro()" id="timerToggleBtn" class="text-slate-600 dark:text-slate-300 hover:text-brand-600"><i class="fa-solid fa-play text-xs"></i></button>
+<button onclick="resetPomodoro()" class="text-slate-600 dark:text-slate-300 hover:text-brand-600"><i class="fa-solid fa-rotate-left text-xs"></i></button>
+</div>
+<div id="weekToggleHeader" class="hidden week-toggle">
+<button id="weekABtn" onclick="setManualWeek('A')">A</button>
+<button id="weekBBtn" onclick="setManualWeek('B')">B</button>
+</div>
+<button id="btnNavHome" onclick="navToHome()" class="hidden items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200">
+<i class="fa-solid fa-users"></i><span id="txtSwitchUser">—</span>
+</button>
+<div id="activeUserBadge" class="items-center gap-2 pl-2 pr-3 py-1 bg-brand-50 dark:bg-brand-950/40 border border-brand-200 dark:border-brand-800 rounded-full hidden">
+<img id="badgeAvatar" class="w-6 h-6 rounded-full object-cover border border-brand-400" src="" alt="">
+<span id="badgeName" class="text-xs font-bold text-brand-700 dark:text-brand-300">—</span>
+<button onclick="openSettingsModal()" class="text-brand-600 dark:text-brand-400 text-xs ml-1"><i class="fa-solid fa-gear"></i></button>
+</div>
+<select id="langSelect" onchange="changeLanguage(this.value)" class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold py-1.5 px-2.5 rounded-lg border border-slate-200 dark:border-slate-600 cursor-pointer">
+<option value="ar">العربية 🇹🇳</option>
+<option value="fr">Français 🇫🇷</option>
+<option value="en">English 🇬🇧</option>
+</select>
+<button onclick="toggleDarkMode()" class="p-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"><i id="themeIcon" class="fa-solid fa-moon text-sm"></i></button>
+</div>
+</div>
+</header>
+
+<main id="homeView" class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col justify-center">
+<div class="text-center max-w-2xl mx-auto mb-10">
+<span class="inline-block px-3 py-1 bg-brand-100 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300 text-xs font-bold rounded-full mb-3 uppercase" id="txtHomeBadge">—</span>
+<h2 class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white mb-3" id="txtHomeTitle">—</h2>
+<p class="text-slate-600 dark:text-slate-400 text-sm sm:text-base" id="txtHomeDesc">—</p>
+</div>
+<div id="usersGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto w-full"></div>
+</main>
+
+<main id="checklistView" class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 hidden">
+
+<div id="smartAssistant" class="rounded-2xl p-4 sm:p-5 mb-6 bg-gradient-to-l from-indigo-600 via-purple-600 to-fuchsia-600 text-white shadow-xl relative overflow-hidden">
+<div class="absolute -left-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+<div class="relative z-10 flex flex-col sm:flex-row sm:items-start gap-4">
+<div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center text-xl flex-shrink-0"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+<div class="flex-1 min-w-0">
+<p class="text-[11px] font-bold uppercase tracking-wider text-indigo-100" id="saTitleLabel">—</p>
+<h3 id="saGreeting" class="text-lg sm:text-xl font-black leading-tight">—</h3>
+<p id="saTodayLine" class="text-xs sm:text-sm text-indigo-100 mt-1">—</p>
+<p id="saTomorrowLine" class="text-xs sm:text-sm text-indigo-100 mt-1">—</p>
+<p id="saHomeworkLine" class="text-xs sm:text-sm text-indigo-100 mt-1">—</p>
+</div>
+<div class="text-right flex-shrink-0">
+<p id="saClock" class="text-3xl font-black tabular-nums leading-none">--:--</p>
+<p id="saDate" class="text-[11px] font-semibold text-indigo-100 mt-1">—</p>
+</div>
+</div>
+</div>
+
+<div class="bg-gradient-to-r from-brand-600 via-amber-600 to-orange-500 rounded-2xl p-6 text-white shadow-xl mb-8 relative overflow-hidden">
+<div class="absolute -right-10 -bottom-10 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+<div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+<div class="flex items-center gap-4">
+<div class="relative">
+<img id="viewUserAvatar" class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border-2 border-white/50 shadow-md bg-white/20" src="" alt="">
+<button onclick="openSettingsModal()" class="absolute -bottom-1 -right-1 bg-white text-slate-800 p-1.5 rounded-full shadow text-xs"><i class="fa-solid fa-camera"></i></button>
+</div>
+<div>
+<div class="flex items-center gap-2 flex-wrap">
+<h2 id="viewUserName" class="text-2xl sm:text-3xl font-extrabold text-white">—</h2>
+<span id="viewUserGrade" class="px-2.5 py-0.5 rounded-md bg-white/20 text-xs font-semibold text-white">—</span>
+<span id="viewUserExamType" class="px-2.5 py-0.5 rounded-md bg-amber-400/30 border border-amber-300/40 text-xs font-bold text-white">—</span>
+</div>
+<p class="text-brand-100 text-xs sm:text-sm mt-1"><span id="viewUserTerm">—</span> • <span id="viewUserSchoolYear">—</span></p>
+</div>
+</div>
+<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+<div class="bg-white/10 dark:bg-slate-900/40 backdrop-blur-md rounded-xl p-4 border border-white/20 flex items-center gap-3 min-w-[240px]">
+<div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center text-lg"><i class="fa-solid fa-hourglass-half"></i></div>
+<div class="flex-1">
+<p class="text-[10px] font-bold uppercase tracking-wide text-brand-100" id="lblCountdown">—</p>
+<div id="countdownDisplay" class="text-lg font-black text-white leading-tight">—</div>
+<p id="countdownSubject" class="text-[10px] font-semibold text-brand-100 truncate">—</p>
+</div>
+</div>
+<div class="bg-white/10 dark:bg-slate-900/40 backdrop-blur-md rounded-xl p-4 border border-white/20 flex items-center justify-between gap-6 min-w-[240px]">
+<div>
+<p class="text-xs font-medium text-brand-100 uppercase tracking-wide" id="lblTotalProgress">—</p>
+<div class="text-2xl font-black text-white mt-0.5"><span id="overallPercentage">0</span>%</div>
+<p class="text-[11px] text-brand-200"><span id="completedItemsCount">0</span> / <span id="totalItemsCount">0</span> <span id="lblDone">—</span></p>
+</div>
+<div class="w-16 h-16 relative flex items-center justify-center">
+<svg class="w-16 h-16 -rotate-90">
+<circle cx="32" cy="32" r="26" stroke="currentColor" stroke-width="6" class="text-white/20" fill="transparent"></circle>
+<circle id="progressCircle" cx="32" cy="32" r="26" stroke="currentColor" stroke-width="6" class="text-white transition-all duration-500" stroke-dasharray="163.3" stroke-dashoffset="163.3" stroke-linecap="round" fill="transparent"></circle>
+</svg>
+<i class="fa-solid fa-trophy text-amber-200 text-xs absolute"></i>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="flex flex-wrap items-center gap-1 sm:gap-2 mb-6 border-b border-slate-200 dark:border-slate-700 pb-2">
+<button onclick="switchTab('checklist')" data-tab="checklist" class="tab-btn active px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300"><i class="fa-solid fa-list-check mr-1"></i> <span data-i18n="tabChecklist">—</span></button>
+<button onclick="switchTab('timetable')" data-tab="timetable" class="tab-btn px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300"><i class="fa-solid fa-table-cells mr-1"></i> <span data-i18n="tabTimetable">—</span></button>
+<button onclick="switchTab('homework')" data-tab="homework" class="tab-btn px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300"><i class="fa-solid fa-book-bookmark mr-1"></i> <span data-i18n="tabHomework">—</span> <span id="hwBadge" class="hidden ml-1 text-[10px] font-black px-1.5 py-0.5 rounded-full bg-red-500 text-white"></span></button>
+<button onclick="switchTab('stats')" data-tab="stats" class="tab-btn px-3 sm:px-4 py-2 text-xs sm:text-sm font-bold text-slate-600 dark:text-slate-300"><i class="fa-solid fa-chart-line mr-1"></i> <span data-i18n="tabStats">—</span></button>
+</div>
+
+<section id="tab-checklist">
+<div class="mb-6 flex flex-col sm:flex-row gap-3">
+<div class="flex-1 relative">
+<i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+<input type="text" id="searchInput" oninput="renderSubjects()" placeholder="—" class="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm">
+</div>
+<div class="flex gap-2">
+<select id="filterSelect" onchange="renderSubjects()" class="px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold">
+<option value="all" data-i18n="filterAll">—</option>
+<option value="pending" data-i18n="filterPending">—</option>
+<option value="completed" data-i18n="filterCompleted">—</option>
+</select>
+<button onclick="exportJSON()" class="px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-semibold"><i class="fa-solid fa-file-export"></i></button>
+<button onclick="importJSON()" class="px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-semibold"><i class="fa-solid fa-file-import"></i></button>
+<button onclick="openAddSubjectModal()" class="px-3 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold flex items-center gap-2"><i class="fa-solid fa-plus"></i> <span data-i18n="addSubject">—</span></button>
+</div>
+</div>
+<div id="subjectsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+</section>
+
+<section id="tab-timetable" class="hidden">
+<div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-4 sm:p-6 mb-6">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+<div>
+<h3 class="font-black text-lg text-slate-900 dark:text-white"><i class="fa-solid fa-table-cells text-brand-500 mr-2"></i><span data-i18n="ttTitle">—</span></h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5" data-i18n="ttHint">—</p>
+</div>
+<div class="flex flex-wrap items-center gap-2">
+<div class="week-toggle">
+<button id="ttWeekA" onclick="setManualWeek('A')">A</button>
+<button id="ttWeekB" onclick="setManualWeek('B')">B</button>
+<button id="ttWeekAuto" onclick="setManualWeek('auto')">auto</button>
+</div>
+<button onclick="resetTimetable()" class="text-xs font-semibold text-red-600 dark:text-red-400 px-3 py-1.5 rounded-lg"><i class="fa-solid fa-rotate-left mr-1"></i><span data-i18n="ttReset">—</span></button>
+</div>
+</div>
+<div class="overflow-x-auto custom-scrollbar">
+<div id="timetableGrid"></div>
+</div>
+<div class="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-slate-500 dark:text-slate-400">
+<span><span class="inline-block w-3 h-3 rounded bg-blue-400 mr-1 align-middle"></span> <span data-i18n="legendA">—</span></span>
+<span><span class="inline-block w-3 h-3 rounded bg-green-500 mr-1 align-middle"></span> <span data-i18n="legendB">—</span></span>
+<span><span class="inline-block w-3 h-3 rounded bg-amber-500 mr-1 align-middle"></span> <span data-i18n="legendAB">—</span></span>
+</div>
+</div>
+</section>
+
+<section id="tab-homework" class="hidden">
+<div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-4 sm:p-6 mb-6">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+<div>
+<h3 class="font-black text-lg text-slate-900 dark:text-white"><i class="fa-solid fa-book-bookmark text-brand-500 mr-2"></i><span data-i18n="hwTitle">—</span></h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5" data-i18n="hwSubtitle">—</p>
+</div>
+<button onclick="openAddHomeworkModal()" class="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold flex items-center gap-2 self-start"><i class="fa-solid fa-plus"></i> <span data-i18n="hwNew">—</span></button>
+</div>
+<div class="flex flex-wrap gap-2 mb-4">
+<button onclick="setHwFilter('all')" data-hwf="all" class="hw-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold border bg-brand-500 text-white border-brand-500"><span data-i18n="hwAll">—</span> <span id="hwCountAll">0</span></button>
+<button onclick="setHwFilter('pending')" data-hwf="pending" class="hw-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300"><span data-i18n="hwPending">—</span> <span id="hwCountPending">0</span></button>
+<button onclick="setHwFilter('completed')" data-hwf="completed" class="hw-filter-btn px-3 py-1.5 rounded-lg text-xs font-bold border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300"><span data-i18n="hwCompleted">—</span> <span id="hwCountCompleted">0</span></button>
+</div>
+<div id="homeworkList" class="space-y-3"></div>
+</div>
+</section>
+
+<section id="tab-stats" class="hidden">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+<div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-6">
+<p class="text-xs font-bold uppercase text-slate-500 dark:text-slate-400" data-i18n="statTotal">—</p>
+<p class="text-3xl font-black text-slate-900 dark:text-white mt-1"><span id="statsTotalItems">0</span></p>
+</div>
+<div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-6">
+<p class="text-xs font-bold uppercase text-slate-500 dark:text-slate-400" data-i18n="statDone">—</p>
+<p class="text-3xl font-black text-emerald-600 dark:text-emerald-400 mt-1"><span id="statsDoneItems">0</span></p>
+</div>
+<div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-6">
+<p class="text-xs font-bold uppercase text-slate-500 dark:text-slate-400" data-i18n="statActiveHw">—</p>
+<p class="text-3xl font-black text-brand-600 dark:text-brand-400 mt-1"><span id="statsActiveHw">0</span></p>
+</div>
+</div>
+<div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-6">
+<h3 class="font-black text-lg text-slate-900 dark:text-white mb-4"><i class="fa-solid fa-chart-simple text-brand-500 mr-2"></i><span data-i18n="statBySubject">—</span></h3>
+<div id="statsBySubject" class="space-y-4"></div>
+</div>
+</section>
+
+</main>
+
+<div id="passwordModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+<div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-700">
+<div class="text-center mb-6">
+<div class="w-16 h-16 rounded-full bg-brand-100 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400 mx-auto flex items-center justify-center text-2xl mb-3"><i class="fa-solid fa-lock"></i></div>
+<h3 class="text-xl font-bold text-slate-900 dark:text-white" id="lblPwdTitle">—</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400 mt-1"><span id="lblPwdDesc">—</span> <strong id="pwdModalUserName" class="text-brand-600 dark:text-brand-400"></strong></p>
+</div>
+<form onsubmit="verifyUserPassword(event)">
+<input type="password" id="inputPassword" required placeholder="••••••••" class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-center text-lg tracking-widest mb-4">
+<p id="pwdErrorMsg" class="text-xs font-semibold text-red-500 mt-2 text-center hidden mb-2">—</p>
+<div class="flex gap-3">
+<button type="button" onclick="closePasswordModal()" class="flex-1 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-semibold" id="btnPwdCancel">—</button>
+<button type="submit" class="flex-1 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-bold" id="btnPwdSubmit">—</button>
+</div>
+</form>
+</div>
+</div>
+
+<div id="deleteUserModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+<div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-700">
+<div class="text-center mb-5">
+<div class="w-16 h-16 rounded-full bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 mx-auto flex items-center justify-center text-2xl mb-3"><i class="fa-solid fa-user-xmark"></i></div>
+<h3 class="text-xl font-bold text-slate-900 dark:text-white" id="lblDelTitle">—</h3>
+<p class="text-sm text-slate-600 dark:text-slate-400 mt-2"><span id="lblDelAsk">—</span> <strong id="deleteUserName" class="text-red-600 dark:text-red-400"></strong></p>
+</div>
+<div class="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-xl p-3 mb-5">
+<label class="block text-xs font-bold text-red-700 dark:text-red-300 mb-2" id="lblDelType">—</label>
+<input type="text" id="deleteConfirmInput" class="w-full px-3 py-2 rounded-lg border border-red-300 dark:border-red-800 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm">
+</div>
+<div class="flex gap-3">
+<button type="button" onclick="closeDeleteUserModal()" class="flex-1 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-semibold" id="btnDelCancel">—</button>
+<button type="button" id="btnConfirmDelete" onclick="confirmDeleteUser()" disabled class="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:bg-slate-300 dark:disabled:bg-slate-700 text-white text-sm font-bold">—</button>
+</div>
+</div>
+</div>
+
+<div id="settingsModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+<div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 dark:border-slate-700 custom-scrollbar max-h-[90vh] overflow-y-auto">
+<div class="flex items-center justify-between pb-4 mb-4 border-b border-slate-200 dark:border-slate-700">
+<h3 class="text-lg font-bold text-slate-900 dark:text-white" id="lblSettingsTitle">—</h3>
+<button onclick="closeSettingsModal()" class="text-slate-400"><i class="fa-solid fa-xmark text-lg"></i></button>
+</div>
+<form onsubmit="saveProfileSettings(event)" class="space-y-4">
+<div class="flex flex-col items-center mb-2">
+<img id="settingsAvatarPreview" class="w-20 h-20 rounded-2xl object-cover border-2 border-brand-500 bg-slate-100 dark:bg-slate-700" src="" alt="">
+<input type="file" id="avatarFileInput" accept="image/*" onchange="handleAvatarUpload(event)" class="hidden">
+<button type="button" onclick="document.getElementById('avatarFileInput').click()" class="text-xs font-semibold text-brand-600 dark:text-brand-400 mt-2 hover:underline" id="lblUploadPhoto">—</button>
+</div>
+<div><label class="form-label" id="lblUsername">—</label><input type="text" id="settingUsername" required class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></div>
+<div><label class="form-label" id="lblPassword">—</label><input type="text" id="settingPassword" required class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></div>
+<div><label class="form-label" id="lblGrade">—</label><input type="text" id="settingGrade" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></div>
+<div><label class="form-label" id="lblTerm">—</label><input type="text" id="settingTerm" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></div>
+<div><label class="form-label" id="lblExamType">—</label>
+<select id="settingExamType" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+<option value="مراقبة">—</option>
+<option value="تأليفي">—</option>
+<option value="الاثنان معاً">—</option>
+</select></div>
+<div><label class="form-label" id="lblSchoolYear">—</label><input type="text" id="settingSchoolYear" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></div>
+<div><label class="form-label" id="lblWeekAStart">—</label><input type="date" id="settingWeekAStart" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></div>
+<div><label class="form-label" id="lblAutoTranslate">—</label>
+<select id="settingAutoTranslate" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+<option value="on">—</option>
+<option value="off">—</option>
+</select></div>
+<div class="pt-4 flex items-center justify-between gap-3 border-t border-slate-200 dark:border-slate-700">
+<button type="button" onclick="requestDeleteCurrentProfileFromSettings()" class="text-xs font-bold text-red-600 dark:text-red-400 py-2 px-3 rounded-lg" id="lblDeleteProfile">—</button>
+<div class="flex gap-2">
+<button type="button" onclick="closeSettingsModal()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold" id="lblCancelBtn">—</button>
+<button type="submit" class="px-5 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold" id="lblSaveBtn">—</button>
+</div>
+</div>
+</form>
+</div>
+</div>
+
+<div id="subjectModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+<div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 dark:border-slate-700 custom-scrollbar max-h-[90vh] overflow-y-auto">
+<div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 dark:border-slate-700">
+<h3 id="subjectModalTitle" class="text-lg font-bold text-slate-900 dark:text-white">—</h3>
+<button onclick="closeSubjectModal()" class="text-slate-400"><i class="fa-solid fa-xmark text-lg"></i></button>
+</div>
+<form onsubmit="saveSubject(event)" class="space-y-4">
+<div><label class="form-label" id="lblSubjAr">—</label>
+<div class="flex gap-2">
+<input type="text" id="subjectTitleAr" required class="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+<button type="button" onclick="autoTranslateField('subjectTitleAr')" class="w-9 h-9 rounded-lg bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400 hover:bg-brand-500 hover:text-white flex items-center justify-center"><i class="fa-solid fa-language text-sm"></i></button>
+</div></div>
+<div><label class="form-label" id="lblSubjFr">—</label>
+<div class="flex gap-2">
+<input type="text" id="subjectTitleFr" class="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+<button type="button" onclick="autoTranslateField('subjectTitleFr')" class="w-9 h-9 rounded-lg bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400 hover:bg-brand-500 hover:text-white flex items-center justify-center"><i class="fa-solid fa-language text-sm"></i></button>
+</div></div>
+<div><label class="form-label" id="lblSubjEn">—</label>
+<div class="flex gap-2">
+<input type="text" id="subjectTitleEn" class="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+<button type="button" onclick="autoTranslateField('subjectTitleEn')" class="w-9 h-9 rounded-lg bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400 hover:bg-brand-500 hover:text-white flex items-center justify-center"><i class="fa-solid fa-language text-sm"></i></button>
+</div></div>
+<div><label class="form-label" id="lblSubjDate">—</label>
+<input type="date" id="subjectExamDateInput" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></div>
+<div><label class="form-label" id="lblSubjItems">—</label>
+<textarea id="subjectItemsInput" rows="4" placeholder="2024&#10;2023&#10;2022" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm font-mono"></textarea></div>
+<div class="flex gap-2 justify-end pt-2">
+<button type="button" onclick="closeSubjectModal()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold" id="lblSubjCancel">—</button>
+<button type="submit" class="px-5 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold" id="lblSubjSave">—</button>
+</div>
+</form>
+</div>
+</div>
+
+<div id="itemModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+<div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-700">
+<div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 dark:border-slate-700">
+<h3 class="text-lg font-bold text-slate-900 dark:text-white" id="lblItemTitle">—</h3>
+<button onclick="closeItemModal()" class="text-slate-400"><i class="fa-solid fa-xmark text-lg"></i></button>
+</div>
+<form onsubmit="saveItem(event)" class="space-y-4">
+<div><label class="form-label" id="lblItemCode">—</label><input type="text" id="itemCodeInput" required class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm font-mono"></div>
+<div><label class="form-label" id="lblItemNote">—</label><input type="text" id="itemNoteInput" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></div>
+<div class="flex gap-2 justify-end pt-2">
+<button type="button" onclick="closeItemModal()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold" id="lblItemCancel">—</button>
+<button type="submit" class="px-5 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold" id="lblItemSave">—</button>
+</div>
+</form>
+</div>
+</div>
+
+<div id="linkModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+<div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-700">
+<div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 dark:border-slate-700">
+<h3 class="text-lg font-bold text-slate-900 dark:text-white"><i class="fa-solid fa-link text-brand-500 mr-2"></i><span id="lblLinkTitle">—</span></h3>
+<button onclick="closeLinkModal()" class="text-slate-400"><i class="fa-solid fa-xmark text-lg"></i></button>
+</div>
+<form onsubmit="saveItemLink(event)" class="space-y-4">
+<p class="text-xs text-slate-500 dark:text-slate-400"><span id="lblLinkAttach">—</span> <strong id="linkItemLabel" class="text-brand-600 dark:text-brand-400 font-mono"></strong></p>
+<div><label class="form-label" id="lblLinkUrl">—</label><input type="url" id="linkUrlInput" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></div>
+<div class="flex gap-2 justify-end pt-2">
+<button type="button" onclick="clearItemLink()" class="px-4 py-2 rounded-lg border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 text-xs font-semibold" id="lblLinkRemove">—</button>
+<button type="button" onclick="closeLinkModal()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold" id="lblLinkCancel">—</button>
+<button type="submit" class="px-5 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold" id="lblLinkSave">—</button>
+</div>
+</form>
+</div>
+</div>
+
+<div id="slotModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+<div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full p-6 border border-slate-200 dark:border-slate-700 custom-scrollbar max-h-[90vh] overflow-y-auto">
+<div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 dark:border-slate-700">
+<h3 class="text-lg font-bold text-slate-900 dark:text-white"><i class="fa-solid fa-pen-to-square text-brand-500 mr-2"></i><span id="lblSlotTitle">—</span></h3>
+<button onclick="closeSlotModal()" class="text-slate-400"><i class="fa-solid fa-xmark text-lg"></i></button>
+</div>
+<p id="slotModalContext" class="text-xs font-semibold text-slate-500 dark:text-slate-400 mb-3">—</p>
+<form onsubmit="saveSlot(event)" class="space-y-4">
+<div><label class="form-label" id="lblSlotSubject">—</label><select id="slotSubjectSelect" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></select></div>
+<div><label class="form-label" id="lblSlotRoom">—</label>
+<div class="flex gap-2">
+<input type="text" id="slotRoomInput" class="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+<button type="button" onclick="autoTranslateField('slotRoomInput')" class="w-9 h-9 rounded-lg bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400 hover:bg-brand-500 hover:text-white flex items-center justify-center"><i class="fa-solid fa-language text-sm"></i></button>
+</div></div>
+<div class="grid grid-cols-2 gap-3">
+<div><label class="form-label" id="lblSlotStart">—</label><input type="time" id="slotStartInput" step="900" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></div>
+<div><label class="form-label" id="lblSlotEnd">—</label><input type="time" id="slotEndInput" step="900" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></div>
+</div>
+<div><label class="form-label" id="lblSlotWeek">—</label>
+<select id="slotWeekInput" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+<option value="AB">—</option>
+<option value="A">—</option>
+<option value="B">—</option>
+</select></div>
+<div class="pt-2 flex gap-2 justify-end border-t border-slate-200 dark:border-slate-700">
+<button type="button" onclick="clearSlot()" id="btnDeleteSlot" class="px-4 py-2 rounded-lg border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 text-xs font-semibold mr-auto">—</button>
+<button type="button" onclick="closeSlotModal()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold" id="lblSlotCancel">—</button>
+<button type="submit" class="px-5 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold" id="lblSlotSave">—</button>
+</div>
+</form>
+</div>
+</div>
+
+<div id="homeworkModal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+<div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-700 custom-scrollbar max-h-[90vh] overflow-y-auto">
+<div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 dark:border-slate-700">
+<h3 id="homeworkModalTitle" class="text-lg font-bold text-slate-900 dark:text-white">—</h3>
+<button onclick="closeHomeworkModal()" class="text-slate-400"><i class="fa-solid fa-xmark text-lg"></i></button>
+</div>
+<form onsubmit="saveHomework(event)" class="space-y-4">
+<div><label class="form-label" id="lblHwSubject">—</label><select id="hwSubjectSelect" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></select></div>
+<div><label class="form-label" id="lblHwTitle">—</label><input type="text" id="hwTitleInput" required class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></div>
+<div><label class="form-label" id="lblHwDetails">—</label><textarea id="hwDetailsInput" rows="2" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></textarea></div>
+<div class="grid grid-cols-2 gap-3">
+<div><label class="form-label" id="lblHwDue">—</label><input type="date" id="hwDueInput" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></div>
+<div><label class="form-label" id="lblHwPriority">—</label>
+<select id="hwPriorityInput" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+<option value="urgent">—</option>
+<option value="medium">—</option>
+<option value="normal" selected>—</option>
+</select></div>
+</div>
+<div class="flex gap-2 justify-end pt-2">
+<button type="button" onclick="closeHomeworkModal()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold" id="lblHwCancel">—</button>
+<button type="submit" class="px-5 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold" id="lblHwSave">—</button>
+</div>
+</form>
+</div>
+</div>
+
+</div>
+
+<!-- ============================================================
+     >>>>>>>>>>>>  الصق الجزء 2 هنا مباشرة  <<<<<<<<<<
+     ============================================================ -->
+     <script>
+/* ============================================================
+   الجزء 2 — الترجمات + القواميس + البيانات + المنطق الأساسي
+   ============================================================ */
+
+/* ============ 1. واجهة الترجمات ============ */
+var UI = {
+ar: {
+    pageTitle: "بوابة المساعد الدراسي",
+    appTitle: "بوابة المساعد الدراسي",
+    appSubtitle: "الثانية علوم 09",
+
+    switchUser: "تغيير المستخدم",
+    selectProfile: "اختر الحساب",
+    whoStudying: "من يراجع اليوم؟",
+    homeDesc: "اختر حسابك، أدخل كلمة السر، أو أنشئ حساباً جديداً.",
+
+    addUser: "إضافة مستخدم",
+    addUserSub: "إنشاء ملف طالب جديد",
+
+    overallProgress: "التقدم",
+    done: "تم",
+    pendingTasks: "واجب",
+    noPendingTasks: "لا واجبات",
+
+    enterPasswordTitle: "كلمة السر",
+    enterPasswordDesc: "أدخل كلمة السر للحساب:",
+    unlock: "دخول",
+    cancel: "إلغاء",
+    wrongPwd: "كلمة السر غير صحيحة.",
+
+    deleteUserTitle: "حذف الحساب",
+    deleteUserAsk: "هل أنت متأكد من حذف",
+    deleteUserTypeLabel: "اكتب اسم الحساب للتأكيد:",
+    deleteUserConfirm: "حذف نهائي",
+    cannotDeleteOnly: "لا يمكن حذف الحساب الوحيد.",
+
+    profileSettings: "إعدادات الملف",
+    uploadPhoto: "تغيير الصورة",
+    username: "اسم المستخدم",
+    password: "كلمة السر",
+    grade: "المستوى الدراسي",
+    term: "الثلاثي",
+    examType: "نوع الامتحان",
+    examMid: "مراقبة",
+    examEnd: "تأليفي",
+    examBoth: "الاثنان معاً",
+    schoolYear: "السنة الدراسية",
+    weekAStart: "بداية الأسبوع A (تاريخ الإثنين)",
+    autoTranslateLabel: "الترجمة التلقائية للمحتوى",
+    autoTranslateOn: "مفعّلة",
+    autoTranslateOff: "معطّلة",
+    saveProfile: "حفظ",
+    deleteProfile: "حذف الحساب",
+
+    notePlaceholder: "ملاحظة...",
+    addSubject: "إضافة مادة",
+
+    countdown: "أقرب امتحان",
+    notSet: "لا يوجد امتحان محدد",
+    addExamDateHint: "أضف تواريخ الامتحانات في المواد",
+    dayToday: "اليوم!",
+    dayTomorrow: "غداً",
+    dayCount: "يوم",
+    daysAgo: "منذ",
+
+    tabChecklist: "قائمة المراجعة",
+    tabTimetable: "جدول الأوقات",
+    tabHomework: "الواجبات المنزلية",
+    tabStats: "الإحصائيات",
+
+    saTitleLabel: "المساعد الذكي",
+    saGreetMorning: "صباح الخير",
+    saGreetNoon: "نهارك سعيد",
+    saGreetEvening: "مساء الخير",
+    saGreetNight: "ليلة هادئة",
+    saGreetHello: "مرحباً",
+    saTodayNoClasses: "لا حصص مسجلة — يوم راحة أو مراجعة.",
+    saNextIn: "الحصة القادمة بعد",
+    saNextAt: "الحصة القادمة",
+    saMinutes: "دقيقة",
+    saAt: "على الساعة",
+    saAllDone: "انتهت جميع حصص اليوم.",
+    saTomorrowNoClasses: "لا حصص — فرصة جيدة للمراجعة.",
+    saTomorrowPrefix: "غداً",
+    saHwNone: "ممتاز! لا توجد واجبات معلقة.",
+    saHwMany: "لديك",
+    saHwTasks: "واجب معلق",
+    saTomorrowHwPrefix: "واجبات غداً في المواد:",
+
+    ttTitle: "جدول الأوقات الأسبوعي",
+    ttHint: "انقر على أي خلية لتعديل الحصة. التغييرات تُحفظ تلقائياً.",
+    ttReset: "استعادة الجدول الرسمي",
+    ttConfirmReset: "استعادة الجدول الافتراضي؟ سيتم فقدان تعديلاتك.",
+    legendA: "أسبوع A",
+    legendB: "أسبوع B",
+    legendAB: "الاثنان",
+
+    slotEditTitle: "تعديل الحصة",
+    slotSubjectLabel: "المادة",
+    slotRoomLabel: "القاعة",
+    slotStartLabel: "من الساعة",
+    slotEndLabel: "إلى الساعة",
+    slotWeekLabel: "الأسبوع",
+    slotDeleteBtn: "حذف الحصة",
+    slotConfirmDelete: "حذف هذه الحصة من الجدول؟",
+    slotContextEdit: "تعديل حصة قائمة",
+    slotContextAdd: "إضافة حصة جديدة",
+    weekAB: "الاثنان (كل أسبوع)",
+    weekAOnly: "أسبوع A فقط",
+    weekBOnly: "أسبوع B فقط",
+    weekManualA: "أسبوع A",
+    weekManualB: "أسبوع B",
+    weekAuto: "تلقائي",
+
+    hwTitle: "مركز الواجبات المنزلية",
+    hwSubtitle: "أضف، تابع وأنجز واجباتك المدرسية.",
+    hwNew: "واجب جديد",
+    hwEdit: "تعديل الواجب",
+    hwAll: "الكل",
+    hwPending: "غير مكتمل",
+    hwCompleted: "مكتمل",
+    hwSubjectLabel: "المادة",
+    hwTitleLabel: "عنوان الواجب",
+    hwDetailsLabel: "التفاصيل (اختياري)",
+    hwDueLabel: "موعد التسليم",
+    hwPriorityLabel: "الأولوية",
+    prioUrgent: "عاجل ومهم",
+    prioMedium: "متوسط",
+    prioNormal: "عادي",
+    hwEmpty: "لا توجد واجبات في هذا التصنيف.",
+    hwDue: "بدون موعد",
+    hwDueToday: "اليوم",
+    hwDueTomorrow: "غداً",
+    hwDueLate: "متأخر",
+    hwDueAfter: "بعد",
+    hwDueDays: "يوم",
+    hwConfirmDelete: "حذف هذا الواجب؟",
+
+    statTotal: "إجمالي الأوراق",
+    statTotalSub: "على كل المواد",
+    statDone: "منجزة",
+    statDoneSub: "أوراق مكتملة",
+    statActiveHw: "واجبات نشطة",
+    statActiveHwSub: "لم تكتمل بعد",
+    statBySubject: "تقدم كل مادة",
+
+    filterAll: "الكل",
+    filterPending: "غير مكتمل",
+    filterCompleted: "مكتمل",
+    searchPh: "ابحث بالسنة أو الرمز...",
+
+    subjAddTitle: "إضافة مادة",
+    subjEditTitle: "تعديل المادة",
+    subjNameAr: "الاسم بالعربية",
+    subjNameFr: "Nom en Français",
+    subjNameEn: "English Name",
+    subjDateLabel: "تاريخ امتحان المادة (اختياري)",
+    subjDateHint: "سيُستخدم لحساب العدّاد تلقائياً.",
+    subjItemsLabel: "الأوراق الأولية (سطر لكل ورقة، اختياري)",
+    subjItemsKeepPh: "(اتركه فارغاً للإبقاء على الأوراق الحالية)",
+    subjSaveBtn: "حفظ المادة",
+    subjConfirmDelete: "حذف المادة",
+    subjConfirmDeleteEnd: "وكل أوراقها؟",
+    autoTranslateTooltip: "ترجمة تلقائية",
+
+    itemAddTitle: "إضافة ورقة",
+    itemCodeLabel: "السنة / الرمز",
+    itemNoteLabel: "ملاحظة (اختياري)",
+    itemAddBtn: "حفظ",
+    itemDeletePaper: "حذف الورقة",
+    itemConfirmDelete: "حذف الورقة؟",
+    addPaper: "إضافة ورقة",
+
+    /* أسماء الأقسام (خاصة بالرياضيات) */
+    sectionControl1: "المراقبة 1",
+    sectionControl2: "المراقبة 2",
+    sectionBadge1: "1",
+    sectionBadge2: "2",
+
+    linkTitle: "رابط مرجعي",
+    linkAttachTo: "أرفق رابطاً بالورقة",
+    linkUrlLabel: "الرابط",
+    linkOpen: "فتح الرابط",
+    linkAttach: "إرفاق رابط مرجعي",
+    removeBtn: "حذف",
+    saveBtn: "حفظ",
+
+    pomoFocus: "تركيز",
+    pomoBreak: "استراحة",
+    pomoAlertEndFocus: "انتهت جلسة التركيز! خذ استراحة 5 دقائق.",
+    pomoAlertEndBreak: "انتهت الاستراحة! عودة إلى التركيز.",
+
+    exportTooltip: "تصدير نسخة JSON",
+    importTooltip: "استيراد نسخة JSON",
+    importSuccess: "تم استيراد البيانات بنجاح!",
+    importInvalid: "ملف غير صالح.",
+    importError: "خطأ في قراءة الملف.",
+
+    examDateModalTitle: "تاريخ الامتحان",
+    dayNames: {monday:"الإثنين", tuesday:"الثلاثاء", wednesday:"الأربعاء", thursday:"الخميس", friday:"الجمعة", saturday:"السبت", sunday:"الأحد"},
+    newUserPromptName: "اسم المستخدم الجديد:",
+    newUserPromptPwd: "كلمة السر:"
+},
+fr: {
+    pageTitle: "Portail Assistant d'Étude",
+    appTitle: "Portail Assistant",
+    appSubtitle: "2ème Sciences 09",
+
+    switchUser: "Changer d'utilisateur",
+    selectProfile: "Profil",
+    whoStudying: "Qui révise aujourd'hui ?",
+    homeDesc: "Choisissez votre profil, entrez le mot de passe ou créez un nouveau compte.",
+
+    addUser: "Ajouter un utilisateur",
+    addUserSub: "Créer un nouveau profil",
+
+    overallProgress: "Progression",
+    done: "terminé",
+    pendingTasks: "devoir(s)",
+    noPendingTasks: "Aucun devoir",
+
+    enterPasswordTitle: "Mot de Passe",
+    enterPasswordDesc: "Entrez le mot de passe pour :",
+    unlock: "Ouvrir",
+    cancel: "Annuler",
+    wrongPwd: "Mot de passe incorrect.",
+
+    deleteUserTitle: "Supprimer le compte",
+    deleteUserAsk: "Voulez-vous vraiment supprimer",
+    deleteUserTypeLabel: "Tapez le nom du compte pour confirmer :",
+    deleteUserConfirm: "Supprimer",
+    cannotDeleteOnly: "Impossible de supprimer le seul profil.",
+
+    profileSettings: "Paramètres",
+    uploadPhoto: "Changer la photo",
+    username: "Nom",
+    password: "Mot de passe",
+    grade: "Classe",
+    term: "Trimestre",
+    examType: "Type d'examen",
+    examMid: "Contrôle",
+    examEnd: "Synthèse",
+    examBoth: "Les deux",
+    schoolYear: "Année Scolaire",
+    weekAStart: "Début Semaine A (lundi)",
+    autoTranslateLabel: "Traduction automatique du contenu",
+    autoTranslateOn: "Activée",
+    autoTranslateOff: "Désactivée",
+    saveProfile: "Enregistrer",
+    deleteProfile: "Supprimer le compte",
+
+    notePlaceholder: "Note...",
+    addSubject: "Ajouter une matière",
+
+    countdown: "Examen le plus proche",
+    notSet: "Aucun examen défini",
+    addExamDateHint: "Ajoutez les dates d'examen dans les matières",
+    dayToday: "Aujourd'hui !",
+    dayTomorrow: "Demain",
+    dayCount: "jours",
+    daysAgo: "il y a",
+
+    tabChecklist: "Liste",
+    tabTimetable: "Emploi du temps",
+    tabHomework: "Devoirs",
+    tabStats: "Statistiques",
+
+    saTitleLabel: "Assistant Intelligent",
+    saGreetMorning: "Bonjour",
+    saGreetNoon: "Bon après-midi",
+    saGreetEvening: "Bonsoir",
+    saGreetNight: "Bonne nuit",
+    saGreetHello: "Salut",
+    saTodayNoClasses: "Aucun cours prévu — journée de repos ou révision.",
+    saNextIn: "Prochain cours dans",
+    saNextAt: "Prochain cours",
+    saMinutes: "min",
+    saAt: "à",
+    saAllDone: "Tous les cours du jour sont terminés.",
+    saTomorrowNoClasses: "Aucun cours — bonne occasion de réviser.",
+    saTomorrowPrefix: "Demain",
+    saHwNone: "Excellent ! Aucun devoir en attente.",
+    saHwMany: "Vous avez",
+    saHwTasks: "devoir(s) en attente",
+    saTomorrowHwPrefix: "Devoirs demain :",
+
+    ttTitle: "Emploi du Temps Hebdomadaire",
+    ttHint: "Cliquez sur une case pour la modifier. Les changements sont enregistrés automatiquement.",
+    ttReset: "Restaurer l'emploi officiel",
+    ttConfirmReset: "Restaurer l'emploi du temps par défaut ? Vos modifications seront perdues.",
+    legendA: "Semaine A",
+    legendB: "Semaine B",
+    legendAB: "Les deux",
+
+    slotEditTitle: "Modifier la séance",
+    slotSubjectLabel: "Matière",
+    slotRoomLabel: "Salle",
+    slotStartLabel: "De",
+    slotEndLabel: "À",
+    slotWeekLabel: "Semaine",
+    slotDeleteBtn: "Supprimer la séance",
+    slotConfirmDelete: "Retirer cette séance de l'emploi du temps ?",
+    slotContextEdit: "Modification d'une séance",
+    slotContextAdd: "Ajout d'une nouvelle séance",
+    weekAB: "Les deux (chaque semaine)",
+    weekAOnly: "Semaine A uniquement",
+    weekBOnly: "Semaine B uniquement",
+    weekManualA: "Semaine A",
+    weekManualB: "Semaine B",
+    weekAuto: "Auto",
+
+    hwTitle: "Centre des Devoirs",
+    hwSubtitle: "Ajoutez, suivez et complétez vos devoirs.",
+    hwNew: "Nouveau Devoir",
+    hwEdit: "Modifier le devoir",
+    hwAll: "Tous",
+    hwPending: "En attente",
+    hwCompleted: "Terminés",
+    hwSubjectLabel: "Matière",
+    hwTitleLabel: "Titre du devoir",
+    hwDetailsLabel: "Détails (optionnel)",
+    hwDueLabel: "Date limite",
+    hwPriorityLabel: "Priorité",
+    prioUrgent: "Urgent et important",
+    prioMedium: "Moyen",
+    prioNormal: "Normal",
+    hwEmpty: "Aucun devoir dans ce filtre.",
+    hwDue: "Sans date",
+    hwDueToday: "Aujourd'hui",
+    hwDueTomorrow: "Demain",
+    hwDueLate: "En retard",
+    hwDueAfter: "Dans",
+    hwDueDays: "jour(s)",
+    hwConfirmDelete: "Supprimer ce devoir ?",
+
+    statTotal: "Total des copies",
+    statTotalSub: "sur toutes les matières",
+    statDone: "Terminées",
+    statDoneSub: "copies terminées",
+    statActiveHw: "Devoirs actifs",
+    statActiveHwSub: "pas encore terminés",
+    statBySubject: "Progression par matière",
+
+    filterAll: "Tous",
+    filterPending: "En attente",
+    filterCompleted: "Terminé",
+    searchPh: "Rechercher par année ou code...",
+
+    subjAddTitle: "Ajouter une matière",
+    subjEditTitle: "Modifier la matière",
+    subjNameAr: "Nom en Arabe",
+    subjNameFr: "Nom en Français",
+    subjNameEn: "English Name",
+    subjDateLabel: "Date d'examen (optionnel)",
+    subjDateHint: "Utilisée pour le compte à rebours.",
+    subjItemsLabel: "Copies initiales (une par ligne, optionnel)",
+    subjItemsKeepPh: "(Laissez vide pour conserver)",
+    subjSaveBtn: "Enregistrer",
+    subjConfirmDelete: "Supprimer la matière",
+    subjConfirmDeleteEnd: "et toutes ses copies ?",
+    autoTranslateTooltip: "Traduction automatique",
+
+    itemAddTitle: "Ajouter une copie",
+    itemCodeLabel: "Année / Code",
+    itemNoteLabel: "Note (optionnel)",
+    itemAddBtn: "Enregistrer",
+    itemDeletePaper: "Supprimer la copie",
+    itemConfirmDelete: "Supprimer la copie ?",
+    addPaper: "Ajouter une copie",
+
+    sectionControl1: "Contrôle 1",
+    sectionControl2: "Contrôle 2",
+    sectionBadge1: "1",
+    sectionBadge2: "2",
+
+    linkTitle: "Lien ressource",
+    linkAttachTo: "Attacher un lien à la copie",
+    linkUrlLabel: "URL",
+    linkOpen: "Ouvrir le lien",
+    linkAttach: "Attacher un lien",
+    removeBtn: "Supprimer",
+    saveBtn: "Enregistrer",
+
+    pomoFocus: "FOCUS",
+    pomoBreak: "PAUSE",
+    pomoAlertEndFocus: "Session de focus terminée ! Prenez 5 minutes.",
+    pomoAlertEndBreak: "Pause terminée ! Retour au focus.",
+
+    exportTooltip: "Exporter la sauvegarde",
+    importTooltip: "Importer la sauvegarde",
+    importSuccess: "Données importées !",
+    importInvalid: "Fichier invalide.",
+    importError: "Erreur de lecture.",
+
+    examDateModalTitle: "Date d'examen",
+    dayNames: {monday:"Lundi", tuesday:"Mardi", wednesday:"Mercredi", thursday:"Jeudi", friday:"Vendredi", saturday:"Samedi", sunday:"Dimanche"},
+    newUserPromptName: "Nom du nouvel utilisateur :",
+    newUserPromptPwd: "Mot de passe :"
+},
+en: {
+    pageTitle: "Study Assistant Portal",
+    appTitle: "Study Assistant Portal",
+    appSubtitle: "2nd Year Science 09",
+
+    switchUser: "Switch User",
+    selectProfile: "Select Profile",
+    whoStudying: "Who is studying today?",
+    homeDesc: "Choose your profile, enter your password, or create a new one.",
+
+    addUser: "Add New User",
+    addUserSub: "Create new student profile",
+
+    overallProgress: "Overall Progress",
+    done: "done",
+    pendingTasks: "pending task(s)",
+    noPendingTasks: "No tasks",
+
+    enterPasswordTitle: "Security Password",
+    enterPasswordDesc: "Enter password to access:",
+    unlock: "Unlock",
+    cancel: "Cancel",
+    wrongPwd: "Incorrect password.",
+
+    deleteUserTitle: "Delete Account",
+    deleteUserAsk: "Are you sure you want to delete",
+    deleteUserTypeLabel: "Type the account name to confirm:",
+    deleteUserConfirm: "Delete Permanently",
+    cannotDeleteOnly: "Cannot delete the only profile.",
+
+    profileSettings: "Profile Settings",
+    uploadPhoto: "Upload Photo",
+    username: "Username",
+    password: "Password",
+    grade: "Grade / Class",
+    term: "Term",
+    examType: "Exam Type",
+    examMid: "Mid-Term",
+    examEnd: "End-Term",
+    examBoth: "Both",
+    schoolYear: "School Year",
+    weekAStart: "Week A start date (Monday)",
+    autoTranslateLabel: "Auto-translate typed content",
+    autoTranslateOn: "Enabled",
+    autoTranslateOff: "Disabled",
+    saveProfile: "Save",
+    deleteProfile: "Delete Profile",
+
+    notePlaceholder: "Add a note...",
+    addSubject: "Add Subject",
+
+    countdown: "Nearest Exam",
+    notSet: "No exam set",
+    addExamDateHint: "Add exam dates in subjects",
+    dayToday: "Today!",
+    dayTomorrow: "Tomorrow",
+    dayCount: "days",
+    daysAgo: "ago",
+
+    tabChecklist: "Checklist",
+    tabTimetable: "Timetable",
+    tabHomework: "Homework",
+    tabStats: "Statistics",
+
+    saTitleLabel: "Smart Assistant",
+    saGreetMorning: "Good morning",
+    saGreetNoon: "Good afternoon",
+    saGreetEvening: "Good evening",
+    saGreetNight: "Good night",
+    saGreetHello: "Hello",
+    saTodayNoClasses: "No classes scheduled — rest or revision day.",
+    saNextIn: "Next class in",
+    saNextAt: "Next class",
+    saMinutes: "min",
+    saAt: "at",
+    saAllDone: "All classes for today are finished.",
+    saTomorrowNoClasses: "No classes — good chance to revise.",
+    saTomorrowPrefix: "Tomorrow",
+    saHwNone: "Excellent! No pending homework.",
+    saHwMany: "You have",
+    saHwTasks: "pending task(s)",
+    saTomorrowHwPrefix: "Homework tomorrow in:",
+
+    ttTitle: "Weekly Timetable",
+    ttHint: "Click any cell to edit. Changes save automatically.",
+    ttReset: "Reset to official",
+    ttConfirmReset: "Restore default timetable? Your edits will be lost.",
+    legendA: "Week A",
+    legendB: "Week B",
+    legendAB: "Both",
+
+    slotEditTitle: "Edit Slot",
+    slotSubjectLabel: "Subject",
+    slotRoomLabel: "Room",
+    slotStartLabel: "From",
+    slotEndLabel: "To",
+    slotWeekLabel: "Week",
+    slotDeleteBtn: "Delete Slot",
+    slotConfirmDelete: "Remove this slot?",
+    slotContextEdit: "Editing existing slot",
+    slotContextAdd: "Adding new slot",
+    weekAB: "Both (every week)",
+    weekAOnly: "Week A only",
+    weekBOnly: "Week B only",
+    weekManualA: "Week A",
+    weekManualB: "Week B",
+    weekAuto: "Auto",
+
+    hwTitle: "Homework Center",
+    hwSubtitle: "Add, track, and complete your homework.",
+    hwNew: "New Task",
+    hwEdit: "Edit Task",
+    hwAll: "All",
+    hwPending: "Pending",
+    hwCompleted: "Completed",
+    hwSubjectLabel: "Subject",
+    hwTitleLabel: "Task Title",
+    hwDetailsLabel: "Details (optional)",
+    hwDueLabel: "Due Date",
+    hwPriorityLabel: "Priority",
+    prioUrgent: "Urgent & Important",
+    prioMedium: "Medium",
+    prioNormal: "Normal",
+    hwEmpty: "No tasks in this filter.",
+    hwDue: "No due date",
+    hwDueToday: "Today",
+    hwDueTomorrow: "Tomorrow",
+    hwDueLate: "Late",
+    hwDueAfter: "In",
+    hwDueDays: "day(s)",
+    hwConfirmDelete: "Delete this task?",
+
+    statTotal: "Total Papers",
+    statTotalSub: "across all subjects",
+    statDone: "Completed",
+    statDoneSub: "papers completed",
+    statActiveHw: "Active Tasks",
+    statActiveHwSub: "not completed yet",
+    statBySubject: "Progress by Subject",
+
+    filterAll: "All",
+    filterPending: "Pending",
+    filterCompleted: "Completed",
+    searchPh: "Search by year or code...",
+
+    subjAddTitle: "Add Subject",
+    subjEditTitle: "Edit Subject",
+    subjNameAr: "Arabic Name",
+    subjNameFr: "Nom en Français",
+    subjNameEn: "English Name",
+    subjDateLabel: "Subject Exam Date (optional)",
+    subjDateHint: "Used for the countdown.",
+    subjItemsLabel: "Initial Papers (one per line, optional)",
+    subjItemsKeepPh: "(Leave blank to keep current)",
+    subjSaveBtn: "Save Subject",
+    subjConfirmDelete: "Delete subject",
+    subjConfirmDeleteEnd: "and all its papers?",
+    autoTranslateTooltip: "Auto translate",
+
+    itemAddTitle: "Add Paper",
+    itemCodeLabel: "Year / Code",
+    itemNoteLabel: "Note (optional)",
+    itemAddBtn: "Save",
+    itemDeletePaper: "Delete paper",
+    itemConfirmDelete: "Delete paper?",
+    addPaper: "Add Paper",
+
+    sectionControl1: "Control 1",
+    sectionControl2: "Control 2",
+    sectionBadge1: "1",
+    sectionBadge2: "2",
+
+    linkTitle: "Resource Link",
+    linkAttachTo: "Attach a URL to paper",
+    linkUrlLabel: "URL",
+    linkOpen: "Open resource",
+    linkAttach: "Attach link",
+    removeBtn: "Remove",
+    saveBtn: "Save",
+
+    pomoFocus: "FOCUS",
+    pomoBreak: "BREAK",
+    pomoAlertEndFocus: "Focus session complete! Take a 5-min break.",
+    pomoAlertEndBreak: "Break finished! Back to focus.",
+
+    exportTooltip: "Export JSON backup",
+    importTooltip: "Import JSON backup",
+    importSuccess: "Data imported successfully!",
+    importInvalid: "Invalid backup file.",
+    importError: "Error reading file.",
+
+    examDateModalTitle: "Exam Date",
+    dayNames: {monday:"Monday", tuesday:"Tuesday", wednesday:"Wednesday", thursday:"Thursday", friday:"Friday", saturday:"Saturday", sunday:"Sunday"},
+    newUserPromptName: "New username:",
+    newUserPromptPwd: "Password:"
+}
+};
+
+/* ============ 2. دالة الترجمة ============ */
+function t(key) {
+    var dict = UI[appState.lang] || UI.ar;
+    return dict[key] || UI.ar[key] || key;
+}
+
+/* ============ 3. القاموس الداخلي ============ */
+var DICTIONARY = [
+    /* ترجمة عربية حقيقية للمواد */
+    ["رياضيات", "Mathématiques", "Mathematics"],
+    ["العلوم الفيزيائية", "Physique", "Physics"],
+    ["علوم الحياة والأرض", "SVT", "Science of Life & Earth"],
+    ["الفرنسية", "Français", "French"],
+    ["التاريخ", "Histoire", "History"],
+    ["العربية", "Arabe", "Arabic"],
+    ["الجغرافيا", "Géographie", "Geography"],
+    ["التربية المدنية", "Éducation civique", "Civic Education"],
+    ["التكنولوجيا", "Technologie", "Technology"],
+    ["الإنجليزية", "Anglais", "English"],
+    ["التربية الإسلامية", "Éducation islamique", "Islamic Studies"],
+    ["التربية البدنية", "EPS", "Physical Education"],
+    ["الإعلامية", "Informatique", "Computer Science"],
+    /* توافق مع الأسماء الإنجليزية القديمة */
+    ["PHYSICS", "Physique", "Physics"],
+    ["SCIENCE OF LIFE AND EARTH", "SVT", "Science of Life & Earth"],
+    ["FRENCH", "Français", "French"],
+    ["HISTORY", "Histoire", "History"],
+    ["ARABIC", "Arabe", "Arabic"],
+    ["GEOGRAPHY", "Géographie", "Geography"],
+    ["CIVIC EDUCATION", "Éducation civique", "Civic Education"],
+    ["TECHNOLOGY", "Technologie", "Technology"],
+    ["ENGLISH", "Anglais", "English"],
+    ["ISLAMIC EDUCATION", "Éducation islamique", "Islamic Studies"],
+    ["ع الحيات و الأرض", "SVT", "Life & Earth Sciences"],
+    ["ع فيزيائية", "Physique", "Physics"],
+    ["فرنسية", "Français", "French"],
+    ["عربية", "Arabe", "Arabic"],
+    ["الإنجليزية", "Anglais", "English"],
+    ["ت مدنية", "Éducation civique", "Civic Education"],
+    ["ت تكنولوجية", "Technologie", "Technology"],
+    ["ت اسلامية", "Éducation islamique", "Islamic Studies"],
+    ["ت بدنية", "EPS", "Physical Education"],
+    ["إعلامية", "Informatique", "Computer Science"],
+    ["التا و الجغ", "Histoire-Géo", "History & Geography"],
+    /* القاعات */
+    ["ق28", "S28", "R28"],
+    ["ق18", "S18", "R18"],
+    ["ق12", "S12", "R12"],
+    ["ق14", "S14", "R14"],
+    ["ق11", "S11", "R11"],
+    ["ق09", "S09", "R09"],
+    ["ق10", "S10", "R10"],
+    ["ق20", "S20", "R20"],
+    ["ق21", "S21", "R21"],
+    ["ق23", "S23", "R23"],
+    ["تب3", "Lab3", "Lab3"],
+    ["إع5", "Info5", "Info5"],
+    ["إع1", "Info1", "Info1"],
+    ["ع1", "At1", "At1"],
+    ["ع2", "At2", "At2"],
+    ["ملعب1", "Terrain1", "Field1"],
+    ["تق1", "Tech1", "Tech1"]
+];
+
+/* ============ 4. المواد الافتراضية ============ */
+var DEFAULT_SUBJECTS = [
+    { ar: "رياضيات", fr: "Mathématiques", en: "Mathematics", multiSection: true },
+    { ar: "العلوم الفيزيائية", fr: "Physique", en: "Physics" },
+    { ar: "علوم الحياة والأرض", fr: "SVT", en: "Science of Life & Earth" },
+    { ar: "الفرنسية", fr: "Français", en: "French" },
+    { ar: "التاريخ", fr: "Histoire", en: "History" },
+    { ar: "العربية", fr: "Arabe", en: "Arabic" },
+    { ar: "الجغرافيا", fr: "Géographie", en: "Geography" },
+    { ar: "التربية المدنية", fr: "Éducation civique", en: "Civic Education" },
+    { ar: "التكنولوجيا", fr: "Technologie", en: "Technology" },
+    { ar: "الإنجليزية", fr: "Anglais", en: "English" },
+    { ar: "التربية الإسلامية", fr: "Éducation islamique", en: "Islamic Studies" }
+];
+
+/* أوراق كل مادة (بدون رياضيات) */
+var DEFAULT_PAPERS = {
+    "العلوم الفيزيائية": ["2011C","2010C","2012C","2013C","2014C","2015C","2017C","2020C","2021C","2023C","2025C","2024E"],
+    "علوم الحياة والأرض": ["2020C","2020","2017C","2017","2024E"],
+    "الفرنسية": ["2015","2016","2024E"],
+    "التاريخ": ["2018","2024E"],
+    "العربية": ["2018GF","2024E"],
+    "الجغرافيا": ["2018","2024E"],
+    "التربية المدنية": ["2018","2024E"],
+    "التكنولوجيا": ["2021","2024EC"],
+    "الإنجليزية": ["?","2024EC"],
+    "التربية الإسلامية": ["2018"]
+};
+
+/* أوراق رياضيات - قسمان */
+var DEFAULT_MATH_SECTIONS = [
+    {
+        key: "1",
+        labelKey: "sectionControl1",
+        badgeKey: "sectionBadge1",
+        papers: ["2025","2025","2023","2022","2021C","2019C","2009C","2015C","2012C","2018P2","2019P2","2021P2","2024E"]
+    },
+    {
+        key: "2",
+        labelKey: "sectionControl2",
+        badgeKey: "sectionBadge2",
+        papers: ["2015C","2014C","2013C","2012C","2017C","2021C","2025","2023","2021P2","2019P2","2024E"]
+    }
+];
+
+var DAY_KEYS = ["monday","tuesday","wednesday","thursday","friday","saturday"];
+var TIME_COLUMNS = ["08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00"];
+
+var DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23ea580c'/><circle cx='50' cy='38' r='20' fill='%23ffffff'/><path d='M20 85 C20 65, 35 55, 50 55 C65 55, 80 65, 80 85 Z' fill='%23ffffff'/></svg>";
+
+var STORAGE_KEY = "study_portal_v4";
+
+/* ============ 5. بناء الافتراضي ============ */
+function buildDefaultSubjects() {
+    var out = [];
+    for (var i = 0; i < DEFAULT_SUBJECTS.length; i++) {
+        var def = DEFAULT_SUBJECTS[i];
+        var subj = {
+            id: "subj_default_" + i,
+            name: {ar: def.ar, fr: def.fr, en: def.en},
+            examDate: ""
+        };
+        if (def.multiSection) {
+            /* رياضيات - أقسام */
+            subj.sections = [];
+            for (var k = 0; k < DEFAULT_MATH_SECTIONS.length; k++) {
+                var sec = DEFAULT_MATH_SECTIONS[k];
+                var items = [];
+                for (var p = 0; p < sec.papers.length; p++) {
+                    items.push({code: sec.papers[p], checked: false, note: "", link: ""});
+                }
+                subj.sections.push({
+                    key: sec.key,
+                    labelKey: sec.labelKey,
+                    badgeKey: sec.badgeKey,
+                    items: items
+                });
+            }
+        } else {
+            /* مادة عادية - items مسطحة */
+            var papers = DEFAULT_PAPERS[def.ar] || [];
+            subj.items = [];
+            for (var j = 0; j < papers.length; j++) {
+                subj.items.push({code: papers[j], checked: false, note: "", link: ""});
+            }
+        }
+        out.push(subj);
+    }
+    return out;
+}
+
+function buildDefaultTimetable() {
+    /* الترتيب: 0=رياضيات 1=فيزياء 2=SVT 3=فرنسية 4=تاريخ 5=عربية 6=جغرافيا 7=مدنية 8=تكنولوجيا 9=إنجليزية 10=إسلامية */
+    function S(i) { return "subj_default_" + i; }
+    return {
+        monday: [
+            {subjectId: S(0), room:"ق28", start:"08:00", end:"10:00", week:"AB"},
+            {subjectId: S(2), room:"تب3", start:"10:00", end:"11:00", week:"AB"},
+            {subjectId: S(3), room:"إع5", start:"11:00", end:"12:00", week:"AB"},
+            {subjectId: S(4), room:"ق09", start:"13:00", end:"14:00", week:"AB"},
+            {subjectId: S(5), room:"ق11", start:"14:00", end:"15:00", week:"AB"}
+        ],
+        tuesday: [
+            {subjectId: S(9), room:"ق12", start:"09:00", end:"10:00", week:"AB"},
+            {subjectId: S(0), room:"ق28", start:"10:00", end:"12:00", week:"AB"},
+            {subjectId: S(1), room:"ق14", start:"13:00", end:"14:00", week:"AB"},
+            {subjectId: S(3), room:"إع5", start:"14:00", end:"16:00", week:"AB"}
+        ],
+        wednesday: [
+            {subjectId: S(1), room:"ق18", start:"08:00", end:"10:00", week:"AB"},
+            {subjectId: S(3), room:"إع5", start:"10:00", end:"12:00", week:"AB"},
+            {subjectId: S(0), room:"ق18", start:"14:00", end:"16:00", week:"AB"}
+        ],
+        thursday: [
+            {subjectId: S(2), room:"ق18", start:"08:00", end:"09:00", week:"AB"},
+            {subjectId: S(1), room:"ع1", start:"08:00", end:"09:00", week:"AB"},
+            {subjectId: S(8), room:"إع1", start:"09:00", end:"11:00", week:"AB"},
+            {subjectId: S(2), room:"تب3", start:"11:00", end:"12:00", week:"AB"},
+            {subjectId: S(5), room:"ق14", start:"13:00", end:"14:00", week:"AB"},
+            {subjectId: S(9), room:"ق20", start:"15:00", end:"16:00", week:"AB"},
+            {subjectId: S(10), room:"ق18", start:"16:00", end:"17:00", week:"AB"}
+        ],
+        friday: [
+            {subjectId: S(8), room:"تق1", start:"08:00", end:"13:00", week:"AB"},
+            {subjectId: S(1), room:"ع1", start:"08:00", end:"13:00", week:"AB"},
+            {subjectId: S(2), room:"ع2", start:"08:00", end:"13:00", week:"AB"}
+        ],
+        saturday: [
+            {subjectId: S(7), room:"ق18", start:"08:00", end:"09:00", week:"AB"},
+            {subjectId: S(10), room:"ق10", start:"08:00", end:"09:00", week:"AB"},
+            {subjectId: S(9), room:"ق21", start:"09:00", end:"10:00", week:"AB"},
+            {subjectId: S(5), room:"ق23", start:"10:00", end:"11:00", week:"AB"},
+            {subjectId: S(4), room:"ق11", start:"11:00", end:"12:00", week:"AB"}
+        ]
+    };
+}
+
+/* ============ 6. الحالة العامة ============ */
+var appState = {
+    lang: "ar",
+    darkMode: false,
+    activeUserId: null,
+    targetUserId: null,
+    deleteTargetUserId: null,
+    weekAStart: "2026-09-29",
+    manualWeek: null,
+    autoTranslate: true,
+    profiles: []
+};
+
+var editingSubjectId = null;
+var addingItemSubjectId = null;
+var addingItemSectionKey = null;
+var linkItemSubjectId = null;
+var linkItemSectionKey = null;
+var linkItemIndex = null;
+var editingSlot = { day: null, index: null };
+var editingHomeworkId = null;
+var currentTab = "checklist";
+var hwFilter = "all";
+
+var pomodoroInterval = null;
+var pomodoroSeconds = 25 * 60;
+var pomodoroRunning = false;
+var pomodoroMode = "focus";
+var countdownTicker = null;
+var assistantClockTicker = null;
+
+/* ============ 7. أدوات ============ */
+function escapeHtml(s) {
+    if (typeof s !== "string") return s == null ? "" : String(s);
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+function timeToMins(tm) {
+    var parts = tm.split(":");
+    return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+}
+function localeTag() {
+    if (appState.lang === "ar") return "ar-TN";
+    if (appState.lang === "fr") return "fr-FR";
+    return "en-GB";
+}
+function mapDayToKey(jsDay) {
+    var m = {0:"sunday",1:"monday",2:"tuesday",3:"wednesday",4:"thursday",5:"friday",6:"saturday"};
+    return m[jsDay] || "monday";
+}
+function dayLabel(k) {
+    var d = UI[appState.lang].dayNames || UI.ar.dayNames;
+    return d[k] || k;
+}
+function lookupDict(text, target) {
+    if (!text) return null;
+    var c = String(text).trim().toLowerCase();
+    var idx = target === "ar" ? 0 : target === "fr" ? 1 : 2;
+    for (var i = 0; i < DICTIONARY.length; i++) {
+        var row = DICTIONARY[i];
+        for (var j = 0; j < row.length; j++) {
+            if (row[j].toLowerCase() === c) return row[idx];
+        }
+    }
+    return null;
+}
+function subjectName(subj, lang) {
+    if (!subj || !subj.name) return "—";
+    var l = lang || appState.lang;
+    return subj.name[l] || subj.name.ar || subj.name.en || "—";
+}
+function displayName(subj) {
+    var base = subjectName(subj);
+    if (!base || base === "—") return "—";
+    var tr = lookupDict(base, appState.lang);
+    return tr || base;
+}
+function displayRoom(room) {
+    if (!room) return "";
+    var tr = lookupDict(room, appState.lang);
+    return tr || room;
+}
+
+/* ============ 8. الحفظ والتحميل ============ */
+function saveState() {
+    /* الحفظ المحلي (للتوافق) */
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(appState)); } catch (e) {}
+    /* الحفظ على السيرفر (المزامنة) */
+    if (typeof saveStateToServer === 'function') {
+        saveStateToServer();
+    }
+}
+function loadState() {
+    try {
+        var s = localStorage.getItem(STORAGE_KEY);
+        if (s) {
+            var p = JSON.parse(s);
+            if (p && Array.isArray(p.profiles) && p.profiles.length > 0) {
+                appState = Object.assign({}, appState, p);
+                for (var i = 0; i < appState.profiles.length; i++) {
+                    var pr = appState.profiles[i];
+                    if (!Array.isArray(pr.subjects) || pr.subjects.length === 0) pr.subjects = buildDefaultSubjects();
+                    if (!pr.timetable || typeof pr.timetable !== "object") pr.timetable = buildDefaultTimetable();
+                    if (!Array.isArray(pr.homework)) pr.homework = [];
+                }
+                return;
+            }
+        }
+    } catch (e) {}
+    appState.profiles = [makeDefaultProfile("Ayoub", "1234")];
+    saveState();
+}
+function makeDefaultProfile(name, password) {
+    return {
+        id: "usr_" + Date.now() + "_" + Math.floor(Math.random() * 1000),
+        name: name || "Ayoub",
+        password: password || "1234",
+        avatar: DEFAULT_AVATAR,
+        grade: "القسم الثانية علوم 09",
+        term: "الثلاثي الأول",
+        examType: "الاثنان معاً",
+        schoolYear: "2026 - 2027",
+        subjects: buildDefaultSubjects(),
+        timetable: buildDefaultTimetable(),
+        homework: []
+    };
+}
+function getActiveProfile() {
+    for (var i = 0; i < appState.profiles.length; i++) {
+        if (appState.profiles[i].id === appState.activeUserId) return appState.profiles[i];
+    }
+    return null;
+}
+function findSubjectById(id) {
+    var p = getActiveProfile();
+    if (!p) return null;
+    for (var i = 0; i < p.subjects.length; i++) {
+        if (p.subjects[i].id === id) return p.subjects[i];
+    }
+    return null;
+}
+
+/* ============ 9. الأسبوع A / B ============ */
+function currentWeekLetter() {
+    if (appState.manualWeek === "A" || appState.manualWeek === "B") return appState.manualWeek;
+    if (!appState.weekAStart) return "A";
+    var start = new Date(appState.weekAStart); start.setHours(0, 0, 0, 0);
+    var now = new Date(); now.setHours(0, 0, 0, 0);
+    var days = Math.floor((now - start) / 86400000);
+    return (Math.floor(days / 7) % 2 === 0) ? "A" : "B";
+}
+
+/* ============ 10. الوضع الليلي ============ */
+function toggleDarkMode() {
+    appState.darkMode = !appState.darkMode;
+    applyTheme();
+    saveState();
+}
+function applyTheme() {
+    var icon = document.getElementById("themeIcon");
+    if (appState.darkMode) {
+        document.documentElement.classList.add("dark");
+        if (icon) icon.className = "fa-solid fa-sun text-amber-400 text-sm";
+    } else {
+        document.documentElement.classList.remove("dark");
+        if (icon) icon.className = "fa-solid fa-moon text-sm";
+    }
+}
+
+/* ============ 11. تغيير اللغة ============ */
+function changeLanguage(l) {
+    appState.lang = l;
+    document.documentElement.setAttribute("lang", l);
+    document.documentElement.setAttribute("dir", l === "ar" ? "rtl" : "ltr");
+    var sel = document.getElementById("langSelect");
+    if (sel) sel.value = l;
+    saveState();
+    applyUILanguage();
+    renderView();
+    if (currentTab === "timetable") renderTimetable();
+    if (currentTab === "homework") renderHomework();
+    if (currentTab === "stats") renderStats();
+}
+
+/* ============ 12. تطبيق الترجمة ============ */
+function setText(id, txt) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = txt;
+}
+function setSelectOption(id, index, txt) {
+    var sel = document.getElementById(id);
+    if (!sel) return;
+    if (sel.options[index]) sel.options[index].textContent = txt;
+}
+
+function applyUILanguage() {
+    document.title = t("pageTitle");
+    setText("appNavTitle", t("appTitle"));
+    setText("appNavSubtitle", t("appSubtitle"));
+    setText("txtSwitchUser", t("switchUser"));
+    setText("txtHomeBadge", t("selectProfile"));
+    setText("txtHomeTitle", t("whoStudying"));
+    setText("txtHomeDesc", t("homeDesc"));
+    setText("saTitleLabel", t("saTitleLabel"));
+    setText("lblCountdown", t("countdown"));
+    setText("lblTotalProgress", t("overallProgress"));
+    setText("lblDone", t("done"));
+
+    var elts = document.querySelectorAll("[data-i18n]");
+    for (var i = 0; i < elts.length; i++) {
+        var k = elts[i].getAttribute("data-i18n");
+        var v = t(k);
+        if (v) elts[i].textContent = v;
+    }
+
+    setText("lblPwdTitle", t("enterPasswordTitle"));
+    setText("lblPwdDesc", t("enterPasswordDesc"));
+    setText("btnPwdCancel", t("cancel"));
+    setText("btnPwdSubmit", t("unlock"));
+    setText("pwdErrorMsg", t("wrongPwd"));
+
+    setText("lblDelTitle", t("deleteUserTitle"));
+    setText("lblDelAsk", t("deleteUserAsk"));
+    setText("lblDelType", t("deleteUserTypeLabel"));
+    setText("btnDelCancel", t("cancel"));
+    setText("btnConfirmDelete", t("deleteUserConfirm"));
+
+    setText("lblSettingsTitle", t("profileSettings"));
+    setText("lblUploadPhoto", t("uploadPhoto"));
+    setText("lblUsername", t("username"));
+    setText("lblPassword", t("password"));
+    setText("lblGrade", t("grade"));
+    setText("lblTerm", t("term"));
+    setText("lblExamType", t("examType"));
+    setText("lblSchoolYear", t("schoolYear"));
+    setText("lblWeekAStart", t("weekAStart"));
+    setText("lblAutoTranslate", t("autoTranslateLabel"));
+    setText("lblSaveBtn", t("saveProfile"));
+    setText("lblCancelBtn", t("cancel"));
+    setText("lblDeleteProfile", t("deleteProfile"));
+    setSelectOption("settingExamType", 0, t("examMid"));
+    setSelectOption("settingExamType", 1, t("examEnd"));
+    setSelectOption("settingExamType", 2, t("examBoth"));
+    setSelectOption("settingAutoTranslate", 0, t("autoTranslateOn"));
+    setSelectOption("settingAutoTranslate", 1, t("autoTranslateOff"));
+
+    setText("lblSubjAr", t("subjNameAr"));
+    setText("lblSubjFr", t("subjNameFr"));
+    setText("lblSubjEn", t("subjNameEn"));
+    setText("lblSubjDate", t("subjDateLabel"));
+    setText("lblSubjItems", t("subjItemsLabel"));
+    setText("lblSubjSave", t("subjSaveBtn"));
+    setText("lblSubjCancel", t("cancel"));
+
+    setText("lblItemTitle", t("itemAddTitle"));
+    setText("lblItemCode", t("itemCodeLabel"));
+    setText("lblItemNote", t("itemNoteLabel"));
+    setText("lblItemSave", t("itemAddBtn"));
+    setText("lblItemCancel", t("cancel"));
+
+    setText("lblLinkTitle", t("linkTitle"));
+    setText("lblLinkAttach", t("linkAttachTo"));
+    setText("lblLinkUrl", t("linkUrlLabel"));
+    setText("lblLinkSave", t("saveBtn"));
+    setText("lblLinkCancel", t("cancel"));
+    setText("lblLinkRemove", t("removeBtn"));
+
+    setText("lblSlotTitle", t("slotEditTitle"));
+    setText("lblSlotSubject", t("slotSubjectLabel"));
+    setText("lblSlotRoom", t("slotRoomLabel"));
+    setText("lblSlotStart", t("slotStartLabel"));
+    setText("lblSlotEnd", t("slotEndLabel"));
+    setText("lblSlotWeek", t("slotWeekLabel"));
+    setText("lblSlotSave", t("saveBtn"));
+    setText("lblSlotCancel", t("cancel"));
+    setText("btnDeleteSlot", t("slotDeleteBtn"));
+    setSelectOption("slotWeekInput", 0, t("weekAB"));
+    setSelectOption("slotWeekInput", 1, t("weekAOnly"));
+    setSelectOption("slotWeekInput", 2, t("weekBOnly"));
+
+    setText("lblHwSubject", t("hwSubjectLabel"));
+    setText("lblHwTitle", t("hwTitleLabel"));
+    setText("lblHwDetails", t("hwDetailsLabel"));
+    setText("lblHwDue", t("hwDueLabel"));
+    setText("lblHwPriority", t("hwPriorityLabel"));
+    setText("lblHwSave", t("saveBtn"));
+    setText("lblHwCancel", t("cancel"));
+    setSelectOption("hwPriorityInput", 0, t("prioUrgent"));
+    setSelectOption("hwPriorityInput", 1, t("prioMedium"));
+    setSelectOption("hwPriorityInput", 2, t("prioNormal"));
+
+    setText("weekABtn", t("weekManualA"));
+    setText("weekBBtn", t("weekManualB"));
+    setText("ttWeekA", t("weekManualA"));
+    setText("ttWeekB", t("weekManualB"));
+    setText("ttWeekAuto", t("weekAuto"));
+
+    var si = document.getElementById("searchInput");
+    if (si) si.placeholder = t("searchPh");
+}
+</script>
+
+<!-- ============================================================
+     >>>>>>>>>>>>  الصق الجزء 3 هنا مباشرة  <<<<<<<<<<
+     ============================================================ -->
+     <script>
+/* ============================================================
+   الجزء 3 — العرض، الجدول، الواجبات، المساعد، المودالات، Pomodoro
+   ============================================================ */
+
+/* ============ 13. التنقل والعرض ============ */
+function navToHome() {
+    appState.activeUserId = null;
+    saveState();
+    renderView();
+}
+
+function renderView() {
+    var home = document.getElementById("homeView");
+    var dash = document.getElementById("checklistView");
+    var btnHome = document.getElementById("btnNavHome");
+    var badge = document.getElementById("activeUserBadge");
+    var pomo = document.getElementById("pomodoroWidget");
+    var wTog = document.getElementById("weekToggleHeader");
+
+    if (!appState.activeUserId) {
+        home.classList.remove("hidden");
+        dash.classList.add("hidden");
+        btnHome.classList.add("hidden");
+        btnHome.classList.remove("sm:flex");
+        badge.classList.add("hidden");
+        badge.classList.remove("flex");
+        pomo.classList.add("hidden");
+        pomo.classList.remove("flex");
+        wTog.classList.add("hidden");
+        renderHomeGrid();
+    } else {
+        home.classList.add("hidden");
+        dash.classList.remove("hidden");
+        btnHome.classList.remove("hidden");
+        btnHome.classList.add("sm:flex");
+        badge.classList.remove("hidden");
+        badge.classList.add("flex");
+        pomo.classList.remove("hidden");
+        pomo.classList.add("flex");
+        wTog.classList.remove("hidden");
+        renderDashboard();
+        renderWeekToggle();
+    }
+}
+
+/* ============ 14. إحصاء التقدم ============ */
+function countProgress(p) {
+    var total = 0, done = 0;
+    if (!p || !Array.isArray(p.subjects)) return {total: 0, done: 0};
+    for (var i = 0; i < p.subjects.length; i++) {
+        var s = p.subjects[i];
+        if (Array.isArray(s.sections)) {
+            for (var k = 0; k < s.sections.length; k++) {
+                var items = s.sections[k].items || [];
+                for (var j = 0; j < items.length; j++) {
+                    total++;
+                    if (items[j].checked) done++;
+                }
+            }
+        } else if (Array.isArray(s.items)) {
+            for (var j2 = 0; j2 < s.items.length; j2++) {
+                total++;
+                if (s.items[j2].checked) done++;
+            }
+        }
+    }
+    return {total: total, done: done};
+}
+
+/* ============ 15. شبكة الحسابات ============ */
+function renderHomeGrid() {
+    var grid = document.getElementById("usersGrid");
+    if (!grid) return;
+    grid.innerHTML = "";
+    var canDelete = appState.profiles.length > 1;
+
+    for (var i = 0; i < appState.profiles.length; i++) {
+        (function(prof){
+            var stat = countProgress(prof);
+            var pct = stat.total > 0 ? Math.round(stat.done / stat.total * 100) : 0;
+            var pending = 0;
+            var hw = prof.homework || [];
+            for (var k = 0; k < hw.length; k++) if (!hw[k].completed) pending++;
+
+            var card = document.createElement("div");
+            card.className = "profile-card bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-md hover:shadow-xl border border-slate-200 dark:border-slate-700 transition-all flex flex-col justify-between group cursor-pointer relative overflow-hidden";
+            card.onclick = function(){ promptPassword(prof.id); };
+
+            var html = "";
+            html += '<div>';
+            html += '<div class="flex items-center justify-between mb-4">';
+            html += '<img class="w-16 h-16 rounded-2xl object-cover border-2 border-brand-500/30" src="' + escapeHtml(prof.avatar || DEFAULT_AVATAR) + '" alt="">';
+            html += '<div class="flex items-center gap-1.5">';
+            if (canDelete) {
+                html += '<button onclick="event.stopPropagation(); requestDeleteUser(\'' + prof.id + '\')" class="delete-user-btn w-10 h-10 rounded-xl bg-red-50 dark:bg-red-950/40 text-red-500 dark:text-red-400 hover:bg-red-500 hover:text-white flex items-center justify-center transition-colors"><i class="fa-solid fa-user-xmark text-sm"></i></button>';
+            }
+            html += '<div class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 group-hover:bg-brand-500 group-hover:text-white flex items-center justify-center transition-colors"><i class="fa-solid fa-lock text-sm"></i></div>';
+            html += '</div></div>';
+            html += '<h3 class="text-xl font-bold text-slate-900 dark:text-white">' + escapeHtml(prof.name) + '</h3>';
+            html += '<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">' + escapeHtml(prof.grade || "") + ' • ' + escapeHtml(prof.term || "") + '</p>';
+            html += '<p class="text-[11px] font-semibold text-slate-400 dark:text-slate-500">' + escapeHtml(prof.schoolYear || "") + '</p>';
+            html += '</div>';
+            html += '<div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-700/60">';
+            html += '<div class="flex items-center justify-between text-xs font-semibold mb-1.5">';
+            html += '<span class="text-slate-600 dark:text-slate-400">' + escapeHtml(t("overallProgress")) + '</span>';
+            html += '<span class="text-brand-600 dark:text-brand-400">' + pct + '%</span>';
+            html += '</div>';
+            html += '<div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2 overflow-hidden"><div class="bg-brand-500 h-2 rounded-full transition-all" style="width:' + pct + '%"></div></div>';
+            if (pending > 0) {
+                html += '<div class="mt-3 flex items-center gap-2 text-xs font-bold text-red-600 dark:text-red-400"><i class="fa-solid fa-book-bookmark"></i><span>' + pending + ' ' + escapeHtml(t("pendingTasks")) + '</span></div>';
+            } else {
+                html += '<div class="mt-3 flex items-center gap-2 text-xs font-bold text-emerald-600 dark:text-emerald-400"><i class="fa-solid fa-circle-check"></i><span>' + escapeHtml(t("noPendingTasks")) + '</span></div>';
+            }
+            html += '</div>';
+            card.innerHTML = html;
+            grid.appendChild(card);
+        })(appState.profiles[i]);
+    }
+
+    var addCard = document.createElement("div");
+    addCard.className = "bg-slate-50/50 dark:bg-slate-800/40 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-brand-500 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer min-h-[220px] transition-colors group";
+    addCard.onclick = function(){ openCreateUserModal(); };
+    addCard.innerHTML = '<div class="w-14 h-14 rounded-full bg-slate-200/70 dark:bg-slate-700 text-slate-600 dark:text-slate-300 group-hover:bg-brand-500 group-hover:text-white flex items-center justify-center text-xl mb-3 transition-colors"><i class="fa-solid fa-plus"></i></div>' +
+        '<h4 class="font-bold text-slate-800 dark:text-slate-200">' + escapeHtml(t("addUser")) + '</h4>' +
+        '<p class="text-xs text-slate-400 mt-1">' + escapeHtml(t("addUserSub")) + '</p>';
+    grid.appendChild(addCard);
+}
+
+/* ============ 16. كلمة السر ============ */
+function promptPassword(userId) {
+    appState.targetUserId = userId;
+    var p = null;
+    for (var i = 0; i < appState.profiles.length; i++) {
+        if (appState.profiles[i].id === userId) { p = appState.profiles[i]; break; }
+    }
+    if (!p) return;
+    setText("pwdModalUserName", p.name);
+    document.getElementById("inputPassword").value = "";
+    document.getElementById("pwdErrorMsg").classList.add("hidden");
+    document.getElementById("passwordModal").classList.remove("hidden");
+    setTimeout(function(){ document.getElementById("inputPassword").focus(); }, 100);
+}
+function closePasswordModal() {
+    document.getElementById("passwordModal").classList.add("hidden");
+    appState.targetUserId = null;
+}
+function verifyUserPassword(e) {
+    e.preventDefault();
+    var pwd = document.getElementById("inputPassword").value.trim();
+    var p = null;
+    for (var i = 0; i < appState.profiles.length; i++) {
+        if (appState.profiles[i].id === appState.targetUserId) { p = appState.profiles[i]; break; }
+    }
+    if (p && p.password === pwd) {
+        appState.activeUserId = p.id;
+        closePasswordModal();
+        saveState();
+        renderView();
+    } else {
+        document.getElementById("pwdErrorMsg").classList.remove("hidden");
+    }
+}
+
+/* ============ 17. لوحة التحكم ============ */
+function renderDashboard() {
+    var p = getActiveProfile();
+    if (!p) return;
+
+    setText("badgeName", p.name);
+    setText("viewUserName", p.name);
+    setText("viewUserGrade", p.grade || "—");
+    setText("viewUserExamType", p.examType || "—");
+    setText("viewUserTerm", p.term || "—");
+    setText("viewUserSchoolYear", p.schoolYear || "—");
+    document.getElementById("badgeAvatar").src = p.avatar || DEFAULT_AVATAR;
+    document.getElementById("viewUserAvatar").src = p.avatar || DEFAULT_AVATAR;
+
+    var stat = countProgress(p);
+    var pct = stat.total > 0 ? Math.round(stat.done / stat.total * 100) : 0;
+    setText("overallPercentage", pct);
+    setText("completedItemsCount", stat.done);
+    setText("totalItemsCount", stat.total);
+    var circle = document.getElementById("progressCircle");
+    var circ = 2 * Math.PI * 26;
+    circle.style.strokeDashoffset = circ - (pct / 100) * circ;
+
+    renderCountdown();
+    renderSubjects();
+    renderSmartAssistant();
+    switchTab(currentTab);
+    updateHwBadge();
+    renderWeekToggle();
+}
+
+/* ============ 18. المواد (قائمة المراجعة) ============ */
+function renderSubjects() {
+    var p = getActiveProfile();
+    if (!p) return;
+    var c = document.getElementById("subjectsContainer");
+    if (!c) return;
+    c.innerHTML = "";
+
+    var si = document.getElementById("searchInput");
+    var fi = document.getElementById("filterSelect");
+    var search = si ? si.value.toLowerCase().trim() : "";
+    var filter = fi ? fi.value : "all";
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+
+    for (var i = 0; i < p.subjects.length; i++) {
+        (function(subj){
+            var total = 0, done = 0;
+            if (Array.isArray(subj.sections)) {
+                for (var k = 0; k < subj.sections.length; k++) {
+                    var its = subj.sections[k].items || [];
+                    for (var j = 0; j < its.length; j++) { total++; if (its[j].checked) done++; }
+                }
+            } else if (Array.isArray(subj.items)) {
+                for (var j2 = 0; j2 < subj.items.length; j2++) { total++; if (subj.items[j2].checked) done++; }
+            }
+            var subPct = total > 0 ? Math.round(done / total * 100) : 0;
+            var nm = displayName(subj);
+
+            var examBadge = "";
+            if (subj.examDate) {
+                var d = new Date(subj.examDate);
+                var diff = Math.ceil((d - today) / 86400000);
+                var cls = "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300";
+                var txt = d.toLocaleDateString(localeTag());
+                if (diff < 0) {
+                    cls = "bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300";
+                    txt = (appState.lang === "ar" ? "انتهى · " : appState.lang === "fr" ? "Passé · " : "Past · ") + txt;
+                } else if (diff === 0) {
+                    cls = "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300";
+                    txt = t("dayToday");
+                } else if (diff <= 3) {
+                    cls = "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300";
+                    txt = (appState.lang === "ar" ? "بعد " : appState.lang === "fr" ? "Dans " : "In ") + diff + " " + t("dayCount");
+                }
+                examBadge = '<span class="text-[10px] font-bold px-2 py-0.5 rounded-md ' + cls + '"><i class="fa-solid fa-calendar-check mr-1"></i>' + escapeHtml(txt) + '</span>';
+            }
+
+            /* بناء قائمة الأوراق — عادية أو أقسام */
+            var itemsHtml = "";
+
+            if (Array.isArray(subj.sections)) {
+                /* رياضيات — قسمان */
+                for (var sIdx = 0; sIdx < subj.sections.length; sIdx++) {
+                    var sec = subj.sections[sIdx];
+                    var badgeText = t(sec.badgeKey || ("sectionBadge" + sec.key));
+                    var labelText = t(sec.labelKey || ("sectionControl" + sec.key));
+                    itemsHtml += '<div class="section-header"><span class="section-badge">' + escapeHtml(badgeText) + '</span><span>' + escapeHtml(labelText) + '</span></div>';
+                    for (var idx = 0; idx < sec.items.length; idx++) {
+                        itemsHtml += renderItemRow(subj.id, sec.key, sec.items[idx], idx, search, filter);
+                    }
+                }
+            } else if (Array.isArray(subj.items)) {
+                for (var idx2 = 0; idx2 < subj.items.length; idx2++) {
+                    itemsHtml += renderItemRow(subj.id, null, subj.items[idx2], idx2, search, filter);
+                }
+            }
+
+            if (!itemsHtml || itemsHtml.replace(/<div class="section-header">.*?<\/div>/g, "").trim() === "") {
+                itemsHtml = '<p class="text-xs text-slate-400 dark:text-slate-500 text-center py-3">—</p>';
+            }
+
+            var card = document.createElement("div");
+            card.className = "bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col";
+
+            var cardHtml = "";
+            cardHtml += '<div class="p-4 bg-slate-50 dark:bg-slate-700/40 border-b border-slate-200 dark:border-slate-700">';
+            cardHtml += '<div class="flex items-center justify-between gap-2">';
+            cardHtml += '<h3 class="font-bold text-sm text-brand-700 dark:text-brand-300 uppercase truncate">' + escapeHtml(nm) + '</h3>';
+            cardHtml += '<div class="flex items-center gap-1 flex-shrink-0">';
+            cardHtml += '<button onclick="openEditSubject(\'' + subj.id + '\')" class="w-7 h-7 rounded-md text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 text-xs"><i class="fa-solid fa-pen"></i></button>';
+            cardHtml += '<button onclick="deleteSubject(\'' + subj.id + '\')" class="w-7 h-7 rounded-md text-slate-500 dark:text-slate-400 hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-600 text-xs"><i class="fa-solid fa-trash-can"></i></button>';
+            cardHtml += '<span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-brand-100 dark:bg-brand-950/80 text-brand-700 dark:text-brand-300 ml-1">' + done + '/' + total + '</span>';
+            cardHtml += '</div></div>';
+            if (examBadge) cardHtml += '<div class="mt-2">' + examBadge + '</div>';
+            cardHtml += '<div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 mt-2 overflow-hidden"><div class="bg-brand-500 h-1.5 rounded-full transition-all" style="width:' + subPct + '%"></div></div>';
+            cardHtml += '</div>';
+            cardHtml += '<div class="p-3 space-y-1.5 custom-scrollbar max-h-[420px] overflow-y-auto">' + itemsHtml + '</div>';
+            cardHtml += '</div>';
+
+            card.innerHTML = cardHtml;
+            c.appendChild(card);
+        })(p.subjects[i]);
+    }
+}
+
+/* دالة عرض صف ورقة */
+function renderItemRow(subjectId, sectionKey, item, idx, search, filter) {
+    var mS = !search || item.code.toLowerCase().indexOf(search) !== -1 || (item.note || "").toLowerCase().indexOf(search) !== -1;
+    var mF = filter === "all" || (filter === "completed" && item.checked) || (filter === "pending" && !item.checked);
+    if (!mS || !mF) return "";
+
+    var linkIcon;
+    if (item.link) {
+        linkIcon = '<a href="' + escapeHtml(item.link) + '" target="_blank" rel="noopener" class="text-brand-600 dark:text-brand-400 text-xs px-1"><i class="fa-solid fa-link"></i></a>';
+    } else {
+        linkIcon = '<button onclick="openLinkModal(\'' + subjectId + '\', \'' + (sectionKey || "") + '\', ' + idx + ')" class="text-slate-300 dark:text-slate-600 hover:text-brand-500 text-xs px-1"><i class="fa-solid fa-link"></i></button>';
+    }
+
+    var html = '<div class="flex items-center gap-2 py-1.5 px-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 group/item">';
+    html += '<button onclick="toggleItem(\'' + subjectId + '\', \'' + (sectionKey || "") + '\', ' + idx + ')" class="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs flex-shrink-0 ' +
+        (item.checked ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 border border-slate-300 dark:border-slate-600 hover:border-brand-500') +
+        '">' + (item.checked ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
+    html += '<input type="text" value="' + escapeHtml(item.code) + '" onchange="updateItemCode(\'' + subjectId + '\', \'' + (sectionKey || "") + '\', ' + idx + ', this.value)" class="w-20 sm:w-28 text-center text-sm font-extrabold text-slate-800 dark:text-slate-100 bg-slate-100 dark:bg-slate-700/80 border border-slate-200 dark:border-slate-600 rounded-lg py-1 px-1 font-mono">';
+    html += '<input type="text" value="' + escapeHtml(item.note || "") + '" placeholder="' + escapeHtml(t("notePlaceholder")) + '" onchange="updateItemNote(\'' + subjectId + '\', \'' + (sectionKey || "") + '\', ' + idx + ', this.value)" class="flex-1 min-w-0 text-xs text-slate-600 dark:text-slate-300 bg-transparent border-b border-slate-200 dark:border-slate-700 py-1 px-2">';
+    html += linkIcon;
+    html += '<button onclick="deleteItem(\'' + subjectId + '\', \'' + (sectionKey || "") + '\', ' + idx + ')" class="text-slate-300 dark:text-slate-600 hover:text-red-500 text-xs px-1 opacity-0 group-hover/item:opacity-100 transition-opacity"><i class="fa-solid fa-trash-can"></i></button>';
+    html += '</div>';
+    return html;
+}
+
+/* ============ 19. عمليات الورقة ============ */
+function getItemContainer(subjectId, sectionKey) {
+    var s = findSubjectById(subjectId);
+    if (!s) return null;
+    if (sectionKey) {
+        if (!Array.isArray(s.sections)) return null;
+        for (var i = 0; i < s.sections.length; i++) {
+            if (String(s.sections[i].key) === String(sectionKey)) return s.sections[i].items;
+        }
+        return null;
+    }
+    return s.items || null;
+}
+
+function toggleItem(sid, secKey, i) {
+    var arr = getItemContainer(sid, secKey);
+    if (!arr || !arr[i]) return;
+    arr[i].checked = !arr[i].checked;
+    saveState();
+    renderDashboard();
+}
+function updateItemCode(sid, secKey, i, v) {
+    var arr = getItemContainer(sid, secKey);
+    if (!arr || !arr[i]) return;
+    arr[i].code = v;
+    saveState();
+}
+function updateItemNote(sid, secKey, i, v) {
+    var arr = getItemContainer(sid, secKey);
+    if (!arr || !arr[i]) return;
+    arr[i].note = v;
+    saveState();
+}
+function deleteItem(sid, secKey, i) {
+    var arr = getItemContainer(sid, secKey);
+    if (!arr || !arr[i]) return;
+    if (!confirm(t("itemConfirmDelete"))) return;
+    arr.splice(i, 1);
+    saveState();
+    renderDashboard();
+}
+
+/* ============ 20. مودال المادة ============ */
+function openAddSubjectModal() {
+    editingSubjectId = null;
+    setText("subjectModalTitle", t("subjAddTitle"));
+    document.getElementById("subjectTitleAr").value = "";
+    document.getElementById("subjectTitleFr").value = "";
+    document.getElementById("subjectTitleEn").value = "";
+    document.getElementById("subjectExamDateInput").value = "";
+    document.getElementById("subjectItemsInput").value = "";
+    document.getElementById("subjectModal").classList.remove("hidden");
+}
+function openEditSubject(id) {
+    var s = findSubjectById(id);
+    if (!s) return;
+    editingSubjectId = id;
+    setText("subjectModalTitle", t("subjEditTitle"));
+    document.getElementById("subjectTitleAr").value = s.name.ar || "";
+    document.getElementById("subjectTitleFr").value = s.name.fr || "";
+    document.getElementById("subjectTitleEn").value = s.name.en || "";
+    document.getElementById("subjectExamDateInput").value = s.examDate || "";
+    document.getElementById("subjectItemsInput").value = "";
+    document.getElementById("subjectModal").classList.remove("hidden");
+}
+function closeSubjectModal() {
+    document.getElementById("subjectModal").classList.add("hidden");
+}
+function saveSubject(e) {
+    e.preventDefault();
+    var p = getActiveProfile();
+    if (!p) return;
+    var ar = document.getElementById("subjectTitleAr").value.trim();
+    var fr = document.getElementById("subjectTitleFr").value.trim();
+    var en = document.getElementById("subjectTitleEn").value.trim();
+    var examDate = document.getElementById("subjectExamDateInput").value;
+    var rawItems = document.getElementById("subjectItemsInput").value.trim();
+    if (!ar) return;
+
+    var name = {ar: ar, fr: fr || ar, en: en || ar};
+
+    if (editingSubjectId) {
+        var s = findSubjectById(editingSubjectId);
+        if (s) {
+            s.name = name;
+            s.examDate = examDate;
+            if (rawItems && Array.isArray(s.items)) {
+                var codes = rawItems.split("\n").map(function(x){ return x.trim(); }).filter(Boolean);
+                s.items = codes.map(function(c){ return {code: c, checked: false, note: "", link: ""}; });
+            }
+        }
+    } else {
+        var codes2 = rawItems ? rawItems.split("\n").map(function(x){ return x.trim(); }).filter(Boolean) : [];
+        p.subjects.push({
+            id: "subj_" + Date.now(),
+            name: name,
+            examDate: examDate,
+            items: codes2.map(function(c){ return {code: c, checked: false, note: "", link: ""}; })
+        });
+    }
+    saveState();
+    closeSubjectModal();
+    renderDashboard();
+}
+function deleteSubject(id) {
+    var p = getActiveProfile();
+    if (!p) return;
+    if (!confirm(t("subjConfirmDelete") + " " + t("subjConfirmDeleteEnd"))) return;
+    p.subjects = p.subjects.filter(function(x){ return x.id !== id; });
+    var days = Object.keys(p.timetable);
+    for (var i = 0; i < days.length; i++) {
+        p.timetable[days[i]] = p.timetable[days[i]].filter(function(slot){ return slot.subjectId !== id; });
+    }
+    p.homework = p.homework.filter(function(h){ return h.subjectId !== id; });
+    saveState();
+    renderDashboard();
+}
+
+/* ============ 21. مودال الورقة ============ */
+function openAddItem(sid, secKey) {
+    addingItemSubjectId = sid;
+    addingItemSectionKey = secKey || null;
+    document.getElementById("itemCodeInput").value = "";
+    document.getElementById("itemNoteInput").value = "";
+    document.getElementById("itemModal").classList.remove("hidden");
+}
+function closeItemModal() {
+    document.getElementById("itemModal").classList.add("hidden");
+    addingItemSubjectId = null;
+    addingItemSectionKey = null;
+}
+function saveItem(e) {
+    e.preventDefault();
+    var arr = getItemContainer(addingItemSubjectId, addingItemSectionKey);
+    if (!arr) return;
+    var code = document.getElementById("itemCodeInput").value.trim();
+    var note = document.getElementById("itemNoteInput").value.trim();
+    if (!code) return;
+    arr.push({code: code, checked: false, note: note, link: ""});
+    saveState();
+    closeItemModal();
+    renderDashboard();
+}
+
+/* ============ 22. مودال الرابط ============ */
+function openLinkModal(sid, secKey, idx) {
+    var arr = getItemContainer(sid, secKey);
+    if (!arr || !arr[idx]) return;
+    linkItemSubjectId = sid;
+    linkItemSectionKey = secKey || null;
+    linkItemIndex = idx;
+    setText("linkItemLabel", arr[idx].code);
+    document.getElementById("linkUrlInput").value = arr[idx].link || "";
+    document.getElementById("linkModal").classList.remove("hidden");
+}
+function closeLinkModal() {
+    document.getElementById("linkModal").classList.add("hidden");
+}
+function saveItemLink(e) {
+    e.preventDefault();
+    var arr = getItemContainer(linkItemSubjectId, linkItemSectionKey);
+    if (!arr || !arr[linkItemIndex]) return;
+    arr[linkItemIndex].link = document.getElementById("linkUrlInput").value.trim();
+    saveState();
+    closeLinkModal();
+    renderSubjects();
+}
+function clearItemLink() {
+    var arr = getItemContainer(linkItemSubjectId, linkItemSectionKey);
+    if (!arr || !arr[linkItemIndex]) return;
+    arr[linkItemIndex].link = "";
+    saveState();
+    closeLinkModal();
+    renderSubjects();
+}
+
+/* ============ 23. الجدول الأسبوعي ============ */
+function renderTimetable() {
+    var p = getActiveProfile();
+    if (!p) return;
+    var container = document.getElementById("timetableGrid");
+    if (!container) return;
+    container.innerHTML = "";
+
+    var week = currentWeekLetter();
+
+    var table = document.createElement("table");
+    table.className = "tt-table";
+
+    var thead = document.createElement("thead");
+    var headRow = document.createElement("tr");
+    var corner = document.createElement("th");
+    corner.className = "tt-day-head";
+    headRow.appendChild(corner);
+    for (var c = 0; c < TIME_COLUMNS.length; c++) {
+        var th = document.createElement("th");
+        th.className = "tt-hour-head";
+        th.textContent = TIME_COLUMNS[c];
+        headRow.appendChild(th);
+    }
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    var tbody = document.createElement("tbody");
+    for (var d = 0; d < DAY_KEYS.length; d++) {
+        (function(day){
+            var row = document.createElement("tr");
+            var dayTd = document.createElement("td");
+            dayTd.className = "tt-day-cell";
+            dayTd.textContent = dayLabel(day);
+            row.appendChild(dayTd);
+
+            var slots = (p.timetable[day] || []).filter(function(s){ return s.week === "AB" || s.week === week; });
+            var covered = [];
+            for (var z = 0; z < TIME_COLUMNS.length; z++) covered[z] = false;
+
+            for (var i = 0; i < TIME_COLUMNS.length; i++) {
+                if (covered[i]) continue;
+                var hour = TIME_COLUMNS[i];
+                var slot = null;
+                for (var k = 0; k < slots.length; k++) if (slots[k].start === hour) { slot = slots[k]; break; }
+
+                if (slot) {
+                    var endIdx = TIME_COLUMNS.indexOf(slot.end);
+                    var span = (endIdx > i) ? (endIdx - i) : 1;
+                    var td = document.createElement("td");
+                    td.className = "tt-slot";
+                    td.colSpan = span;
+                    td.style.verticalAlign = "top";
+
+                    var block = document.createElement("div");
+                    block.className = "tt-block tt-subject";
+                    if (slot.week === "A") block.classList.add("week-a");
+                    else if (slot.week === "B") block.classList.add("week-b");
+
+                    var subj = findSubjectById(slot.subjectId);
+                    var nm = subj ? displayName(subj) : "—";
+                    var rm = displayRoom(slot.room);
+                    block.innerHTML = '<div class="font-bold leading-tight">' + escapeHtml(nm) + '</div>' +
+                        '<div class="text-[10px] opacity-80">' + escapeHtml(rm) + ' · ' + slot.start + '-' + slot.end + '</div>' +
+                        '<div class="text-[9px] opacity-60 mt-0.5">' + (slot.week === "AB" ? "A+B" : slot.week) + '</div>';
+
+                    var realIdx = p.timetable[day].indexOf(slot);
+                    (function(dd, ii){ block.onclick = function(){ openSlotModal(dd, ii); }; })(day, realIdx);
+                    td.appendChild(block);
+                    row.appendChild(td);
+                    for (var kk = i; kk < i + span; kk++) covered[kk] = true;
+                } else {
+                    var eTd = document.createElement("td");
+                    eTd.className = "tt-slot";
+                    var empty = document.createElement("div");
+                    empty.className = "tt-empty";
+                    empty.textContent = "—";
+                    (function(dd, hh){ empty.onclick = function(){ openSlotModal(dd, -1, hh); }; })(day, hour);
+                    eTd.appendChild(empty);
+                    row.appendChild(eTd);
+                }
+            }
+            tbody.appendChild(row);
+        })(DAY_KEYS[d]);
+    }
+    table.appendChild(tbody);
+    container.appendChild(table);
+}
+
+function openSlotModal(day, idx, defaultStart) {
+    var p = getActiveProfile();
+    if (!p) return;
+    editingSlot = {day: day, index: idx};
+
+    var sel = document.getElementById("slotSubjectSelect");
+    sel.innerHTML = "";
+    for (var i = 0; i < p.subjects.length; i++) {
+        var o = document.createElement("option");
+        o.value = p.subjects[i].id;
+        o.textContent = displayName(p.subjects[i]);
+        sel.appendChild(o);
+    }
+
+    setText("slotModalContext", dayLabel(day) + " — " + (idx >= 0 ? t("slotContextEdit") : t("slotContextAdd")));
+
+    if (idx >= 0) {
+        var slot = p.timetable[day][idx];
+        sel.value = slot.subjectId;
+        document.getElementById("slotRoomInput").value = slot.room || "";
+        document.getElementById("slotStartInput").value = slot.start || "08:00";
+        document.getElementById("slotEndInput").value = slot.end || "09:00";
+        document.getElementById("slotWeekInput").value = slot.week || "AB";
+        document.getElementById("btnDeleteSlot").style.display = "";
+    } else {
+        if (sel.options.length > 0) sel.selectedIndex = 0;
+        document.getElementById("slotRoomInput").value = "";
+        document.getElementById("slotStartInput").value = defaultStart || "08:00";
+        var m2 = timeToMins(defaultStart || "08:00") + 60;
+        var eh = String(Math.floor(m2 / 60)).padStart(2, "0");
+        var em = String(m2 % 60).padStart(2, "0");
+        document.getElementById("slotEndInput").value = eh + ":" + em;
+        document.getElementById("slotWeekInput").value = "AB";
+        document.getElementById("btnDeleteSlot").style.display = "none";
+    }
+    document.getElementById("slotModal").classList.remove("hidden");
+}
+function closeSlotModal() {
+    document.getElementById("slotModal").classList.add("hidden");
+    editingSlot = {day: null, index: null};
+}
+function saveSlot(e) {
+    e.preventDefault();
+    var p = getActiveProfile();
+    if (!p) return;
+    var day = editingSlot.day;
+    if (!day) return;
+    var subjectId = document.getElementById("slotSubjectSelect").value;
+    var room = document.getElementById("slotRoomInput").value.trim();
+    var start = document.getElementById("slotStartInput").value;
+    var end = document.getElementById("slotEndInput").value;
+    var week = document.getElementById("slotWeekInput").value;
+    if (!subjectId) return;
+    if (timeToMins(end) <= timeToMins(start)) return;
+
+    if (!Array.isArray(p.timetable[day])) p.timetable[day] = [];
+    var slot = {subjectId: subjectId, room: room, start: start, end: end, week: week};
+    if (editingSlot.index >= 0) {
+        p.timetable[day][editingSlot.index] = slot;
+    } else {
+        p.timetable[day].push(slot);
+    }
+    p.timetable[day].sort(function(a, b){ return a.start.localeCompare(b.start); });
+    saveState();
+    closeSlotModal();
+    renderTimetable();
+    renderSmartAssistant();
+}
+function clearSlot() {
+    var p = getActiveProfile();
+    if (!p) return;
+    var day = editingSlot.day;
+    if (!day || editingSlot.index < 0) return;
+    if (!confirm(t("slotConfirmDelete"))) return;
+    p.timetable[day].splice(editingSlot.index, 1);
+    saveState();
+    closeSlotModal();
+    renderTimetable();
+    renderSmartAssistant();
+}
+function resetTimetable() {
+    var p = getActiveProfile();
+    if (!p) return;
+    if (!confirm(t("ttConfirmReset"))) return;
+    p.timetable = buildDefaultTimetable();
+    saveState();
+    renderTimetable();
+    renderSmartAssistant();
+}
+function setManualWeek(w) {
+    appState.manualWeek = (w === "auto") ? null : w;
+    saveState();
+    renderWeekToggle();
+    renderTimetable();
+    renderSmartAssistant();
+}
+function renderWeekToggle() {
+    var cur = currentWeekLetter();
+    var man = appState.manualWeek;
+    var hA = document.getElementById("weekABtn");
+    var hB = document.getElementById("weekBBtn");
+    if (hA && hB) {
+        hA.classList.toggle("active", man === "A" || (man === null && cur === "A"));
+        hB.classList.toggle("active", man === "B" || (man === null && cur === "B"));
+    }
+    var tA = document.getElementById("ttWeekA");
+    var tB = document.getElementById("ttWeekB");
+    var tAuto = document.getElementById("ttWeekAuto");
+    if (tA && tB && tAuto) {
+        tA.classList.toggle("active", man === "A");
+        tB.classList.toggle("active", man === "B");
+        tAuto.classList.toggle("active", man === null);
+    }
+}
+
+/* ============ 24. الواجبات ============ */
+function renderHomework() {
+    var p = getActiveProfile();
+    if (!p) return;
+    var list = document.getElementById("homeworkList");
+    if (!list) return;
+    list.innerHTML = "";
+
+    var sel = document.getElementById("hwSubjectSelect");
+    if (sel) {
+        sel.innerHTML = "";
+        for (var i = 0; i < p.subjects.length; i++) {
+            var o = document.createElement("option");
+            o.value = p.subjects[i].id;
+            o.textContent = displayName(p.subjects[i]);
+            sel.appendChild(o);
+        }
+    }
+
+    var hw = p.homework || [];
+    var cAll = hw.length;
+    var cDone = 0, cPending = 0;
+    for (var i = 0; i < hw.length; i++) { if (hw[i].completed) cDone++; else cPending++; }
+    setText("hwCountAll", cAll);
+    setText("hwCountCompleted", cDone);
+    setText("hwCountPending", cPending);
+
+    var filterBtns = document.querySelectorAll(".hw-filter-btn");
+    for (var f = 0; f < filterBtns.length; f++) {
+        var active = filterBtns[f].dataset.hwf === hwFilter;
+        filterBtns[f].classList.toggle("bg-brand-500", active);
+        filterBtns[f].classList.toggle("text-white", active);
+        filterBtns[f].classList.toggle("border-brand-500", active);
+        filterBtns[f].classList.toggle("text-slate-600", !active);
+        filterBtns[f].classList.toggle("dark:text-slate-300", !active);
+        filterBtns[f].classList.toggle("border-slate-300", !active);
+        filterBtns[f].classList.toggle("dark:border-slate-600", !active);
+    }
+
+    var items = hw.slice();
+    if (hwFilter === "pending") items = items.filter(function(h){ return !h.completed; });
+    if (hwFilter === "completed") items = items.filter(function(h){ return h.completed; });
+    items.sort(function(a, b){
+        if (a.completed !== b.completed) return a.completed ? 1 : -1;
+        var rank = {urgent: 0, medium: 1, normal: 2};
+        var ra = rank[a.priority] != null ? rank[a.priority] : 2;
+        var rb = rank[b.priority] != null ? rank[b.priority] : 2;
+        if (ra !== rb) return ra - rb;
+        return (a.due || "9999").localeCompare(b.due || "9999");
+    });
+
+    if (items.length === 0) {
+        list.innerHTML = '<p class="text-center text-sm text-slate-400 dark:text-slate-500 py-8">' + escapeHtml(t("hwEmpty")) + '</p>';
+        updateHwBadge();
+        return;
+    }
+
+    for (var j = 0; j < items.length; j++) {
+        (function(hwItem){
+            var subj = findSubjectById(hwItem.subjectId);
+            var nm = subj ? displayName(subj) : "—";
+            var prioClass = hwItem.priority === "urgent" ? "prio-urgent" : hwItem.priority === "medium" ? "prio-medium" : "prio-normal";
+            var prioLabel = hwItem.priority === "urgent" ? t("prioUrgent") : hwItem.priority === "medium" ? t("prioMedium") : t("prioNormal");
+            var dueTxt = hwItem.due ? formatDue(hwItem.due) : t("hwDue");
+
+            var card = document.createElement("div");
+            card.className = "border border-slate-200 dark:border-slate-700 rounded-xl p-3 sm:p-4 bg-white dark:bg-slate-800 flex items-start gap-3 group";
+
+            var html = "";
+            html += '<button onclick="toggleHw(\'' + hwItem.id + '\')" class="mt-0.5 w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ' +
+                (hwItem.completed ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-400 hover:border-emerald-500') + '">' +
+                (hwItem.completed ? '<i class="fa-solid fa-check text-xs"></i>' : '') + '</button>';
+            html += '<div class="flex-1 min-w-0 ' + (hwItem.completed ? 'hw-done' : '') + '">';
+            html += '<div class="flex flex-wrap items-center gap-2 mb-1">';
+            html += '<span class="text-[10px] font-bold px-2 py-0.5 rounded-md ' + prioClass + '">' + escapeHtml(prioLabel) + '</span>';
+            html += '<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">' + escapeHtml(nm) + '</span>';
+            html += '<span class="text-[10px] font-semibold text-slate-400 dark:text-slate-500"><i class="fa-regular fa-clock mr-0.5"></i>' + escapeHtml(dueTxt) + '</span>';
+            html += '</div>';
+            html += '<h4 class="font-bold text-sm text-slate-900 dark:text-white">' + escapeHtml(hwItem.title) + '</h4>';
+            if (hwItem.details) html += '<p class="text-xs text-slate-500 dark:text-slate-400 mt-1 whitespace-pre-wrap">' + escapeHtml(hwItem.details) + '</p>';
+            html += '</div>';
+            html += '<div class="flex items-center gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">';
+            html += '<button onclick="openEditHw(\'' + hwItem.id + '\')" class="w-7 h-7 rounded-md text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs"><i class="fa-solid fa-pen"></i></button>';
+            html += '<button onclick="deleteHw(\'' + hwItem.id + '\')" class="w-7 h-7 rounded-md text-slate-500 dark:text-slate-400 hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-600 text-xs"><i class="fa-solid fa-trash-can"></i></button>';
+            html += '</div>';
+
+            card.innerHTML = html;
+            list.appendChild(card);
+        })(items[j]);
+    }
+    updateHwBadge();
+}
+
+function formatDue(due) {
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var d = new Date(due); d.setHours(0, 0, 0, 0);
+    var diff = Math.round((d - today) / 86400000);
+    if (diff < 0) return t("hwDueLate") + " · " + due;
+    if (diff === 0) return t("hwDueToday") + " · " + due;
+    if (diff === 1) return t("hwDueTomorrow") + " · " + due;
+    if (diff <= 3) return t("hwDueAfter") + " " + diff + " " + t("hwDueDays");
+    return due;
+}
+function setHwFilter(f) { hwFilter = f; renderHomework(); }
+function updateHwBadge() {
+    var p = getActiveProfile();
+    if (!p) return;
+    var pending = 0;
+    var hw = p.homework || [];
+    for (var i = 0; i < hw.length; i++) if (!hw[i].completed) pending++;
+    var badge = document.getElementById("hwBadge");
+    if (!badge) return;
+    if (pending > 0) { badge.textContent = pending; badge.classList.remove("hidden"); }
+    else badge.classList.add("hidden");
+}
+function openAddHomeworkModal() {
+    editingHomeworkId = null;
+    setText("homeworkModalTitle", t("hwNew"));
+    renderHomework();
+    var sel = document.getElementById("hwSubjectSelect");
+    if (sel && sel.options.length) sel.selectedIndex = 0;
+    document.getElementById("hwTitleInput").value = "";
+    document.getElementById("hwDetailsInput").value = "";
+    document.getElementById("hwDueInput").value = "";
+    document.getElementById("hwPriorityInput").value = "normal";
+    document.getElementById("homeworkModal").classList.remove("hidden");
+}
+function openEditHw(id) {
+    var p = getActiveProfile();
+    if (!p) return;
+    var h = null;
+    for (var i = 0; i < p.homework.length; i++) if (p.homework[i].id === id) { h = p.homework[i]; break; }
+    if (!h) return;
+    editingHomeworkId = id;
+    setText("homeworkModalTitle", t("hwEdit"));
+    renderHomework();
+    document.getElementById("hwSubjectSelect").value = h.subjectId || "";
+    document.getElementById("hwTitleInput").value = h.title || "";
+    document.getElementById("hwDetailsInput").value = h.details || "";
+    document.getElementById("hwDueInput").value = h.due || "";
+    document.getElementById("hwPriorityInput").value = h.priority || "normal";
+    document.getElementById("homeworkModal").classList.remove("hidden");
+}
+function closeHomeworkModal() {
+    document.getElementById("homeworkModal").classList.add("hidden");
+    editingHomeworkId = null;
+}
+function saveHomework(e) {
+    e.preventDefault();
+    var p = getActiveProfile();
+    if (!p) return;
+    if (!Array.isArray(p.homework)) p.homework = [];
+    var subjectId = document.getElementById("hwSubjectSelect").value;
+    var title = document.getElementById("hwTitleInput").value.trim();
+    var details = document.getElementById("hwDetailsInput").value.trim();
+    var due = document.getElementById("hwDueInput").value;
+    var priority = document.getElementById("hwPriorityInput").value;
+    if (!subjectId || !title) return;
+
+    if (editingHomeworkId) {
+        var h = null;
+        for (var i = 0; i < p.homework.length; i++) if (p.homework[i].id === editingHomeworkId) { h = p.homework[i]; break; }
+        if (h) { h.subjectId = subjectId; h.title = title; h.details = details; h.due = due; h.priority = priority; }
+    } else {
+        p.homework.push({
+            id: "hw_" + Date.now(),
+            subjectId: subjectId,
+            title: title,
+            details: details,
+            due: due,
+            priority: priority,
+            completed: false,
+            createdAt: new Date().toISOString()
+        });
+    }
+    saveState();
+    closeHomeworkModal();
+    renderHomework();
+    renderSmartAssistant();
+}
+function toggleHw(id) {
+    var p = getActiveProfile();
+    if (!p) return;
+    var h = null;
+    for (var i = 0; i < p.homework.length; i++) if (p.homework[i].id === id) { h = p.homework[i]; break; }
+    if (!h) return;
+    h.completed = !h.completed;
+    saveState();
+    renderHomework();
+    renderSmartAssistant();
+}
+function deleteHw(id) {
+    var p = getActiveProfile();
+    if (!p) return;
+    if (!confirm(t("hwConfirmDelete"))) return;
+    p.homework = p.homework.filter(function(x){ return x.id !== id; });
+    saveState();
+    renderHomework();
+    renderSmartAssistant();
+}
+
+/* ============ 25. الإحصائيات ============ */
+function renderStats() {
+    var p = getActiveProfile();
+    if (!p) return;
+    var stat = countProgress(p);
+    setText("statsTotalItems", stat.total);
+    setText("statsDoneItems", stat.done);
+    var activeHw = 0;
+    for (var i = 0; i < p.homework.length; i++) if (!p.homework[i].completed) activeHw++;
+    setText("statsActiveHw", activeHw);
+
+    var c = document.getElementById("statsBySubject");
+    c.innerHTML = "";
+    for (var j = 0; j < p.subjects.length; j++) {
+        (function(s){
+            var done = 0, total = 0;
+            if (Array.isArray(s.sections)) {
+                for (var k = 0; k < s.sections.length; k++) {
+                    var its = s.sections[k].items || [];
+                    for (var jj = 0; jj < its.length; jj++) { total++; if (its[jj].checked) done++; }
+                }
+            } else if (Array.isArray(s.items)) {
+                for (var j3 = 0; j3 < s.items.length; j3++) { total++; if (s.items[j3].checked) done++; }
+            }
+            var pct = total > 0 ? Math.round(done / total * 100) : 0;
+            var row = document.createElement("div");
+            row.innerHTML = '<div class="flex items-center justify-between text-xs font-bold mb-1.5">' +
+                '<span class="text-slate-700 dark:text-slate-300 uppercase">' + escapeHtml(displayName(s)) + '</span>' +
+                '<span class="text-brand-600 dark:text-brand-400">' + done + '/' + total + ' · ' + pct + '%</span>' +
+                '</div>' +
+                '<div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2 overflow-hidden"><div class="bg-brand-500 h-2 rounded-full transition-all" style="width:' + pct + '%"></div></div>';
+            c.appendChild(row);
+        })(p.subjects[j]);
+    }
+}
+
+/* ============ 26. التبويبات ============ */
+function switchTab(tab) {
+    currentTab = tab;
+    var tabs = ["checklist", "timetable", "homework", "stats"];
+    for (var i = 0; i < tabs.length; i++) {
+        var el = document.getElementById("tab-" + tabs[i]);
+        if (el) el.classList.toggle("hidden", tabs[i] !== tab);
+    }
+    var btns = document.querySelectorAll(".tab-btn");
+    for (var j = 0; j < btns.length; j++) {
+        btns[j].classList.toggle("active", btns[j].dataset.tab === tab);
+    }
+    if (tab === "timetable") renderTimetable();
+    if (tab === "homework") renderHomework();
+    if (tab === "stats") renderStats();
+    if (tab === "checklist") renderSubjects();
+}
+
+/* ============ 27. العدّاد ============ */
+function renderCountdown() {
+    var p = getActiveProfile();
+    var d = document.getElementById("countdownDisplay");
+    var s = document.getElementById("countdownSubject");
+    if (!p || !d) return;
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var upcoming = [];
+    for (var i = 0; i < p.subjects.length; i++) {
+        var sub = p.subjects[i];
+        if (!sub.examDate) continue;
+        var dd = new Date(sub.examDate); dd.setHours(0, 0, 0, 0);
+        var diff = Math.round((dd - today) / 86400000);
+        if (diff >= 0) upcoming.push({name: displayName(sub), date: dd, diff: diff});
+    }
+    if (upcoming.length === 0) {
+        d.textContent = t("notSet");
+        s.textContent = t("addExamDateHint");
+        return;
+    }
+    upcoming.sort(function(a, b){ return a.diff - b.diff; });
+    var n = upcoming[0];
+    if (n.diff === 0) d.textContent = t("dayToday");
+    else if (n.diff === 1) d.textContent = t("dayTomorrow");
+    else d.textContent = n.diff + " " + t("dayCount");
+    s.textContent = n.name + " · " + n.date.toLocaleDateString(localeTag());
+}
+
+/* ============ 28. المساعد الذكي ============ */
+function renderSmartAssistant() {
+    var p = getActiveProfile();
+    if (!p) return;
+    var now = new Date();
+    var hh = String(now.getHours()).padStart(2, "0");
+    var mm = String(now.getMinutes()).padStart(2, "0");
+    var ss = String(now.getSeconds()).padStart(2, "0");
+    setText("saClock", hh + ":" + mm + ":" + ss);
+    setText("saDate", now.toLocaleDateString(localeTag(), {weekday: "long", year: "numeric", month: "long", day: "numeric"}));
+
+    var hr = now.getHours();
+    var g = t("saGreetHello");
+    if (hr >= 5 && hr < 12) g = t("saGreetMorning");
+    else if (hr >= 12 && hr < 17) g = t("saGreetNoon");
+    else if (hr >= 17 && hr < 22) g = t("saGreetEvening");
+    else g = t("saGreetNight");
+    setText("saGreeting", g + " " + p.name + "!");
+
+    var week = currentWeekLetter();
+    var dayKey = mapDayToKey(now.getDay());
+    var todaySlots = (p.timetable[dayKey] || []).filter(function(s){ return s.week === "AB" || s.week === week; });
+    var todayLabel = dayLabel(dayKey);
+
+    var todayLine = "";
+    if (todaySlots.length === 0) {
+        todayLine = "📅 " + todayLabel + ": " + t("saTodayNoClasses");
+    } else {
+        var sorted = todaySlots.slice().sort(function(a, b){ return a.start.localeCompare(b.start); });
+        var nowM = hr * 60 + now.getMinutes();
+        var up = null;
+        for (var i = 0; i < sorted.length; i++) if (timeToMins(sorted[i].start) > nowM) { up = sorted[i]; break; }
+
+        var nextInfo = "";
+        if (up) {
+            var sub = findSubjectById(up.subjectId);
+            var nm = sub ? displayName(sub) : "";
+            var dd = timeToMins(up.start) - nowM;
+            nextInfo = dd <= 60 ? " ⏰ " + t("saNextIn") + " " + dd + " " + t("saMinutes") + ": " + nm : " ⏰ " + t("saNextAt") + " " + nm + " " + t("saAt") + " " + up.start;
+        } else {
+            nextInfo = " ✅ " + t("saAllDone");
+        }
+
+        var lst = sorted.map(function(s){
+            var sub = findSubjectById(s.subjectId);
+            return s.start + " " + (sub ? displayName(sub) : "");
+        }).join(" · ");
+        todayLine = "📅 " + todayLabel + ": " + lst + "." + nextInfo;
+    }
+    setText("saTodayLine", todayLine);
+
+    var tom = new Date(now.getTime() + 86400000);
+    var tomKey = mapDayToKey(tom.getDay());
+    var tomSlots = (p.timetable[tomKey] || []).filter(function(s){ return s.week === "AB" || s.week === week; });
+    var tomLabel = dayLabel(tomKey);
+
+    var tomLine = "";
+    if (tomSlots.length === 0) {
+        tomLine = "📆 " + t("saTomorrowPrefix") + " " + tomLabel + ": " + t("saTomorrowNoClasses");
+    } else {
+        var sortedT = tomSlots.slice().sort(function(a, b){ return a.start.localeCompare(b.start); });
+        var lstT = sortedT.map(function(s){
+            var sub = findSubjectById(s.subjectId);
+            return s.start + " " + (sub ? displayName(sub) : "");
+        }).join(" · ");
+        tomLine = "📆 " + t("saTomorrowPrefix") + " " + tomLabel + ": " + lstT + ".";
+    }
+    setText("saTomorrowLine", tomLine);
+
+    var tomSubjectIds = {};
+    for (var i2 = 0; i2 < tomSlots.length; i2++) tomSubjectIds[tomSlots[i2].subjectId] = true;
+    var tomDateStr = tom.toISOString().slice(0, 10);
+    var pendingHw = (p.homework || []).filter(function(h){ return !h.completed; });
+    var hwForTomSubj = pendingHw.filter(function(h){ return tomSubjectIds[h.subjectId]; });
+    var hwDueTom = pendingHw.filter(function(h){ return h.due === tomDateStr; });
+
+    var hwLine = "";
+    if (pendingHw.length === 0) {
+        hwLine = "✅ " + t("saHwNone");
+    } else {
+        var combined = [];
+        var seen = {};
+        for (var a = 0; a < hwForTomSubj.length; a++) if (!seen[hwForTomSubj[a].id]) { combined.push(hwForTomSubj[a]); seen[hwForTomSubj[a].id] = true; }
+        for (var b = 0; b < hwDueTom.length; b++) if (!seen[hwDueTom[b].id]) { combined.push(hwDueTom[b]); seen[hwDueTom[b].id] = true; }
+
+        if (combined.length > 0) {
+            var parts = [];
+            var limit = Math.min(combined.length, 4);
+            for (var c = 0; c < limit; c++) {
+                var h = combined[c];
+                var sub = findSubjectById(h.subjectId);
+                parts.push((sub ? displayName(sub) : "?") + " — " + h.title);
+            }
+            hwLine = "📚 " + t("saTomorrowHwPrefix") + " " + parts.join(" · ");
+            if (combined.length > 4) hwLine += " ...";
+        } else {
+            hwLine = "📚 " + t("saHwMany") + " " + pendingHw.length + " " + t("saHwTasks");
+        }
+    }
+    setText("saHomeworkLine", hwLine);
+}
+
+/* ============ 29. الإعدادات ============ */
+function openSettingsModal() {
+    var p = getActiveProfile();
+    if (!p) return;
+    document.getElementById("settingUsername").value = p.name;
+    document.getElementById("settingPassword").value = p.password;
+    document.getElementById("settingGrade").value = p.grade || "";
+    document.getElementById("settingTerm").value = p.term || "";
+    document.getElementById("settingExamType").value = p.examType || "الاثنان معاً";
+    document.getElementById("settingSchoolYear").value = p.schoolYear || "";
+    document.getElementById("settingWeekAStart").value = appState.weekAStart || "";
+    document.getElementById("settingAutoTranslate").value = appState.autoTranslate ? "on" : "off";
+    document.getElementById("settingsAvatarPreview").src = p.avatar || DEFAULT_AVATAR;
+    document.getElementById("settingsModal").classList.remove("hidden");
+}
+function closeSettingsModal() {
+    document.getElementById("settingsModal").classList.add("hidden");
+}
+function handleAvatarUpload(e) {
+    var f = e.target.files[0];
+    if (!f) return;
+    var r = new FileReader();
+    r.onload = function(ev){ document.getElementById("settingsAvatarPreview").src = ev.target.result; };
+    r.readAsDataURL(f);
+}
+function saveProfileSettings(e) {
+    e.preventDefault();
+    var p = getActiveProfile();
+    if (!p) return;
+    p.name = document.getElementById("settingUsername").value.trim();
+    p.password = document.getElementById("settingPassword").value.trim();
+    p.grade = document.getElementById("settingGrade").value.trim();
+    p.term = document.getElementById("settingTerm").value.trim();
+    p.examType = document.getElementById("settingExamType").value;
+    p.schoolYear = document.getElementById("settingSchoolYear").value.trim();
+    p.avatar = document.getElementById("settingsAvatarPreview").src;
+    appState.weekAStart = document.getElementById("settingWeekAStart").value;
+    appState.autoTranslate = document.getElementById("settingAutoTranslate").value === "on";
+    saveState();
+    closeSettingsModal();
+    renderView();
+}
+function openCreateUserModal() {
+    var name = prompt(t("newUserPromptName"));
+    if (!name || !name.trim()) return;
+    var pwd = prompt(t("newUserPromptPwd"));
+    if (!pwd || !pwd.trim()) return;
+    var np = makeDefaultProfile(name.trim(), pwd.trim());
+    appState.profiles.push(np);
+    appState.activeUserId = np.id;
+    saveState();
+    renderView();
+}
+
+/* ============ 30. حذف المستخدم ============ */
+function requestDeleteUser(userId) {
+    if (appState.profiles.length <= 1) { alert(t("cannotDeleteOnly")); return; }
+    var p = null;
+    for (var i = 0; i < appState.profiles.length; i++) if (appState.profiles[i].id === userId) { p = appState.profiles[i]; break; }
+    if (!p) return;
+    appState.deleteTargetUserId = userId;
+    setText("deleteUserName", p.name);
+    document.getElementById("deleteConfirmInput").value = "";
+    document.getElementById("btnConfirmDelete").disabled = true;
+    document.getElementById("deleteUserModal").classList.remove("hidden");
+}
+function closeDeleteUserModal() {
+    document.getElementById("deleteUserModal").classList.add("hidden");
+    appState.deleteTargetUserId = null;
+}
+function confirmDeleteUser() {
+    var id = appState.deleteTargetUserId;
+    if (!id) return;
+    var p = null;
+    for (var i = 0; i < appState.profiles.length; i++) if (appState.profiles[i].id === id) { p = appState.profiles[i]; break; }
+    if (!p) return;
+    var typed = (document.getElementById("deleteConfirmInput").value || "").trim();
+    if (typed !== p.name) return;
+    if (appState.profiles.length <= 1) { alert(t("cannotDeleteOnly")); return; }
+    appState.profiles = appState.profiles.filter(function(x){ return x.id !== id; });
+    if (appState.activeUserId === id) appState.activeUserId = null;
+    appState.deleteTargetUserId = null;
+    saveState();
+    closeDeleteUserModal();
+    renderView();
+}
+function requestDeleteCurrentProfileFromSettings() {
+    var p = getActiveProfile();
+    if (!p) return;
+    closeSettingsModal();
+    requestDeleteUser(p.id);
+}
+document.addEventListener("input", function(e){
+    if (e.target && e.target.id === "deleteConfirmInput") {
+        var t2 = (e.target.value || "").trim();
+        var id = appState.deleteTargetUserId;
+        var p = null;
+        for (var i = 0; i < appState.profiles.length; i++) if (appState.profiles[i].id === id) { p = appState.profiles[i]; break; }
+        var btn = document.getElementById("btnConfirmDelete");
+        if (p && btn) btn.disabled = (t2 !== p.name);
+    }
+});
+
+/* ============ 31. الترجمة التلقائية ============ */
+function detectLang(text) {
+    if (/[\u0600-\u06FF]/.test(text)) return "ar";
+    if (/[àâçéèêëîïôûùüÿñæœ]/i.test(text)) return "fr";
+    return "en";
+}
+function myMemoryTranslate(text, from, to) {
+    return new Promise(function(resolve){
+        try {
+            var u = "https://api.mymemory.translated.net/get?q=" + encodeURIComponent(text) + "&langpair=" + from + "|" + to;
+            fetch(u)
+                .then(function(r){ return r.json(); })
+                .then(function(j){ resolve((j && j.responseData && j.responseData.translatedText) || null); })
+                .catch(function(){ resolve(null); });
+        } catch (e) { resolve(null); }
+    });
+}
+function autoTranslateField(fieldId) {
+    var inp = document.getElementById(fieldId);
+    if (!inp) return;
+    var text = inp.value.trim();
+    if (!text) return;
+
+    var srcLang = detectLang(text);
+    var targets = ["ar", "fr", "en"].filter(function(l){ return l !== srcLang; });
+
+    var dictAll = {};
+    dictAll.ar = lookupDict(text, "ar");
+    dictAll.fr = lookupDict(text, "fr");
+    dictAll.en = lookupDict(text, "en");
+    var hasDict = dictAll.ar || dictAll.fr || dictAll.en;
+
+    if (hasDict) {
+        if (fieldId === "subjectTitleAr" || fieldId === "subjectTitleFr" || fieldId === "subjectTitleEn") {
+            if (dictAll.ar !== null) document.getElementById("subjectTitleAr").value = dictAll.ar;
+            if (dictAll.fr !== null) document.getElementById("subjectTitleFr").value = dictAll.fr;
+            if (dictAll.en !== null) document.getElementById("subjectTitleEn").value = dictAll.en;
+        }
+        return;
+    }
+
+    if (!appState.autoTranslate) return;
+
+    var btn = event && event.currentTarget;
+    if (btn) btn.classList.add("loading");
+
+    var promises = [];
+    for (var i = 0; i < targets.length; i++) {
+        promises.push(myMemoryTranslate(text, srcLang, targets[i]).then((function(tgt){
+            return function(val){ return {lang: tgt, val: val}; };
+        })(targets[i])));
+    }
+    Promise.all(promises).then(function(results){
+        var final = {};
+        for (var j = 0; j < results.length; j++) {
+            if (results[j].val) final[results[j].lang] = results[j].val;
+        }
+        final[srcLang] = text;
+
+        if (fieldId === "subjectTitleAr" || fieldId === "subjectTitleFr" || fieldId === "subjectTitleEn") {
+            if (final.ar !== undefined) document.getElementById("subjectTitleAr").value = final.ar;
+            if (final.fr !== undefined) document.getElementById("subjectTitleFr").value = final.fr;
+            if (final.en !== undefined) document.getElementById("subjectTitleEn").value = final.en;
+        }
+        if (btn) btn.classList.remove("loading");
+    });
+}
+
+/* ============ 32. التصدير/الاستيراد ============ */
+function exportJSON() {
+    var blob = new Blob([JSON.stringify(appState, null, 2)], {type: "application/json"});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "study_backup_" + new Date().toISOString().slice(0, 10) + ".json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+function importJSON() {
+    var inp = document.createElement("input");
+    inp.type = "file";
+    inp.accept = "application/json";
+    inp.onchange = function(e){
+        var f = e.target.files[0];
+        if (!f) return;
+        var r = new FileReader();
+        r.onload = function(ev){
+            try {
+                var parsed = JSON.parse(ev.target.result);
+                if (parsed && Array.isArray(parsed.profiles)) {
+                    appState = Object.assign({}, appState, parsed);
+                    saveState();
+                    applyTheme();
+                    applyUILanguage();
+                    renderView();
+                    alert(t("importSuccess"));
+                } else {
+                    alert(t("importInvalid"));
+                }
+            } catch (e2) { alert(t("importError")); }
+        };
+        r.readAsText(f);
+    };
+    inp.click();
+}
+
+/* ============ 33. Pomodoro ============ */
+function updatePomodoroDisplay() {
+    var m = Math.floor(pomodoroSeconds / 60);
+    var s = pomodoroSeconds % 60;
+    var td = document.getElementById("timerDisplay");
+    var pm = document.getElementById("pomodoroMode");
+    if (td) td.textContent = String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+    if (pm) {
+        pm.textContent = pomodoroMode === "focus" ? t("pomoFocus") : t("pomoBreak");
+        pm.className = "text-[10px] font-black uppercase w-12 " +
+            (pomodoroMode === "focus" ? "text-brand-600 dark:text-brand-400" : "text-emerald-600 dark:text-emerald-400");
+    }
+}
+function togglePomodoro() {
+    if (pomodoroRunning) {
+        clearInterval(pomodoroInterval);
+        pomodoroRunning = false;
+        var b1 = document.getElementById("timerToggleBtn");
+        if (b1) b1.innerHTML = '<i class="fa-solid fa-play text-xs"></i>';
+    } else {
+        pomodoroRunning = true;
+        var b2 = document.getElementById("timerToggleBtn");
+        if (b2) b2.innerHTML = '<i class="fa-solid fa-pause text-xs"></i>';
+        pomodoroInterval = setInterval(function(){
+            if (pomodoroSeconds > 0) {
+                pomodoroSeconds--;
+                updatePomodoroDisplay();
+            } else {
+                clearInterval(pomodoroInterval);
+                pomodoroRunning = false;
+                var b3 = document.getElementById("timerToggleBtn");
+                if (b3) b3.innerHTML = '<i class="fa-solid fa-play text-xs"></i>';
+                if (pomodoroMode === "focus") {
+                    alert(t("pomoAlertEndFocus"));
+                    pomodoroMode = "break";
+                    pomodoroSeconds = 5 * 60;
+                } else {
+                    alert(t("pomoAlertEndBreak"));
+                    pomodoroMode = "focus";
+                    pomodoroSeconds = 25 * 60;
+                }
+                updatePomodoroDisplay();
+            }
+        }, 1000);
+    }
+}
+function resetPomodoro() {
+    clearInterval(pomodoroInterval);
+    pomodoroRunning = false;
+    pomodoroMode = "focus";
+    pomodoroSeconds = 25 * 60;
+    updatePomodoroDisplay();
+    var b = document.getElementById("timerToggleBtn");
+    if (b) b.innerHTML = '<i class="fa-solid fa-play text-xs"></i>';
+}
+
+/* ============ 34. بدء التطبيق ============ */
+window.addEventListener("DOMContentLoaded", function(){
+    /* تحميل الحالة الأولية (للتخزين المحلي) */
+    loadState();
+    applyTheme();
+    
+    /* التحقق من وجود جلسة سابقة */
+    if (typeof checkExistingSession === 'function') {
+        checkExistingSession().then(function(hasSession) {
+            /* إذا لا يوجد جلسة، أظهر شاشة تسجيل الدخول */
+            if (!hasSession) {
+                var authScreen = document.getElementById('authScreen');
+                var homeView = document.getElementById('homeView');
+                if (authScreen) authScreen.classList.remove('hidden');
+                if (homeView) homeView.classList.add('hidden');
+            }
+        });
+    }
+    
+    /* إعداد اللغة */
+    document.documentElement.setAttribute("dir", appState.lang === "ar" ? "rtl" : "ltr");
+    document.documentElement.setAttribute("lang", appState.lang);
+    var sel = document.getElementById("langSelect");
+    if (sel) sel.value = appState.lang;
+    
+    applyUILanguage();
+    updatePomodoroDisplay();
+    
+    if (countdownTicker) clearInterval(countdownTicker);
+    countdownTicker = setInterval(function(){ if (appState.activeUserId) renderCountdown(); }, 60000);
+    
+    if (assistantClockTicker) clearInterval(assistantClockTicker);
+    assistantClockTicker = setInterval(function(){ if (appState.activeUserId) renderSmartAssistant(); }, 1000);
+});
+</script>
+
+</body>
+</html>
