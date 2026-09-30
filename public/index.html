@@ -753,23 +753,64 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
         <!-- المساعد الذكي -->
         <div id="smartAssistant" class="rounded-2xl p-4 mb-4 text-white shadow-xl relative overflow-hidden" style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #d946ef 100%);">
-            <div class="relative z-10 flex flex-col sm:flex-row sm:items-start gap-3">
-                <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-lg flex-shrink-0">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i>
-                </div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-[10px] font-bold uppercase tracking-wider text-indigo-100">المساعد الذكي</p>
-                    <h3 id="saGreeting" class="text-base sm:text-lg font-black leading-tight">—</h3>
-                    <p id="saTodayLine" class="text-[11px] sm:text-xs text-indigo-100 mt-1">—</p>
-                    <p id="saTomorrowLine" class="text-[11px] sm:text-xs text-indigo-100 mt-1">—</p>
-                    <p id="saHomeworkLine" class="text-[11px] sm:text-xs text-indigo-100 mt-1">—</p>
-                </div>
-                <div class="text-right flex-shrink-0">
-                    <p id="saClock" class="text-2xl font-black tabular-nums leading-none">--:--</p>
-                    <p id="saDate" class="text-[10px] font-semibold text-indigo-100 mt-1">—</p>
-                </div>
+    <div class="relative z-10">
+        
+        <!-- الصف الأول: الأيقونة + الترحيب + الساعة -->
+        <div class="flex items-start gap-3 mb-3">
+            <div id="saAvatar" class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center text-2xl flex-shrink-0" style="transition: transform 0.3s;">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+                <p class="text-[10px] font-bold uppercase tracking-wider text-indigo-100">المساعد الذكي</p>
+                <h3 id="saGreeting" class="text-base sm:text-lg font-black leading-tight">—</h3>
+                <p id="saMood" class="text-[11px] text-indigo-100 mt-0.5">—</p>
+            </div>
+            <div class="text-right flex-shrink-0">
+                <p id="saClock" class="text-xl font-black tabular-nums leading-none">--:--</p>
+                <p id="saDate" class="text-[10px] font-semibold text-indigo-100 mt-1">—</p>
             </div>
         </div>
+        
+        <!-- شريط النقاط والـ Streak -->
+        <div class="flex items-center gap-2 mb-3 flex-wrap">
+            <div class="bg-white/15 backdrop-blur-sm rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
+                <i class="fa-solid fa-star text-amber-300 text-xs"></i>
+                <span class="text-xs font-black" id="saPoints">0</span>
+                <span class="text-[10px] text-indigo-100">نقطة</span>
+            </div>
+            <div class="bg-white/15 backdrop-blur-sm rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
+                <i class="fa-solid fa-fire text-orange-300 text-xs"></i>
+                <span class="text-xs font-black" id="saStreak">0</span>
+                <span class="text-[10px] text-indigo-100">يوم</span>
+            </div>
+            <div id="saGoalChip" class="bg-white/15 backdrop-blur-sm rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
+                <i class="fa-solid fa-bullseye text-emerald-300 text-xs"></i>
+                <span class="text-xs font-black" id="saGoalProgress">0/0</span>
+                <span class="text-[10px] text-indigo-100">اليوم</span>
+            </div>
+        </div>
+        
+        <!-- الرسائل الذكية -->
+        <div class="space-y-1.5">
+            <p id="saTodayLine" class="text-[11px] sm:text-xs text-indigo-100 flex items-start gap-1.5">
+                <i class="fa-solid fa-circle text-[6px] mt-1.5 flex-shrink-0 opacity-70"></i>
+                <span class="flex-1">—</span>
+            </p>
+            <p id="saTomorrowLine" class="text-[11px] sm:text-xs text-indigo-100 flex items-start gap-1.5">
+                <i class="fa-solid fa-circle text-[6px] mt-1.5 flex-shrink-0 opacity-70"></i>
+                <span class="flex-1">—</span>
+            </p>
+            <p id="saHomeworkLine" class="text-[11px] sm:text-xs text-indigo-100 flex items-start gap-1.5">
+                <i class="fa-solid fa-circle text-[6px] mt-1.5 flex-shrink-0 opacity-70"></i>
+                <span class="flex-1">—</span>
+            </p>
+            <p id="saTipLine" class="text-[11px] sm:text-xs text-amber-100 flex items-start gap-1.5 pt-1 mt-1 border-t border-white/20">
+                <i class="fa-solid fa-lightbulb text-amber-300 text-xs mt-0.5 flex-shrink-0"></i>
+                <span class="flex-1">—</span>
+            </p>
+        </div>
+    </div>
+</div>
 
         <!-- بانر المستخدم -->
         <div class="rounded-2xl p-4 text-white shadow-xl mb-4 relative overflow-hidden" style="background: linear-gradient(135deg, #ea580c 0%, #d97706 50%, #f97316 100%);">
