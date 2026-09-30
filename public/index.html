@@ -3415,6 +3415,137 @@ window.addEventListener("DOMContentLoaded", function(){
     header h1 { font-size: 14px !important; }
     .tab-btn i { display: none; }
 }
+/* ============================================================
+   إصلاح العرض على الهاتف — منع الانضغاط والفراغ
+   ============================================================ */
+html, body {
+    overflow-x: hidden !important;
+    max-width: 100% !important;
+    width: 100% !important;
+}
+
+#app {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+}
+
+header {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+header > div {
+    max-width: 100% !important;
+    flex-wrap: wrap !important;
+}
+
+main {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* منع أي عنصر من تجاوز الشاشة */
+* {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* إصلاح اتجاه الصفحة على الهاتف */
+@media (max-width: 768px) {
+    html {
+        font-size: 15px;
+    }
+    
+    /* الهيدر: تمرير أفقي للأزرار */
+    header > div {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+    
+    header > div > div:last-child {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        padding-bottom: 4px !important;
+        gap: 6px !important;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    header > div > div:last-child > * {
+        flex-shrink: 0 !important;
+    }
+    
+    /* البطاقات في العمود */
+    #subjectsContainer,
+    #usersGrid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+    
+    /* بطاقات المستخدم */
+    .profile-card {
+        padding: 14px !important;
+    }
+    
+    /* بطاقات المواد */
+    #subjectsContainer > div {
+        border-radius: 14px !important;
+    }
+    
+    /* الأزرار داخل تبويب المواد */
+    #tab-checklist > div:first-child {
+        flex-direction: column !important;
+        gap: 8px !important;
+    }
+    
+    #tab-checklist > div:first-child > div:last-child {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr 1fr 1fr !important;
+        gap: 6px !important;
+    }
+    
+    #tab-checklist > div:first-child > div:last-child button,
+    #tab-checklist > div:first-child > div:last-child select {
+        padding: 8px 4px !important;
+        font-size: 11px !important;
+        width: 100% !important;
+    }
+    
+    /* التبويبات: تمرير أفقي */
+    .tab-btn {
+        font-size: 11px !important;
+        padding: 8px 6px !important;
+        white-space: nowrap !important;
+    }
+    
+    /* الجدول الأسبوعي */
+    .tt-table {
+        min-width: 800px !important;
+    }
+    
+    /* النوافذ المنبثقة */
+    .fixed.inset-0 > div {
+        margin: 8px !important;
+        max-height: 92vh !important;
+        overflow-y: auto !important;
+    }
+    
+    /* النصوص داخل المساعد */
+    #saTodayLine, #saTomorrowLine, #saHomeworkLine {
+        font-size: 11px !important;
+        line-height: 1.4 !important;
+    }
+}
+
+/* للشاشات الصغيرة جدا */
+@media (max-width: 380px) {
+    header h1 { font-size: 13px !important; }
+    header p { font-size: 9px !important; }
+    .tab-btn { font-size: 10px !important; padding: 6px 4px !important; }
+    #saGreeting { font-size: 14px !important; }
+}
 </style>
 </body>
 </html>
