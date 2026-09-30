@@ -535,6 +535,100 @@ async function ensureDayMet(userId, day) {
         `, [userId, day]);
     }
 }
+/* ============================================================
+   نظام تسجيل النتائج الفعلية
+   ============================================================ */
+
+/* جلب كل نتائج المستخدم */
+async function getExamResults(userId) {
+    var result = await pool.query(
+        'SELECT * FROM exam_results WHERE user_id = $1 ORDER BY exam_date DESC, created_at DESC',
+        [userId]
+    );
+    return result.rows;
+}
+
+/* جلب نتيجة واحدة */
+async function getExamResultById(resultId, userId) {
+    var result = await pool.query(
+        'SELECT * FROM exam_results WHERE id = $1 AND user_id = $2',
+        [resultId, userId]
+    );
+    return result.rows[0] || null;
+}
+
+/* إضافة نتيجة جديدة */
+async function createExamResult(userId, data) {
+    var result = await pool.query(`
+        INSERT INTO exam_results
+        (user_id, subject_id, subject_name, exam_type, exam_date, score, max_score, coefficient, note)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id
+    `, [
+        userId,
+        data.subjectId,
+        data.subjectName,
+        data.examType,
+        data.examDate,
+        data.score,
+        data.maxScore || 20,
+        data.coefficient || 1,
+        data.note || ''
+    ]);
+    return result.rows[0].id;
+}
+
+/* تحديث نتيجة */
+async function updateExamResult(resultId, userId, data) {
+    await pool.query(`
+        UPDATE exam_results SET
+            subject_id = COALESCE($1, subject_id),
+            subject_name = COALESCE($2, subject_name),
+            exam_type = COALESCE($3, exam_type),
+            exam_date = COALESCE($4, exam_date),
+            score = COALESCE($5, score),
+            max_score = COALESCE($6, max_score),
+            coefficient = COALESCE($7, coefficient),
+            note = COALESCE($8, note),
+            updated_at = NOW()
+        WHERE id = $9 AND user_id = $10
+    `, [
+        data.subjectId || null,
+        data.subjectName || null,
+        data.examType || null,
+        data.examDate || null,
+        data.score != null ? data.score : null,
+        data.maxScore != null ? data.maxScore : null,
+        data.coefficient != null ? data.coefficient : null,
+        data.note != null ? data.note : null,
+        resultId,
+        userId
+    ]);
+}
+
+/* حذف نتيجة */
+async function deleteExamResult(resultId, userId) {
+    await pool.query('DELETE FROM exam_results WHERE id = $1 AND user_id = $2', [resultId, userId]);
+}
+
+/* جلب معاملات المواد */
+async function getSubjectCoefficients(userId) {
+    var result = await pool.query(
+        'SELECT * FROM subject_coefficients WHERE user_id = $1',
+        [userId]
+    );
+    return result.rows;
+}
+
+/* حفظ/تحديث معامل مادة */
+async function setSubjectCoefficient(userId, subjectId, coefficient) {
+    await pool.query(`
+        INSERT INTO subject_coefficients (user_id, subject_id, coefficient)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (user_id, subject_id)
+        DO UPDATE SET coefficient = $3
+    `, [userId, subjectId, coefficient]);
+}
 
 module.exports = {
     pool: pool,
@@ -577,5 +671,13 @@ module.exports = {
     getConsecutiveDays: getConsecutiveDays,
     getMissedDays: getMissedDays,
     repairDay: repairDay,
-    ensureDayMet: ensureDayMet
+    ensureDayMet: ensureDayMet,
+    /* نظام النتائج */
+    getExamResults: getExamResults,
+    getExamResultById: getExamResultById,
+    createExamResult: createExamResult,
+    updateExamResult: updateExamResult,
+    deleteExamResult: deleteExamResult,
+    getSubjectCoefficients: getSubjectCoefficients,
+    setSubjectCoefficient: setSubjectCoefficient
 };
