@@ -2727,79 +2727,220 @@ function renderCountdown() {
    ============================================================ */
 function renderSmartAssistant() {
     var now = new Date();
-    var hh = String(now.getHours()).padStart(2,'0');
-    var mm = String(now.getMinutes()).padStart(2,'0');
-    var ss = String(now.getSeconds()).padStart(2,'0');
-    document.getElementById('saClock').textContent = hh + ':' + mm + ':' + ss;
-    document.getElementById('saDate').textContent = now.toLocaleDateString(localeTag(), {weekday:'long', year:'numeric', month:'long', day:'numeric'});
+    var hh = String(now.getHours()).padStart(2, '0');
+    var mm = String(now.getMinutes()).padStart(2, '0');
+    var ss = String(now.getSeconds()).padStart(2, '0');
     var hr = now.getHours();
-    var g = t('saGreeting');
-    if (hr >= 5 && hr < 12) g = appState.lang === 'ar' ? 'صباح الخير' : appState.lang === 'fr' ? 'Bonjour' : 'Good morning';
-    else if (hr >= 12 && hr < 17) g = appState.lang === 'ar' ? 'نهارك سعيد' : appState.lang === 'fr' ? 'Bon après-midi' : 'Good afternoon';
-    else if (hr >= 17 && hr < 22) g = appState.lang === 'ar' ? 'مساء الخير' : appState.lang === 'fr' ? 'Bonsoir' : 'Good evening';
-    else g = appState.lang === 'ar' ? 'ليلة هادئة' : appState.lang === 'fr' ? 'Bonne nuit' : 'Good night';
-    document.getElementById('saGreeting').textContent = g + ' ' + (CURRENT_USER ? CURRENT_USER.name : '') + '!';
-
-    var week = currentWeekLetter();
-    var dayKey = mapDayToKey(now.getDay());
-    var todaySlots = (appState.timetable[dayKey] || []).filter(function(s){return s.week === 'AB' || s.week === week;});
-    var todayLabel = dayLabel(dayKey);
-
-    var todayLine = '';
-    if (todaySlots.length === 0) {
-        todayLine = t('saToday') + ' ' + todayLabel + ': ' + t('saNoClasses');
-    } else {
-        var sorted = todaySlots.slice().sort(function(a,b){return a.start.localeCompare(b.start);});
-        var lst = sorted.map(function(s){
-            var sub = findSubjectById(s.subjectId);
-            return s.start + ' ' + (sub ? displayName(sub) : '');
-        }).join(' · ');
-        todayLine = t('saToday') + ' ' + todayLabel + ': ' + lst;
+    
+    /* الساعة والتاريخ */
+    setText('saClock', hh + ':' + mm + ':' + ss);
+    setText('saDate', now.toLocaleDateString(localeTag(), {weekday: 'long', day: 'numeric', month: 'long'}));
+    
+    /* الأفاتار يتغير حسب الوقت */
+    var av = document.getElementById('saAvatar');
+    if (av) {
+        var icon = 'fa-wand-magic-sparkles';
+        var rot = '0deg';
+        if (hr >= 5 && hr < 12) icon = 'fa-sun';
+        else if (hr >= 12 && hr < 17) icon = 'fa-cloud-sun';
+        else if (hr >= 17 && hr < 22) icon = 'fa-moon';
+        else icon = 'fa-star';
+        av.innerHTML = '<i class="fa-solid ' + icon + '"></i>';
     }
-    document.getElementById('saTodayLine').textContent = todayLine;
-
-    var tom = new Date(now.getTime() + 86400000);
-    var tomKey = mapDayToKey(tom.getDay());
-    var tomSlots = (appState.timetable[tomKey] || []).filter(function(s){return s.week === 'AB' || s.week === week;});
-    var tomLabel = dayLabel(tomKey);
-    var tomLine = '';
-    if (tomSlots.length === 0) {
-        tomLine = t('saTomorrow') + ' ' + tomLabel + ': ' + t('saNoClasses');
+    
+    /* الترحيب حسب الوقت */
+    var greet, mood;
+    if (hr >= 5 && hr < 12) {
+        greet = 'صباح الخير';
+        mood = 'بداية يوم جديد — لنبدأ بقوة!';
+    } else if (hr >= 12 && hr < 17) {
+        greet = 'نهارك سعيد';
+        mood = 'استمر في التقدم — أنت في منتصف الطريق';
+    } else if (hr >= 17 && hr < 22) {
+        greet = 'مساء الخير';
+        mood = 'وقت المراجعة المسائي — ركز قليلاً';
     } else {
-        var lstT = tomSlots.slice().sort(function(a,b){return a.start.localeCompare(b.start);}).map(function(s){
-            var sub = findSubjectById(s.subjectId);
-            return s.start + ' ' + (sub ? displayName(sub) : '');
-        }).join(' · ');
-        tomLine = t('saTomorrow') + ' ' + tomLabel + ': ' + lstT;
+        greet = 'ليلة هادئة';
+        mood = 'وقت الراحة — نم جيداً لتصحو نشيطاً';
     }
-    document.getElementById('saTomorrowLine').textContent = tomLine;
-
-    var tomSubjectIds = {};
-    tomSlots.forEach(function(s){ tomSubjectIds[s.subjectId] = true; });
-    var tomDateStr = tom.toISOString().slice(0,10);
-    var pendingHw = (appState.homework || []).filter(function(h){return !h.completed;});
-    var hwFor = pendingHw.filter(function(h){return tomSubjectIds[h.subjectId];});
-    var hwDue = pendingHw.filter(function(h){return h.due === tomDateStr;});
-    var hwLine = '';
-    if (pendingHw.length === 0) {
-        hwLine = '✅ ' + t('saNoHw');
-    } else {
-        var combined = [];
-        var seen = {};
-        hwFor.forEach(function(h){ if (!seen[h.id]) { combined.push(h); seen[h.id] = true; } });
-        hwDue.forEach(function(h){ if (!seen[h.id]) { combined.push(h); seen[h.id] = true; } });
-        if (combined.length > 0) {
-            var parts = combined.slice(0,4).map(function(h){
-                var sub = findSubjectById(h.subjectId);
-                return (sub ? displayName(sub) : '?') + ' — ' + h.title;
-            });
-            hwLine = '📚 ' + t('saHw') + ' ' + parts.join(' · ');
-        } else {
-            hwLine = '📚 ' + pendingHw.length + ' ' + (appState.lang === 'ar' ? 'واجب معلق' : appState.lang === 'fr' ? 'devoir(s)' : 'pending');
+    
+    var userName = CURRENT_USER ? CURRENT_USER.name : '';
+    setText('saGreeting', greet + ' ' + userName + '!');
+    setText('saMood', mood);
+    
+    /* النقاط والـ Streak */
+    setText('saPoints', CURRENT_STATS.points || 0);
+    setText('saStreak', CURRENT_STATS.currentStreak || 0);
+    
+    var progress = CURRENT_STATS.todayProgress;
+    var goalText = '0/0';
+    var goalChip = document.getElementById('saGoalChip');
+    if (progress) {
+        goalText = (progress.current_value || 0) + '/' + (progress.goal_value || 0);
+        if (goalChip) {
+            if (progress.goal_met) {
+                goalChip.classList.add('bg-emerald-500/30');
+            } else {
+                goalChip.classList.remove('bg-emerald-500/30');
+            }
         }
     }
-    document.getElementById('saHomeworkLine').textContent = hwLine;
+    setText('saGoalProgress', goalText);
+    
+    /* السطر 1: حصص اليوم */
+    var week = currentWeekLetter();
+    var dayKey = mapDayToKey(now.getDay());
+    var todaySlots = (appState.timetable[dayKey] || []).filter(function(s){ return s.week === 'AB' || s.week === week; });
+    var todayLabel = dayLabel(dayKey);
+    
+    var todayMsg = '';
+    if (todaySlots.length === 0) {
+        todayMsg = todayLabel + ': لا حصص — يوم راحة.';
+    } else {
+        var sorted = todaySlots.slice().sort(function(a,b){ return a.start.localeCompare(b.start); });
+        var nowM = hr * 60 + now.getMinutes();
+        var nextSlot = null;
+        for (var i = 0; i < sorted.length; i++) {
+            if (timeToMins(sorted[i].start) > nowM) { nextSlot = sorted[i]; break; }
+        }
+        if (nextSlot) {
+            var sub = findSubjectById(nextSlot.subjectId);
+            var nm = sub ? displayName(sub) : '';
+            var dd = timeToMins(nextSlot.start) - nowM;
+            if (dd <= 30) {
+                todayMsg = 'الحصة القادمة بعد ' + dd + ' دقيقة: ' + nm + ' في ' + displayRoom(nextSlot.room);
+            } else if (dd <= 120) {
+                todayMsg = 'الحصة القادمة: ' + nm + ' على ' + nextSlot.start;
+            } else {
+                todayMsg = 'لديك ' + todaySlots.length + ' حصة اليوم، أولها ' + nm + ' على ' + nextSlot.start;
+            }
+        } else {
+            todayMsg = 'انتهت حصص اليوم (' + todaySlots.length + ' حصة). وقت المراجعة!';
+        }
+    }
+    var el1 = document.getElementById('saTodayLine');
+    if (el1) el1.querySelector('span').textContent = todayMsg;
+    
+    /* السطر 2: حصص الغد */
+    var tom = new Date(now.getTime() + 86400000);
+    var tomKey = mapDayToKey(tom.getDay());
+    var tomSlots = (appState.timetable[tomKey] || []).filter(function(s){ return s.week === 'AB' || s.week === week; });
+    var tomLabel = dayLabel(tomKey);
+    
+    var tomMsg = '';
+    if (tomSlots.length === 0) {
+        tomMsg = tomLabel + ': لا حصص — فرصة للمراجعة.';
+    } else {
+        var sortedT = tomSlots.slice().sort(function(a,b){ return a.start.localeCompare(b.start); });
+        var first = sortedT[0];
+        var sub1 = findSubjectById(first.subjectId);
+        var nm1 = sub1 ? displayName(sub1) : '';
+        tomMsg = 'غداً (' + tomLabel + '): ' + tomSlots.length + ' حصة، تبدأ بـ ' + nm1 + ' على ' + first.start + '. جهّز أدواتك الليلة!';
+    }
+    var el2 = document.getElementById('saTomorrowLine');
+    if (el2) el2.querySelector('span').textContent = tomMsg;
+    
+    /* السطر 3: الواجبات أو الأهداف */
+    var pendingHw = (appState.homework || []).filter(function(h){ return !h.completed; });
+    var hwMsg = '';
+    
+    if (pendingHw.length > 0) {
+        /* فرز حسب الأولوية والموعد */
+        pendingHw.sort(function(a,b){
+            var rank = {urgent:0, medium:1, normal:2};
+            var ra = rank[a.priority] || 2;
+            var rb = rank[b.priority] || 2;
+            if (ra !== rb) return ra - rb;
+            return (a.due || '9999').localeCompare(b.due || '9999');
+        });
+        var urgent = pendingHw.filter(function(h){ return h.priority === 'urgent'; }).length;
+        var top = pendingHw[0];
+        hwMsg = 'لديك ' + pendingHw.length + ' واجب معلق' + (urgent > 0 ? ' (منها ' + urgent + ' عاجل)' : '') + '. الأهم: ' + top.title;
+    } else {
+        hwMsg = 'ما شاء الله! لا واجبات معلقة.';
+    }
+    var el3 = document.getElementById('saHomeworkLine');
+    if (el3) el3.querySelector('span').textContent = hwMsg;
+    
+    /* السطر 4: نصيحة اليوم */
+    var tip = getDailyTip(hr, progress);
+    var el4 = document.getElementById('saTipLine');
+    if (el4) el4.querySelector('span').textContent = tip;
 }
+
+/* نصائح متغيرة حسب الوقت والحالة */
+function getDailyTip(hr, progress) {
+    var missed = (CURRENT_STATS.missedDays || []).length;
+    var streak = CURRENT_STATS.currentStreak || 0;
+    
+    /* 1. إذا كان هناك تحذير فوري */
+    if (missed > 0) {
+        return 'لديك ' + missed + ' يوم فائت. انقر تبويب "التقدم" لإصلاحه بالنقاط.';
+    }
+    
+    /* 2. إذا كان الـ Streak عاليًا */
+    if (streak >= 30) {
+        return 'شهر كامل من الانتظام! أنت أسطورة 🔥';
+    }
+    if (streak >= 7) {
+        return 'Streak = ' + streak + ' يوم! استمر في هذه العادة الرائعة.';
+    }
+    
+    /* 3. تحذيرات حسب الوقت */
+    if (hr >= 20 && hr < 24) {
+        if (progress && !progress.goal_met) {
+            var rem = progress.goal_value - progress.current_value;
+            return 'بقي القليل على نهاية اليوم! لديك ' + rem + ' مهمة لتحقيق الهدف.';
+        }
+    }
+    
+    /* 4. حسب ساعات اليوم */
+    if (hr >= 5 && hr < 9) {
+        var tips = [
+            'ابدأ يومك بأصعب مادة — عقلك في أفضل حالاته الآن.',
+            'قبل أي شيء: اشرب كوب ماء وراجع ورقة واحدة.',
+            'لا تفتح الهاتف أول الصباح. ابدأ بمهمة واحدة فقط.',
+            'الصباح الباكر = 3 أضعاف الإنتاجية.'
+        ];
+        return tips[new Date().getDate() % tips.length];
+    }
+    
+    if (hr >= 12 && hr < 15) {
+        var tips2 = [
+            'بعد الغداء، خذ 10 دقائق راحة قبل المراجعة.',
+            'المذاكرة بعد الغداء صعبة — ابدأ بمادة سهلة.',
+            'ساعة دراسة في الظهر = ساعتان في الليل.'
+        ];
+        return tips2[new Date().getDate() % tips2.length];
+    }
+    
+    if (hr >= 17 && hr < 22) {
+        var tips3 = [
+            'المساء للتركيز العميق — أغلق كل التطبيقات.',
+            'قم بمراجعة ما درسته هذا الصباح الآن.',
+            'قبل النوم: راجع ملاحظات اليوم لمدة 10 دقائق.',
+            'استخدم تقنية Pomodoro — 25 دقيقة تركيز، 5 راحة.'
+        ];
+        return tips3[new Date().getDate() % tips3.length];
+    }
+    
+    /* 5. النصيحة الافتراضية */
+    var defaultTips = [
+        'قاعدة 2 دقيقة: ابدأ المهمة لدقيقتين، ستكملها تلقائياً.',
+        'لا تذاكر لمدة 4 ساعات متواصلة. قسّمها إلى 4 × 50 دقيقة.',
+        'اكتب ما تعلمته اليوم بكلماتك — أقوى طريقة للحفظ.',
+        'النوم 7 ساعات = ذاكرة أقوى بنسبة 40%.',
+        'راجع بشكل متكرر — الأفضل من الجلسة الطويلة.',
+        'اشرب ماء كل 30 دقيقة أثناء الدراسة.'
+    ];
+    return defaultTips[new Date().getDate() % defaultTips.length];
+}
+
+/* تحديث المساعد كل 30 ثانية */
+setInterval(function() {
+    if (CURRENT_USER) renderSmartAssistant();
+}, 30000);
+
 
 /* ============================================================
    الجزء 20: الإعدادات
