@@ -759,6 +759,122 @@ async function getPendingParentRequests(userId) {
     `, [userId]);
     return result.rows;
 }
+/* ============================================================
+   نظام جلسات التركيز (Pomodoro)
+   ============================================================ */
+
+/* بدء جلسة جديدة */
+async function startFocusSession(userId, data) {
+    var result = await pool.query(`
+        INSERT INTO focus_sessions
+        (user_id, subject_id, subject_name, goal, session_type, planned_minutes, started_at)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW())
+        RETURNING id, started_at
+    `, [
+        userId,
+        data.subjectId || '',
+        data.subjectName || '',
+        data.goal || '',
+        data.sessionType || 'focus',
+        data.plannedMinutes || 25
+    ]);
+    return result.rows[0];
+}
+
+/* إنهاء جلسة */
+async function endFocusSession(sessionId, userId, actualMinutes, completed) {
+    var countedAsTask = (actualMinutes >= 30 && completed) ? 1 : 0;
+    await pool.query(`
+        UPDATE focus_sessions SET
+            ended_at = NOW(),
+            actual_minutes = $1,
+            completed = $2,
+            counted_as_task = $3
+        WHERE id = $4 AND user_id = $5
+    `, [actualMinutes, completed ? 1 : 0, countedAsTask, sessionId, userId]);
+    return { countedAsTask: countedAsTask };
+}
+
+/* جلب الجلسة النشطة (بدون end) */
+async function getActiveFocusSession(userId) {
+    var result = await pool.query(`
+        SELECT * FROM focus_sessions 
+        WHERE user_id = $1 AND ended_at IS NULL
+        ORDER BY started_at DESC
+        LIMIT 1
+    `, [userId]);
+    return result.rows[0] || null;
+}
+
+/* جلب جلسات اليوم */
+async function getTodayFocusSessions(userId) {
+    var result = await pool.query(`
+        SELECT * FROM focus_sessions 
+        WHERE user_id = $1 
+            AND started_at >= CURRENT_DATE
+            AND ended_at IS NOT NULL
+        ORDER BY started_at DESC
+    `, [userId]);
+    return result.rows;
+}
+
+/* جلب جلسات آخر N أيام */
+async function getRecentFocusSessions(userId, days) {
+    var result = await pool.query(`
+        SELECT * FROM focus_sessions 
+        WHERE user_id = $1 
+            AND started_at >= NOW() - ($2 || ' days')::interval
+            AND ended_at IS NOT NULL
+        ORDER BY started_at DESC
+    `, [userId, days || 7]);
+    return result.rows;
+}
+
+/* إحصائيات الوقت */
+async function getFocusStats(userId, days) {
+    var result = await pool.query(`
+        SELECT 
+            COALESCE(SUM(actual_minutes), 0) as total_minutes,
+            COUNT(*) as total_sessions,
+            COALESCE(SUM(CASE WHEN session_type = 'focus' THEN actual_minutes ELSE 0 END), 0) as focus_minutes,
+            COALESCE(SUM(CASE WHEN session_type = 'break' THEN actual_minutes ELSE 0 END), 0) as break_minutes,
+            COALESCE(SUM(counted_as_task), 0) as tasks_counted
+        FROM focus_sessions 
+        WHERE user_id = $1 
+            AND started_at >= NOW() - ($2 || ' days')::interval
+            AND ended_at IS NOT NULL
+    `, [userId, days || 1]);
+    return result.rows[0];
+}
+
+/* إحصائيات حسب المادة */
+async function getFocusBySubject(userId, days) {
+    var result = await pool.query(`
+        SELECT 
+            subject_id,
+            subject_name,
+            SUM(actual_minutes) as total_minutes,
+            COUNT(*) as sessions_count
+        FROM focus_sessions 
+        WHERE user_id = $1 
+            AND started_at >= NOW() - ($2 || ' days')::interval
+            AND ended_at IS NOT NULL
+            AND subject_id != ''
+        GROUP BY subject_id, subject_name
+        ORDER BY total_minutes DESC
+    `, [userId, days || 7]);
+    return result.rows;
+}
+
+/* حذف الجلسات القديمة غير المكتملة */
+async function cleanupStaleSessions(userId) {
+    await pool.query(`
+        DELETE FROM focus_sessions 
+        WHERE user_id = $1 
+            AND ended_at IS NULL 
+            AND started_at < NOW() - INTERVAL '6 hours'
+    `, [userId]);
+}
 
 module.exports = {
     pool: pool,
@@ -822,5 +938,14 @@ module.exports = {
     removeParentChild: removeParentChild,
     getParentChildren: getParentChildren,
     getUserParents: getUserParents,
-    getPendingParentRequests: getPendingParentRequests
+    getPendingParentRequests: getPendingParentRequests,
+    /* جلسات التركيز */
+    startFocusSession: startFocusSession,
+    endFocusSession: endFocusSession,
+    getActiveFocusSession: getActiveFocusSession,
+    getTodayFocusSessions: getTodayFocusSessions,
+    getRecentFocusSessions: getRecentFocusSessions,
+    getFocusStats: getFocusStats,
+    getFocusBySubject: getFocusBySubject,
+    cleanupStaleSessions: cleanupStaleSessions
 };
