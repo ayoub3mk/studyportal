@@ -5796,6 +5796,563 @@ window.addEventListener('DOMContentLoaded', function() {
     })
     .catch(function() {});
 });
+/* ============================================================
+   الجزء 35: نظام جلسات التركيز (Pomodoro)
+   ============================================================ */
+
+var FOCUS = {
+    currentSession: null,
+    timerInterval: null,
+    secondsRemaining: 0,
+    totalSeconds: 0,
+    isPaused: false,
+    isMinimized: false,
+    sessionType: 'focus',   /* focus أو break */
+    selectedDuration: 25,
+    audioContext: null
+};
+
+var FOCUS_DURATIONS = {
+    focus: [15, 25, 30, 45, 60],
+    break: [5, 10, 15, 20]
+};
+
+/* فتح نافذة التركيز */
+function openFocusModal() {
+    /* تحقق من وجود جلسة نشطة */
+    fetch('/api/focus/active', { credentials: 'include' })
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(data) {
+        if (data && data.session) {
+            /* استئناف الجلسة النشطة */
+            resumeActiveSession(data.session);
+        } else {
+            /* جلسة جديدة */
+            showFocusSetup();
+        }
+    })
+    .catch(function() { showFocusSetup(); });
+    
+    document.getElementById('focusModal').classList.remove('hidden');
+    document.getElementById('focusFloat').classList.add('hidden');
+}
+
+/* استئناف جلسة موجودة */
+function resumeActiveSession(session) {
+    FOCUS.currentSession = session;
+    FOCUS.sessionType = session.session_type;
+    
+    var startTime = new Date(session.started_at).getTime();
+    var now = Date.now();
+    var elapsedSeconds = Math.floor((now - startTime) / 1000);
+    var totalSeconds = session.planned_minutes * 60;
+    
+    FOCUS.totalSeconds = totalSeconds;
+    FOCUS.secondsRemaining = Math.max(0, totalSeconds - elapsedSeconds);
+    FOCUS.isPaused = false;
+    
+    showFocusRunning();
+    startFocusTimer();
+}
+
+/* عرض شاشة الإعداد */
+function showFocusSetup() {
+    document.getElementById('focusSetupStage').classList.remove('hidden');
+    document.getElementById('focusRunningStage').classList.add('hidden');
+    
+    /* ملء المواد */
+    var sel = document.getElementById('focusSubjectSelect');
+    sel.innerHTML = '<option value="">— بدون مادة —</option>';
+    appState.subjects.forEach(function(s) {
+        var o = document.createElement('option');
+        o.value = s.id;
+        o.textContent = displayName(s);
+        sel.appendChild(o);
+    });
+    
+    /* أزرار المدد */
+    renderDurationButtons();
+    selectSessionType('focus');
+}
+
+/* عرض المدد حسب النوع */
+function renderDurationButtons() {
+    var durations = FOCUS_DURATIONS[FOCUS.sessionType];
+    var c = document.getElementById('durationButtons');
+    c.innerHTML = '';
+    
+    durations.forEach(function(min) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = min;
+        btn.className = 'py-2.5 rounded-lg text-sm font-bold transition-colors ' +
+            (min === FOCUS.selectedDuration 
+                ? 'bg-brand-600 text-white shadow-md' 
+                : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-600');
+        btn.onclick = function() {
+            FOCUS.selectedDuration = min;
+            document.getElementById('focusCustomDuration').value = '';
+            renderDurationButtons();
+        };
+        c.appendChild(btn);
+    });
+}
+
+/* اختيار النوع */
+function selectSessionType(type) {
+    FOCUS.sessionType = type;
+    FOCUS.selectedDuration = type === 'focus' ? 25 : 5;
+    
+    var fBtn = document.getElementById('typeFocusBtn');
+    var bBtn = document.getElementById('typeBreakBtn');
+    
+    if (type === 'focus') {
+        fBtn.className = 'py-3 rounded-lg text-sm font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm transition-colors';
+        bBtn.className = 'py-3 rounded-lg text-sm font-bold text-slate-600 dark:text-slate-300 transition-colors';
+    } else {
+        bBtn.className = 'py-3 rounded-lg text-sm font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm transition-colors';
+        fBtn.className = 'py-3 rounded-lg text-sm font-bold text-slate-600 dark:text-slate-300 transition-colors';
+    }
+    
+    renderDurationButtons();
+}
+
+/* بدء الجلسة */
+function startFocusSession() {
+    var custom = parseInt(document.getElementById('focusCustomDuration').value, 10);
+    var duration = custom > 0 ? custom : FOCUS.selectedDuration;
+    
+    if (duration < 1 || duration > 180) {
+        alert('المدة يجب أن تكون بين 1 و 180 دقيقة');
+        return;
+    }
+    
+    var subjectId = document.getElementById('focusSubjectSelect').value;
+    var subjectName = '';
+    if (subjectId) {
+        for (var i = 0; i < appState.subjects.length; i++) {
+            if (appState.subjects[i].id === subjectId) {
+                subjectName = displayName(appState.subjects[i]);
+                break;
+            }
+        }
+    }
+    
+    var goal = document.getElementById('focusGoalInput').value.trim();
+    
+    fetch('/api/focus/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+            subjectId: subjectId,
+            subjectName: subjectName,
+            goal: goal,
+            sessionType: FOCUS.sessionType,
+            plannedMinutes: duration
+        })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (!data.ok) {
+            alert(data.message || 'خطأ');
+            return;
+        }
+        
+        FOCUS.currentSession = data.session;
+        FOCUS.totalSeconds = duration * 60;
+        FOCUS.secondsRemaining = duration * 60;
+        FOCUS.isPaused = false;
+        
+        showFocusRunning();
+        startFocusTimer();
+    })
+    .catch(function() { alert('خطأ في الاتصال'); });
+}
+
+/* عرض شاشة التشغيل */
+function showFocusRunning() {
+    document.getElementById('focusSetupStage').classList.add('hidden');
+    document.getElementById('focusRunningStage').classList.remove('hidden');
+    
+    var label = FOCUS.sessionType === 'focus' ? 'جاري التركيز' : 'استراحة';
+    document.getElementById('focusTimerLabel').textContent = label;
+    document.getElementById('focusFloatLabel').textContent = label;
+    
+    /* معلومات إضافية */
+    var info = document.getElementById('focusSessionInfo');
+    if (FOCUS.currentSession) {
+        var parts = [];
+        if (FOCUS.currentSession.subject_name) parts.push('📚 ' + FOCUS.currentSession.subject_name);
+        if (FOCUS.currentSession.goal) parts.push('🎯 ' + FOCUS.currentSession.goal);
+        info.textContent = parts.join(' · ');
+    }
+    
+    updateFocusDisplay();
+}
+
+/* بدء المؤقت */
+function startFocusTimer() {
+    if (FOCUS.timerInterval) clearInterval(FOCUS.timerInterval);
+    
+    FOCUS.timerInterval = setInterval(function() {
+        if (FOCUS.isPaused) return;
+        
+        if (FOCUS.secondsRemaining > 0) {
+            FOCUS.secondsRemaining--;
+            updateFocusDisplay();
+        } else {
+            /* انتهى الوقت */
+            clearInterval(FOCUS.timerInterval);
+            FOCUS.timerInterval = null;
+            onFocusComplete();
+        }
+    }, 1000);
+}
+
+/* تحديث العرض */
+function updateFocusDisplay() {
+    var m = Math.floor(FOCUS.secondsRemaining / 60);
+    var s = FOCUS.secondsRemaining % 60;
+    var timeStr = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    
+    /* في النافذة الكبيرة */
+    var display = document.getElementById('focusTimerDisplay');
+    if (display) display.textContent = timeStr;
+    
+    /* في الشريط العائم */
+    var floatTimer = document.getElementById('focusFloatTimer');
+    if (floatTimer) floatTimer.textContent = timeStr;
+    
+    /* الدائرة */
+    var ring = document.getElementById('focusProgressRing');
+    if (ring && FOCUS.totalSeconds > 0) {
+        var circumference = 2 * Math.PI * 112; /* 703.7 */
+        var progress = FOCUS.secondsRemaining / FOCUS.totalSeconds;
+        var offset = circumference * (1 - progress);
+        ring.style.strokeDashoffset = offset;
+    }
+    
+    /* تحديث العنوان */
+    document.title = timeStr + ' - جلسة تركيز';
+}
+
+/* إيقاف مؤقت */
+function pauseFocusSession() {
+    FOCUS.isPaused = !FOCUS.isPaused;
+    var btn = document.getElementById('focusPauseBtn');
+    if (FOCUS.isPaused) {
+        btn.innerHTML = '<i class="fa-solid fa-play mr-1"></i> استئناف';
+        document.getElementById('focusTimerLabel').textContent = 'متوقف مؤقتاً';
+        document.getElementById('focusFloatLabel').textContent = 'متوقف';
+    } else {
+        btn.innerHTML = '<i class="fa-solid fa-pause mr-1"></i> إيقاف مؤقت';
+        var label = FOCUS.sessionType === 'focus' ? 'جاري التركيز' : 'استراحة';
+        document.getElementById('focusTimerLabel').textContent = label;
+        document.getElementById('focusFloatLabel').textContent = label;
+    }
+}
+
+/* انتهى الوقت */
+function onFocusComplete() {
+    /* احسب الوقت الفعلي */
+    var actualMinutes = Math.round(FOCUS.totalSeconds / 60);
+    
+    /* إشعار صوتي */
+    playBeep();
+    
+    /* أرسل للخادم */
+    if (FOCUS.currentSession) {
+        fetch('/api/focus/end', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                sessionId: FOCUS.currentSession.id,
+                actualMinutes: actualMinutes,
+                completed: true
+            })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.ok && data.pointsEarned > 0) {
+                showToast('🎉 أكملت الجلسة! +' + data.pointsEarned + ' نقطة');
+                loadStats();
+            } else {
+                showToast('🎉 أكملت الجلسة!');
+            }
+        });
+    }
+    
+    /* أعد ضبط */
+    FOCUS.currentSession = null;
+    FOCUS.timerInterval = null;
+    FOCUS.secondsRemaining = 0;
+    document.title = 'Study Portal - بوابة المساعد الدراسي';
+    
+    /* اقترح استراحة أو إغلاق */
+    if (FOCUS.sessionType === 'focus') {
+        setTimeout(function() {
+            if (confirm('أكملت جلسة التركيز! هل تريد بدء استراحة؟')) {
+                selectSessionType('break');
+                showFocusSetup();
+                document.getElementById('focusModal').classList.remove('hidden');
+                document.getElementById('focusFloat').classList.add('hidden');
+            } else {
+                closeFocusModal();
+            }
+        }, 500);
+    } else {
+        closeFocusModal();
+    }
+}
+
+/* إشعار صوتي باستخدام Web Audio API */
+function playBeep() {
+    try {
+        if (!FOCUS.audioContext) {
+            FOCUS.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        
+        var ctx = FOCUS.audioContext;
+        var notes = [523.25, 659.25, 783.99]; /* C, E, G */
+        
+        notes.forEach(function(freq, i) {
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+            
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.start(ctx.currentTime + i * 0.15);
+            osc.stop(ctx.currentTime + i * 0.15 + 0.4);
+        });
+    } catch (e) {
+        console.error('Audio error:', e);
+    }
+}
+
+/* إنهاء الجلسة يدوياً */
+function stopFocusSession() {
+    if (!FOCUS.currentSession) {
+        closeFocusModal();
+        return;
+    }
+    
+    if (!confirm('إنهاء الجلسة الآن؟ سيُحتسب الوقت المستغرق.')) return;
+    
+    /* احسب الوقت الفعلي */
+    var startTime = new Date(FOCUS.currentSession.started_at).getTime();
+    var elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+    var actualMinutes = Math.floor(elapsedSeconds / 60);
+    
+    /* إذا أقل من دقيقة، احسب 0 */
+    if (actualMinutes < 1) actualMinutes = 0;
+    
+    fetch('/api/focus/end', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+            sessionId: FOCUS.currentSession.id,
+            actualMinutes: actualMinutes,
+            completed: false
+        })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.ok && data.pointsEarned > 0) {
+            showToast('✓ أنهيت الجلسة · +' + data.pointsEarned + ' نقطة');
+            loadStats();
+        }
+        
+        FOCUS.currentSession = null;
+        FOCUS.timerInterval = null;
+        document.title = 'Study Portal - بوابة المساعد الدراسي';
+        closeFocusModal();
+        document.getElementById('focusFloat').classList.add('hidden');
+    })
+    .catch(function() {
+        alert('خطأ في الاتصال');
+    });
+}
+
+/* تصغير النافذة */
+function minimizeFocusModal() {
+    document.getElementById('focusModal').classList.add('hidden');
+    document.getElementById('focusFloat').classList.remove('hidden');
+    FOCUS.isMinimized = true;
+}
+
+/* تكبير النافذة */
+function maximizeFocusModal() {
+    document.getElementById('focusFloat').classList.add('hidden');
+    document.getElementById('focusModal').classList.remove('hidden');
+    FOCUS.isMinimized = false;
+}
+
+/* إغلاق النافذة */
+function closeFocusModal() {
+    document.getElementById('focusModal').classList.add('hidden');
+    document.getElementById('focusFloat').classList.add('hidden');
+}
+
+/* ============================================================
+   سحب الشريط العائم (Drag & Drop)
+   ============================================================ */
+(function initFocusFloatDrag() {
+    var isDragging = false;
+    var offsetX = 0;
+    var offsetY = 0;
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        var float = document.getElementById('focusFloat');
+        if (!float) return;
+        
+        /* استرجاع الموضع المحفوظ */
+        try {
+            var saved = localStorage.getItem('focus_float_position');
+            if (saved) {
+                var pos = JSON.parse(saved);
+                float.style.top = pos.top;
+                float.style.left = pos.left;
+                float.style.right = 'auto';
+            }
+        } catch(e) {}
+        
+        /* بدء السحب */
+        float.addEventListener('mousedown', function(e) {
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'I') return;
+            isDragging = true;
+            var rect = float.getBoundingClientRect();
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
+            e.preventDefault();
+        });
+        
+        /* للمس */
+        float.addEventListener('touchstart', function(e) {
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'I') return;
+            isDragging = true;
+            var rect = float.getBoundingClientRect();
+            offsetX = e.touches[0].clientX - rect.left;
+            offsetY = e.touches[0].clientY - rect.top;
+        }, { passive: true });
+        
+        /* حركة الفأرة */
+        document.addEventListener('mousemove', function(e) {
+            if (!isDragging) return;
+            moveFloat(float, e.clientX, e.clientY, offsetX, offsetY);
+        });
+        
+        /* حركة اللمس */
+        document.addEventListener('touchmove', function(e) {
+            if (!isDragging) return;
+            moveFloat(float, e.touches[0].clientX, e.touches[0].clientY, offsetX, offsetY);
+        }, { passive: true });
+        
+        /* إنهاء السحب */
+        document.addEventListener('mouseup', function() {
+            if (isDragging) saveFloatPosition(float);
+            isDragging = false;
+        });
+        document.addEventListener('touchend', function() {
+            if (isDragging) saveFloatPosition(float);
+            isDragging = false;
+        });
+    });
+    
+    function moveFloat(el, clientX, clientY, offX, offY) {
+        var newLeft = clientX - offX;
+        var newTop = clientY - offY;
+        
+        /* حدود الشاشة */
+        var maxLeft = window.innerWidth - el.offsetWidth;
+        var maxTop = window.innerHeight - el.offsetHeight;
+        
+        newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+        newTop = Math.max(0, Math.min(newTop, maxTop));
+        
+        el.style.left = newLeft + 'px';
+        el.style.top = newTop + 'px';
+        el.style.right = 'auto';
+    }
+    
+    function saveFloatPosition(el) {
+        try {
+            var rect = el.getBoundingClientRect();
+            localStorage.setItem('focus_float_position', JSON.stringify({
+                top: rect.top + 'px',
+                left: rect.left + 'px'
+            }));
+        } catch(e) {}
+    }
+})();
+
+/* ============================================================
+   استرجاع الجلسة عند إعادة تحميل الصفحة
+   ============================================================ */
+window.addEventListener('DOMContentLoaded', function() {
+    /* إذا كان المستخدم مسجلاً، تحقق من جلسة نشطة */
+    setTimeout(function() {
+        if (!CURRENT_USER) return;
+        
+        fetch('/api/focus/active', { credentials: 'include' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (data && data.session) {
+                /* استئناف الجلسة في الشريط العائم */
+                FOCUS.currentSession = data.session;
+                FOCUS.sessionType = data.session.session_type;
+                
+                var startTime = new Date(data.session.started_at).getTime();
+                var now = Date.now();
+                var elapsedSeconds = Math.floor((now - startTime) / 1000);
+                var totalSeconds = data.session.planned_minutes * 60;
+                
+                if (elapsedSeconds >= totalSeconds) {
+                    /* الجلسة انتهت أثناء الغياب */
+                    stopFocusSession();
+                } else {
+                    FOCUS.totalSeconds = totalSeconds;
+                    FOCUS.secondsRemaining = totalSeconds - elapsedSeconds;
+                    showFocusRunning();
+                    startFocusTimer();
+                    minimizeFocusModal();
+                }
+            }
+        })
+        .catch(function() {});
+    }, 2000);
+});
+
+/* تعديل زر التركيز في الهيدر */
+var _originalFocusBtnClick = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    /* ابحث عن زر التركيز الحالي */
+    var focusBtn = document.querySelector('button[onclick*="togglePomodoro"], #timerToggleBtn');
+    
+    /* العداد الأصلي سيبقى، لكن سنغير زر الرقم والنقر */
+    setTimeout(function() {
+        var pomoWidget = document.getElementById('pomodoroWidget');
+        if (pomoWidget) {
+            /* اجعل الشريط كله قابلاً للنقر */
+            pomoWidget.style.cursor = 'pointer';
+            pomoWidget.onclick = function(e) {
+                /* تجاهل النقر على الأزرار الداخلية */
+                if (e.target.tagName === 'BUTTON') return;
+                openFocusModal();
+            };
+        }
+    }, 500);
+});
 
 /* ============================================================
    تسجيل Service Worker (PWA)
