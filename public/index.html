@@ -6607,6 +6607,92 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }, 500);
 });
+/* ============================================================
+   الجزء 36: القائمة المنسدلة للهاتف
+   ============================================================ */
+
+function toggleMobileMenu() {
+    var menu = document.getElementById('mobileMenu');
+    if (!menu) return;
+    
+    if (menu.classList.contains('hidden')) {
+        menu.classList.remove('hidden');
+        /* منع التمرير في الخلفية */
+        document.body.style.overflow = 'hidden';
+    } else {
+        menu.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+}
+
+function closeMobileMenu() {
+    var menu = document.getElementById('mobileMenu');
+    if (menu) menu.classList.add('hidden');
+    document.body.style.overflow = '';
+}
+
+/* ============================================================
+   حفظ واسترجاع الوضع الليلي من السيرفر
+   ============================================================ */
+
+/* تعديل toggleDarkMode لحفظها على السيرفر */
+var _originalToggleDarkMode = toggleDarkMode;
+toggleDarkMode = function() {
+    _originalToggleDarkMode();
+    /* احفظ على السيرفر */
+    if (typeof CURRENT_USER !== 'undefined' && CURRENT_USER) {
+        saveState();
+    }
+    /* احفظ في localStorage كنسخة احتياطية */
+    try {
+        localStorage.setItem('darkMode', appState.darkMode ? '1' : '0');
+    } catch(e) {}
+};
+
+/* استرجاع الوضع الليلي عند التحميل */
+window.addEventListener('DOMContentLoaded', function() {
+    try {
+        var saved = localStorage.getItem('darkMode');
+        if (saved === '1' && !appState.darkMode) {
+            appState.darkMode = true;
+            applyTheme();
+        }
+    } catch(e) {}
+    
+    /* أغلق القائمة عند النقر خارجها */
+    document.addEventListener('click', function(e) {
+        var menu = document.getElementById('mobileMenu');
+        var toggle = document.getElementById('mobileMenuToggle');
+        if (!menu || menu.classList.contains('hidden')) return;
+        if (menu.contains(e.target)) return;
+        if (toggle && toggle.contains(e.target)) return;
+        closeMobileMenu();
+    });
+});
+
+/* ربط الأزرار داخل القائمة */
+var _originalEnterUserAppForMenu = enterUserApp;
+enterUserApp = function() {
+    _originalEnterUserAppForMenu();
+    /* أعد ملء القائمة */
+    setTimeout(refreshMobileMenu, 100);
+};
+
+function refreshMobileMenu() {
+    /* حدّث محتوى القائمة المنسدلة إذا كانت موجودة */
+    var menu = document.getElementById('mobileMenu');
+    if (!menu) return;
+    
+    /* يمكن إضافة محتوى ديناميكي هنا إذا لزم الأمر */
+}
+
+/* عند تغيير اللغة، أعد تحميل القائمة */
+var _originalApplyLanguage = applyLanguage;
+applyLanguage = function() {
+    _originalApplyLanguage();
+    /* ترجم القائمة */
+    var t = TRANSLATIONS[appState.lang] || TRANSLATIONS.ar;
+};
 
 /* ============================================================
    تسجيل Service Worker (PWA)
