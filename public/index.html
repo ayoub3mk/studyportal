@@ -3385,6 +3385,13 @@ window.addEventListener('DOMContentLoaded', function(){
     countdownTicker = setInterval(function(){ if (CURRENT_USER) renderCountdown(); }, 60000);
     assistantClockTicker = setInterval(function(){ if (CURRENT_USER) renderSmartAssistant(); }, 1000);
 });
+/* ============================================================
+   دالة مساعدة: كتابة نص في عنصر
+   ============================================================ */
+function setText(id, txt) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = txt;
+}
 
 function showAccountScreen() {
     document.getElementById('accountScreen').classList.remove('hidden');
