@@ -630,6 +630,355 @@ app.put('/api/me/password', userAuthRequired, async function(req, res) {
         res.status(500).json({ error: 'server_error' });
     }
 });
+/* ============================================================
+   نظام التقدم اليومي والنقاط والـ Streak
+   ============================================================ */
+
+/* جلب حالة Streak الحالية */
+app.get('/api/stats', userAuthRequired, async function(req, res) {
+    try {
+        var stats = await db.getUserStats(req.userId);
+        var recent = await db.getRecentProgress(req.userId, 30);
+        
+        /* احصل على تاريخ اليوم بصيغة YYYY-MM-DD */
+        var today = new Date();
+        var todayStr = today.getFullYear() + '-' + 
+                       String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                       String(today.getDate()).padStart(2, '0');
+        
+        /* احصل على آخر يوم حقق فيه الهدف */
+        var lastCompletedDay = stats.last_completed_day;
+        var currentStreak = stats.current_streak || 0;
+        
+        /* هل اليوم محقق؟ */
+        var todayProgress = await db.getDailyProgress(req.userId, todayStr);
+        
+        /* احسب الأيام الفائتة */
+        var missedDays = [];
+        var repairCostTotal = 0;
+        var repairCost = stats.repair_cost || 20;
+        
+        if (lastCompletedDay) {
+            /* من اليوم التالي لآخر يوم محقق، حتى أمس */
+            var yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            var yesterdayStr = yesterday.getFullYear() + '-' + 
+                              String(yesterday.getMonth() + 1).padStart(2, '0') + '-' + 
+                              String(yesterday.getDate()).padStart(2, '0');
+            
+            var lastDate = new Date(lastCompletedDay);
+            var dayAfterLast = new Date(lastDate);
+            dayAfterLast.setDate(dayAfterLast.getDate() + 1);
+            
+            var checkDate = new Date(dayAfterLast);
+            while (checkDate <= yesterday) {
+                var checkStr = checkDate.getFullYear() + '-' + 
+                              String(checkDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                              String(checkDate.getDate()).padStart(2, '0');
+                
+                var dayProgress = await db.getDailyProgress(req.userId, checkStr);
+                if (!dayProgress || !dayProgress.goal_met) {
+                    missedDays.push(checkStr);
+                }
+                checkDate.setDate(checkDate.getDate() + 1);
+            }
+        }
+        
+        /* إذا كانت هناك أيام فائتة، احسب التكلفة */
+        if (missedDays.length > 0) {
+            var cost = repairCost;
+            for (var i = 0; i < missedDays.length; i++) {
+                repairCostTotal += cost;
+                cost += 10; /* +10 نقاط لكل يوم إضافي */
+            }
+        }
+        
+        res.json({
+            ok: true,
+            points: stats.points || 0,
+            currentStreak: currentStreak,
+            longestStreak: stats.longest_streak || 0,
+            lastCompletedDay: lastCompletedDay,
+            repairCost: repairCost,
+            repairCount: stats.repair_count || 0,
+            todayStr: todayStr,
+            todayProgress: todayProgress,
+            missedDays: missedDays,
+            repairCostTotal: repairCostTotal,
+            recent: recent
+        });
+    } catch (err) {
+        console.error('Get stats error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* تعيين/تعديل الهدف اليومي */
+app.post('/api/stats/goal', userAuthRequired, async function(req, res) {
+    try {
+        var goalType = req.body.goalType || 'papers';
+        var goalValue = parseInt(req.body.goalValue, 10) || 5;
+        
+        if (goalValue < 1) goalValue = 1;
+        if (goalValue > 100) goalValue = 100;
+        
+        var today = new Date();
+        var todayStr = today.getFullYear() + '-' + 
+                       String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                       String(today.getDate()).padStart(2, '0');
+        
+        await db.upsertDailyProgress(req.userId, todayStr, {
+            goalType: goalType,
+            goalValue: goalValue
+        });
+        
+        res.json({ ok: true, todayStr: todayStr });
+    } catch (err) {
+        console.error('Set goal error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* إضافة مهمة منجزة (+15 نقطة + زيادة العداد) */
+app.post('/api/stats/complete-task', userAuthRequired, async function(req, res) {
+    try {
+        var delta = parseInt(req.body.delta, 10) || 1;
+        var pointsToAdd = delta * 15;
+        
+        var today = new Date();
+        var todayStr = today.getFullYear() + '-' + 
+                       String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                       String(today.getDate()).padStart(2, '0');
+        
+        /* احصل على تقدم اليوم */
+        var todayProgress = await db.getDailyProgress(req.userId, todayStr);
+        
+        if (!todayProgress) {
+            /* إنشاء صف لليوم */
+            await db.upsertDailyProgress(req.userId, todayStr, {
+                goalType: 'papers',
+                goalValue: 5,
+                currentValue: delta
+            });
+            todayProgress = await db.getDailyProgress(req.userId, todayStr);
+        } else {
+            /* زيادة العداد */
+            await db.incrementDailyProgress(req.userId, todayStr, delta);
+            todayProgress = await db.getDailyProgress(req.userId, todayStr);
+        }
+        
+        /* إضافة النقاط */
+        await db.updateUserPoints(req.userId, pointsToAdd);
+        
+        /* هل تحقق الهدف؟ */
+        var goalMetNow = todayProgress.current_value >= todayProgress.goal_value;
+        var wasGoalMet = todayProgress.goal_met === 1;
+        var bonusPoints = 0;
+        var streakBonus = 0;
+        
+        if (goalMetNow && !wasGoalMet) {
+            /* تحقق الهدف لأول مرة اليوم */
+            bonusPoints = 20;
+            await db.updateUserPoints(req.userId, bonusPoints);
+            
+            /* تحديث حالة الهدف */
+            await db.upsertDailyProgress(req.userId, todayStr, {
+                goalMet: true,
+                completedAt: new Date().toISOString()
+            });
+            
+            /* تحديث Streak */
+            var stats = await db.getUserStats(req.userId);
+            var newStreak = (stats.current_streak || 0) + 1;
+            var longest = Math.max(stats.longest_streak || 0, newStreak);
+            
+            /* مكافأة 7 أيام متتالية */
+            if (newStreak > 0 && newStreak % 7 === 0) {
+                streakBonus = 50;
+                await db.updateUserPoints(req.userId, streakBonus);
+            }
+            
+            await db.saveUserStats(req.userId, {
+                points: (await db.getUserStats(req.userId)).points,
+                currentStreak: newStreak,
+                longestStreak: longest,
+                lastCompletedDay: todayStr,
+                repairCost: stats.repair_cost,
+                repairCount: stats.repair_count,
+                lastRepairDay: stats.last_repair_day
+            });
+        }
+        
+        var finalStats = await db.getUserStats(req.userId);
+        
+        res.json({
+            ok: true,
+            pointsAdded: pointsToAdd,
+            bonusPoints: bonusPoints,
+            streakBonus: streakBonus,
+            totalPoints: finalStats.points,
+            currentStreak: finalStats.current_streak,
+            goalMet: goalMetNow
+        });
+    } catch (err) {
+        console.error('Complete task error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* ترميم الأيام الفائتة */
+app.post('/api/stats/repair', userAuthRequired, async function(req, res) {
+    try {
+        var days = req.body.days || [];  /* مصفوفة من التواريخ */
+        if (!Array.isArray(days) || days.length === 0) {
+            return res.status(400).json({ error: 'no_days' });
+        }
+        
+        var stats = await db.getUserStats(req.userId);
+        var currentCost = stats.repair_cost || 20;
+        var totalCost = 0;
+        var cost = currentCost;
+        
+        for (var i = 0; i < days.length; i++) {
+            totalCost += cost;
+            cost += 10;
+        }
+        
+        if (stats.points < totalCost) {
+            return res.status(400).json({ 
+                error: 'not_enough_points', 
+                needed: totalCost,
+                have: stats.points
+            });
+        }
+        
+        /* اخصم النقاط */
+        await db.updateUserPoints(req.userId, -totalCost);
+        
+        /* ارجع الأيام الفائتة كـ "محققة" */
+        for (var j = 0; j < days.length; j++) {
+            await db.ensureDayMet(req.userId, days[j]);
+        }
+        
+        /* احسب الـ Streak الجديد */
+        var today = new Date();
+        var todayStr = today.getFullYear() + '-' + 
+                       String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                       String(today.getDate()).padStart(2, '0');
+        
+        /* اجلب الأيام المحققة المتتالية قبل اليوم */
+        var consecutive = await db.getConsecutiveDays(req.userId, todayStr, 100);
+        
+        /* احسب عدد الأيام المتتالية */
+        var newStreak = 0;
+        var checkDate = new Date(today);
+        checkDate.setDate(checkDate.getDate() - 1);
+        
+        for (var k = 0; k < consecutive.length; k++) {
+            var expectedStr = checkDate.getFullYear() + '-' + 
+                             String(checkDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                             String(checkDate.getDate()).padStart(2, '0');
+            if (consecutive[k] === expectedStr) {
+                newStreak++;
+                checkDate.setDate(checkDate.getDate() - 1);
+            } else {
+                break;
+            }
+        }
+        
+        var longest = Math.max(stats.longest_streak || 0, newStreak);
+        
+        /* حفظ */
+        await db.saveUserStats(req.userId, {
+            points: stats.points - totalCost,
+            currentStreak: newStreak,
+            longestStreak: longest,
+            lastCompletedDay: consecutive[0] || stats.last_completed_day,
+            repairCost: cost,  /* السعر الجديد بعد الزيادة */
+            repairCount: (stats.repair_count || 0) + days.length,
+            lastRepairDay: todayStr
+        });
+        
+        res.json({
+            ok: true,
+            costPaid: totalCost,
+            newPoints: stats.points - totalCost,
+            newStreak: newStreak,
+            newRepairCost: cost
+        });
+    } catch (err) {
+        console.error('Repair error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* إعادة تعيين سعر الترميم (دفع 100 نقطة) */
+app.post('/api/stats/reset-repair-cost', userAuthRequired, async function(req, res) {
+    try {
+        var stats = await db.getUserStats(req.userId);
+        
+        if (stats.points < 100) {
+            return res.status(400).json({ 
+                error: 'not_enough_points',
+                needed: 100,
+                have: stats.points
+            });
+        }
+        
+        await db.updateUserPoints(req.userId, -100);
+        
+        var today = new Date();
+        var todayStr = today.getFullYear() + '-' + 
+                       String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                       String(today.getDate()).padStart(2, '0');
+        
+        await db.saveUserStats(req.userId, {
+            points: stats.points - 100,
+            currentStreak: stats.current_streak,
+            longestStreak: stats.longest_streak,
+            lastCompletedDay: stats.last_completed_day,
+            repairCost: 20,  /* إعادة الضبط */
+            repairCount: 0,
+            lastRepairDay: todayStr
+        });
+        
+        res.json({
+            ok: true,
+            newPoints: stats.points - 100,
+            newRepairCost: 20
+        });
+    } catch (err) {
+        console.error('Reset repair cost error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* حفظ الهدف اليومي */
+app.get('/api/stats/today', userAuthRequired, async function(req, res) {
+    try {
+        var today = new Date();
+        var todayStr = today.getFullYear() + '-' + 
+                       String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                       String(today.getDate()).padStart(2, '0');
+        
+        var progress = await db.getDailyProgress(req.userId, todayStr);
+        
+        if (!progress) {
+            /* إنشاء هدف افتراضي */
+            await db.upsertDailyProgress(req.userId, todayStr, {
+                goalType: 'papers',
+                goalValue: 5,
+                currentValue: 0
+            });
+            progress = await db.getDailyProgress(req.userId, todayStr);
+        }
+        
+        res.json({ ok: true, progress: progress, todayStr: todayStr });
+    } catch (err) {
+        console.error('Get today error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
 
 app.get('*', function(req, res) {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
