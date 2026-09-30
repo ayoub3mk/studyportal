@@ -2817,7 +2817,7 @@ function renderStats() {
    ============================================================ */
 function switchTab(tab) {
     currentTab = tab;
-    ['checklist','timetable','homework','stats','tutoring','progress'].forEach(function(x){
+    ['checklist','timetable','homework','stats','tutoring','progress','results'].forEach(function(x){
         var el = document.getElementById('tab-'+x);
         if (el) el.classList.toggle('hidden', x !== tab);
     });
@@ -4569,6 +4569,411 @@ var _originalEnterUserApp = enterUserApp;
 enterUserApp = function() {
     _originalEnterUserApp();
     loadTutoring();
+};
+/* ============================================================
+   الجزء 33: نظام تسجيل النتائج
+   ============================================================ */
+
+var CURRENT_RESULTS = [];
+var CURRENT_COEFFICIENTS = {};
+var editingResultId = null;
+
+/* تحميل النتائج من السيرفر */
+function loadResults() {
+    fetch('/api/results', { credentials: 'include' })
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(data) {
+        if (!data || !data.ok) return;
+        CURRENT_RESULTS = data.results || [];
+        
+        /* تحويل المعاملات إلى قاموس */
+        CURRENT_COEFFICIENTS = {};
+        (data.coefficients || []).forEach(function(c) {
+            CURRENT_COEFFICIENTS[c.subject_id] = parseFloat(c.coefficient);
+        });
+        
+        renderResults();
+    })
+    .catch(function(err) { console.error('Load results error:', err); });
+}
+
+/* حساب المعدل الموزون */
+function calculateWeightedAverage(results) {
+    if (!results || results.length === 0) return null;
+    
+    var totalScore = 0;
+    var totalWeight = 0;
+    
+    results.forEach(function(r) {
+        var normalized = (parseFloat(r.score) / parseFloat(r.max_score)) * 20;
+        var coef = parseFloat(r.coefficient) || 1;
+        totalScore += normalized * coef;
+        totalWeight += coef;
+    });
+    
+    if (totalWeight === 0) return null;
+    return totalScore / totalWeight;
+}
+
+/* حساب المعدل لكل مادة */
+function calculateSubjectAverages(results) {
+    var bySubject = {};
+    
+    results.forEach(function(r) {
+        if (!bySubject[r.subject_id]) {
+            bySubject[r.subject_id] = {
+                name: r.subject_name,
+                results: []
+            };
+        }
+        bySubject[r.subject_id].results.push(r);
+    });
+    
+    /* حساب المعدل لكل مادة */
+    Object.keys(bySubject).forEach(function(sid) {
+        var subj = bySubject[sid];
+        var total = 0;
+        var count = 0;
+        subj.results.forEach(function(r) {
+            total += (parseFloat(r.score) / parseFloat(r.max_score)) * 20;
+            count++;
+        });
+        subj.average = count > 0 ? total / count : 0;
+    });
+    
+    return bySubject;
+}
+
+/* عرض النتائج */
+function renderResults() {
+    /* المعدل العام */
+    var avg = calculateWeightedAverage(CURRENT_RESULTS);
+    var avgEl = document.getElementById('resAverage');
+    if (avgEl) {
+        if (avg === null) {
+            avgEl.textContent = '—';
+        } else {
+            avgEl.textContent = avg.toFixed(2);
+            /* لون حسب النتيجة */
+            if (avg >= 14) avgEl.className = 'text-2xl font-black text-emerald-600 dark:text-emerald-400';
+            else if (avg >= 10) avgEl.className = 'text-2xl font-black text-amber-600 dark:text-amber-400';
+            else avgEl.className = 'text-2xl font-black text-red-600 dark:text-red-400';
+        }
+    }
+    
+    /* عدد الامتحانات */
+    var countEl = document.getElementById('resCount');
+    if (countEl) countEl.textContent = CURRENT_RESULTS.length;
+    
+    /* الأفضل والأضعف */
+    var subjectAvgs = calculateSubjectAverages(CURRENT_RESULTS);
+    var subjectsArr = Object.keys(subjectAvgs).map(function(sid) {
+        return {
+            id: sid,
+            name: subjectAvgs[sid].name,
+            average: subjectAvgs[sid].average
+        };
+    });
+    
+    if (subjectsArr.length > 0) {
+        subjectsArr.sort(function(a, b) { return b.average - a.average; });
+        var best = subjectsArr[0];
+        var worst = subjectsArr[subjectsArr.length - 1];
+        
+        var bestEl = document.getElementById('resBest');
+        var bestSubEl = document.getElementById('resBestSubject');
+        if (bestEl) bestEl.textContent = best.average.toFixed(2);
+        if (bestSubEl) bestSubEl.textContent = best.name;
+        
+        var worstEl = document.getElementById('resWorst');
+        var worstSubEl = document.getElementById('resWorstSubject');
+        if (worstEl) worstEl.textContent = worst.average.toFixed(2);
+        if (worstSubEl) worstSubEl.textContent = worst.name;
+    } else {
+        document.getElementById('resBest').textContent = '—';
+        document.getElementById('resBestSubject').textContent = '—';
+        document.getElementById('resWorst').textContent = '—';
+        document.getElementById('resWorstSubject').textContent = '—';
+    }
+    
+    /* معدلات المواد */
+    renderSubjectAverages(subjectAvgs);
+    
+    /* قائمة النتائج */
+    renderResultsList();
+}
+
+/* عرض معدلات المواد */
+function renderSubjectAverages(subjectAvgs) {
+    var c = document.getElementById('subjectAverages');
+    if (!c) return;
+    c.innerHTML = '';
+    
+    var subjects = Object.keys(subjectAvgs);
+    if (subjects.length === 0) {
+        c.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">لا توجد نتائج بعد</p>';
+        return;
+    }
+    
+    /* ترتيب حسب المعدل */
+    subjects.sort(function(a, b) {
+        return subjectAvgs[b].average - subjectAvgs[a].average;
+    });
+    
+    subjects.forEach(function(sid) {
+        var subj = subjectAvgs[sid];
+        var pct = Math.min(100, (subj.average / 20) * 100);
+        
+        var colorClass = 'bg-brand-500';
+        if (subj.average >= 14) colorClass = 'bg-emerald-500';
+        else if (subj.average >= 10) colorClass = 'bg-amber-500';
+        else colorClass = 'bg-red-500';
+        
+        var row = document.createElement('div');
+        row.innerHTML = '<div class="flex items-center justify-between text-xs font-bold mb-1.5">' +
+            '<span class="text-slate-700 dark:text-slate-300">' + escapeHtml(subj.name) + '</span>' +
+            '<span class="text-slate-900 dark:text-white">' + subj.average.toFixed(2) + '/20</span>' +
+            '</div>' +
+            '<div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-2 overflow-hidden">' +
+            '<div class="' + colorClass + ' h-2 rounded-full transition-all duration-500" style="width: ' + pct + '%"></div>' +
+            '</div>';
+        c.appendChild(row);
+    });
+}
+
+/* عرض قائمة النتائج */
+function renderResultsList() {
+    var c = document.getElementById('resultsList');
+    if (!c) return;
+    c.innerHTML = '';
+    
+    if (CURRENT_RESULTS.length === 0) {
+        c.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">لا توجد نتائج مسجلة بعد. انقر "إضافة نتيجة" للبدء.</p>';
+        return;
+    }
+    
+    CURRENT_RESULTS.forEach(function(r) {
+        var normalized = (parseFloat(r.score) / parseFloat(r.max_score)) * 20;
+        var scoreColor = normalized >= 14 ? 'text-emerald-600 dark:text-emerald-400' 
+                       : normalized >= 10 ? 'text-amber-600 dark:text-amber-400' 
+                       : 'text-red-600 dark:text-red-400';
+        
+        var typeLabel = {
+            'control1': 'المراقبة 1',
+            'control2': 'المراقبة 2',
+            'synthesis': 'التأليفي',
+            'other': 'أخرى'
+        }[r.exam_type] || r.exam_type;
+        
+        var card = document.createElement('div');
+        card.className = 'border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-white dark:bg-slate-800 hover:shadow-md transition-shadow flex items-center gap-3 group';
+        card.innerHTML = 
+            '<div class="flex-1 min-w-0">' +
+                '<div class="flex items-center gap-2 flex-wrap mb-1">' +
+                    '<span class="text-xs font-bold text-slate-900 dark:text-white">' + escapeHtml(r.subject_name) + '</span>' +
+                    '<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-brand-100 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300">' + typeLabel + '</span>' +
+                    '<span class="text-[10px] text-slate-400">' + r.exam_date + '</span>' +
+                '</div>' +
+                (r.note ? '<p class="text-[11px] text-slate-500 dark:text-slate-400">' + escapeHtml(r.note) + '</p>' : '') +
+            '</div>' +
+            '<div class="text-right flex-shrink-0">' +
+                '<p class="text-lg font-black ' + scoreColor + '">' + parseFloat(r.score).toFixed(2) + '</p>' +
+                '<p class="text-[10px] text-slate-400">من ' + parseFloat(r.max_score).toFixed(0) + '</p>' +
+            '</div>' +
+            '<div class="flex flex-col gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">' +
+                '<button onclick="openEditResult(\'' + r.id + '\')" class="w-6 h-6 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 text-[10px]"><i class="fa-solid fa-pen"></i></button>' +
+                '<button onclick="deleteResult(\'' + r.id + '\')" class="w-6 h-6 rounded-md text-slate-500 hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-600 text-[10px]"><i class="fa-solid fa-trash-can"></i></button>' +
+            '</div>';
+        c.appendChild(list);
+    });
+}
+
+/* فتح نافذة إضافة نتيجة */
+function openAddResultModal() {
+    editingResultId = null;
+    document.getElementById('resultModalTitle').textContent = 'إضافة نتيجة';
+    document.getElementById('resultSubjectSelect').value = appState.subjects.length > 0 ? appState.subjects[0].id : '';
+    document.getElementById('resultTypeSelect').value = 'control1';
+    document.getElementById('resultDateInput').value = toDateString(new Date());
+    document.getElementById('resultScoreInput').value = '';
+    document.getElementById('resultMaxInput').value = '20';
+    document.getElementById('resultCoefInput').value = '1';
+    document.getElementById('resultNoteInput').value = '';
+    document.getElementById('resultError').classList.add('hidden');
+    
+    populateResultSubjects();
+    document.getElementById('resultModal').classList.remove('hidden');
+}
+
+/* فتح نافذة تعديل */
+function openEditResult(id) {
+    var r = CURRENT_RESULTS.find(function(x){ return String(x.id) === String(id); });
+    if (!r) return;
+    editingResultId = id;
+    document.getElementById('resultModalTitle').textContent = 'تعديل النتيجة';
+    populateResultSubjects();
+    document.getElementById('resultSubjectSelect').value = r.subject_id;
+    document.getElementById('resultTypeSelect').value = r.exam_type;
+    document.getElementById('resultDateInput').value = r.exam_date;
+    document.getElementById('resultScoreInput').value = r.score;
+    document.getElementById('resultMaxInput').value = r.max_score;
+    document.getElementById('resultCoefInput').value = r.coefficient;
+    document.getElementById('resultNoteInput').value = r.note || '';
+    document.getElementById('resultError').classList.add('hidden');
+    document.getElementById('resultModal').classList.remove('hidden');
+}
+
+/* ملء قائمة المواد */
+function populateResultSubjects() {
+    var sel = document.getElementById('resultSubjectSelect');
+    sel.innerHTML = '';
+    appState.subjects.forEach(function(s) {
+        var o = document.createElement('option');
+        o.value = s.id;
+        o.textContent = displayName(s);
+        sel.appendChild(o);
+    });
+}
+
+function closeResultModal() {
+    document.getElementById('resultModal').classList.add('hidden');
+    editingResultId = null;
+}
+
+/* حفظ النتيجة */
+function submitResult(e) {
+    e.preventDefault();
+    var subjectId = document.getElementById('resultSubjectSelect').value;
+    var subjectName = '';
+    for (var i = 0; i < appState.subjects.length; i++) {
+        if (appState.subjects[i].id === subjectId) {
+            subjectName = displayName(appState.subjects[i]);
+            break;
+        }
+    }
+    
+    var body = {
+        subjectId: subjectId,
+        subjectName: subjectName,
+        examType: document.getElementById('resultTypeSelect').value,
+        examDate: document.getElementById('resultDateInput').value,
+        score: parseFloat(document.getElementById('resultScoreInput').value),
+        maxScore: parseFloat(document.getElementById('resultMaxInput').value),
+        coefficient: parseFloat(document.getElementById('resultCoefInput').value) || 1,
+        note: document.getElementById('resultNoteInput').value.trim()
+    };
+    
+    var err = document.getElementById('resultError');
+    var btn = document.getElementById('resultSubmitBtn');
+    err.classList.add('hidden');
+    
+    if (!subjectId || !body.examDate || isNaN(body.score)) {
+        err.textContent = 'املأ كل الحقول المطلوبة';
+        err.classList.remove('hidden');
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner loading"></i>';
+    
+    var url = editingResultId ? '/api/results/' + editingResultId : '/api/results';
+    var method = editingResultId ? 'PUT' : 'POST';
+    
+    fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        btn.disabled = false;
+        btn.innerHTML = 'حفظ';
+        if (!data.ok) {
+            err.textContent = data.message || 'خطأ';
+            err.classList.remove('hidden');
+            return;
+        }
+        closeResultModal();
+        loadResults();
+    })
+    .catch(function() {
+        btn.disabled = false;
+        btn.innerHTML = 'حفظ';
+        err.textContent = 'خطأ في الاتصال';
+        err.classList.remove('hidden');
+    });
+}
+
+function deleteResult(id) {
+    if (!confirm('حذف هذه النتيجة؟')) return;
+    fetch('/api/results/' + id, {
+        method: 'DELETE',
+        credentials: 'include'
+    })
+    .then(function(r) { return r.json(); })
+    .then(function() { loadResults(); })
+    .catch(function(err) { console.error(err); });
+}
+
+/* فتح نافذة المعاملات */
+function openCoefficientsModal() {
+    var c = document.getElementById('coefficientsList');
+    c.innerHTML = '';
+    
+    appState.subjects.forEach(function(s) {
+        var currentCoef = CURRENT_COEFFICIENTS[s.id] || 1;
+        var row = document.createElement('div');
+        row.className = 'flex items-center gap-3 p-2 rounded-lg bg-slate-50 dark:bg-slate-700/40';
+        row.innerHTML = '<span class="flex-1 text-xs font-bold text-slate-800 dark:text-slate-100">' + escapeHtml(displayName(s)) + '</span>' +
+            '<input type="number" data-subject-id="' + s.id + '" value="' + currentCoef + '" step="0.5" min="0.5" max="10" class="w-20 px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs text-center font-bold">';
+        c.appendChild(row);
+    });
+    
+    document.getElementById('coefficientsModal').classList.remove('hidden');
+}
+
+function closeCoefficientsModal() {
+    document.getElementById('coefficientsModal').classList.add('hidden');
+}
+
+function saveCoefficients() {
+    var inputs = document.querySelectorAll('#coefficientsList input[data-subject-id]');
+    var promises = [];
+    
+    inputs.forEach(function(inp) {
+        var subjectId = inp.getAttribute('data-subject-id');
+        var coef = parseFloat(inp.value) || 1;
+        
+        promises.push(fetch('/api/results/coefficient', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ subjectId: subjectId, coefficient: coef })
+        }));
+    });
+    
+    Promise.all(promises).then(function() {
+        closeCoefficientsModal();
+        loadResults();
+    }).catch(function(err) {
+        console.error(err);
+        alert('خطأ في الحفظ');
+    });
+}
+
+/* عند الدخول للتطبيق - تحميل النتائج */
+var _originalEnterUserApp3 = enterUserApp;
+enterUserApp = function() {
+    _originalEnterUserApp3();
+    loadResults();
+};
+
+/* إضافة support to switchTab */
+var _originalSwitchTab3 = switchTab;
+switchTab = function(tab) {
+    _originalSwitchTab3(tab);
+    if (tab === 'results') renderResults();
 };
 
 /* ============================================================
