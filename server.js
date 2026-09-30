@@ -567,6 +567,70 @@ app.delete('/api/tutoring/items/:itemId', userAuthRequired, async function(req, 
 /* ============================================================
    خدمة الواجهة
    ============================================================ */
+/* ============================================================
+   تحديث بيانات المستخدم (الاسم / كلمة السر)
+   ============================================================ */
+
+/* تحديث الاسم */
+app.put('/api/me/name', userAuthRequired, async function(req, res) {
+    try {
+        var newName = (req.body.name || '').trim();
+        if (!newName || newName.length < 2) {
+            return res.status(400).json({ error: 'invalid_name', message: 'الاسم قصير جدا' });
+        }
+        
+        /* تحقق أن الاسم غير موجود في نفس الحساب */
+        var existing = await db.findUserByName(req.accountId, newName);
+        if (existing && existing.id !== req.userId) {
+            return res.status(409).json({ error: 'name_taken', message: 'يوجد مستخدم بهذا الاسم' });
+        }
+        
+        await db.updateUserName(req.userId, newName);
+        res.json({ ok: true, name: newName });
+    } catch (err) {
+        console.error('Update name error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* تغيير كلمة السر - يتطلب القديمة */
+app.put('/api/me/password', userAuthRequired, async function(req, res) {
+    try {
+        var oldPassword = (req.body.oldPassword || '').trim();
+        var newPassword = (req.body.newPassword || '').trim();
+        
+        if (!newPassword || newPassword.length < 4) {
+            return res.status(400).json({ error: 'short_password', message: 'كلمة السر قصيرة (4 أحرف على الأقل)' });
+        }
+        
+        /* جلب المستخدم مع كلمة السر */
+        var user = await db.getUserWithPassword(req.userId);
+        if (!user) {
+            return res.status(404).json({ error: 'not_found' });
+        }
+        
+        /* إذا كان للمستخدم كلمة سر حالية، تحقق من القديمة */
+        if (user.password && user.password.length > 0) {
+            if (!oldPassword) {
+                return res.status(400).json({ error: 'old_required', message: 'أدخل كلمة السر القديمة' });
+            }
+            var ok = bcrypt.compareSync(oldPassword, user.password);
+            if (!ok) {
+                return res.status(401).json({ error: 'wrong_old', message: 'كلمة السر القديمة غير صحيحة' });
+            }
+        }
+        
+        /* تحديث */
+        var hashed = bcrypt.hashSync(newPassword, 10);
+        await db.updateUserPassword(req.userId, hashed);
+        
+        res.json({ ok: true });
+    } catch (err) {
+        console.error('Update password error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
 app.get('*', function(req, res) {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
