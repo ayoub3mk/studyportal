@@ -1081,6 +1081,323 @@ app.post('/api/results/coefficient', userAuthRequired, async function(req, res) 
         res.status(500).json({ error: 'server_error' });
     }
 });
+/* ============================================================
+   نظام لوحة ولي الأمر
+   ============================================================ */
+
+/* رمز جلسة ولي الأمر */
+function signParentToken(parent) {
+    return jwt.sign(
+        { parentId: parent.id, email: parent.email, type: 'parent' },
+        JWT_SECRET,
+        { expiresIn: '30d' }
+    );
+}
+
+/* التحقق من رمز ولي الأمر */
+function parentAuthRequired(req, res, next) {
+    var token = req.cookies.parent_token ||
+        (req.headers.authorization && req.headers.authorization.replace('Bearer ', ''));
+    if (!token) {
+        return res.status(401).json({ error: 'not_authenticated' });
+    }
+    try {
+        var payload = jwt.verify(token, JWT_SECRET);
+        if (payload.type !== 'parent') {
+            return res.status(401).json({ error: 'wrong_token_type' });
+        }
+        req.parentId = payload.parentId;
+        req.parentEmail = payload.email;
+        next();
+    } catch (e) {
+        return res.status(401).json({ error: 'invalid_token' });
+    }
+}
+
+/* تسجيل حساب ولي أمر جديد */
+app.post('/api/parent/register', async function(req, res) {
+    try {
+        var email = (req.body.email || '').trim().toLowerCase();
+        var password = req.body.password || '';
+        var name = (req.body.name || '').trim();
+        var phone = (req.body.phone || '').trim();
+        
+        if (!email || !password || !name) {
+            return res.status(400).json({ error: 'missing_fields', message: 'املأ كل الحقول' });
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            return res.status(400).json({ error: 'invalid_email', message: 'البريد الإلكتروني غير صالح' });
+        }
+        if (password.length < 6) {
+            return res.status(400).json({ error: 'short_password', message: 'كلمة السر قصيرة (6 أحرف على الأقل)' });
+        }
+        
+        var existing = await db.findParentByEmail(email);
+        if (existing) {
+            return res.status(409).json({ error: 'email_taken', message: 'البريد مستعمل' });
+        }
+        
+        var hashed = bcrypt.hashSync(password, 10);
+        var parentId = await db.createParent(email, hashed, name, phone);
+        
+        var parent = { id: parentId, email: email, name: name };
+        var token = signParentToken(parent);
+        setCookie(res, 'parent_token', token, 30);
+        
+        res.json({ ok: true, parent: parent, token: token });
+    } catch (err) {
+        console.error('Parent register error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* تسجيل دخول ولي الأمر */
+app.post('/api/parent/login', async function(req, res) {
+    try {
+        var email = (req.body.email || '').trim().toLowerCase();
+        var password = req.body.password || '';
+        
+        if (!email || !password) {
+            return res.status(400).json({ error: 'missing_fields', message: 'املأ الحقول' });
+        }
+        
+        var parent = await db.findParentByEmail(email);
+        if (!parent) {
+            return res.status(401).json({ error: 'invalid_credentials', message: 'البريد أو كلمة السر غير صحيحة' });
+        }
+        
+        var ok = bcrypt.compareSync(password, parent.password);
+        if (!ok) {
+            return res.status(401).json({ error: 'invalid_credentials', message: 'البريد أو كلمة السر غير صحيحة' });
+        }
+        
+        var token = signParentToken(parent);
+        setCookie(res, 'parent_token', token, 30);
+        
+        res.json({
+            ok: true,
+            parent: { id: parent.id, email: parent.email, name: parent.name },
+            token: token
+        });
+    } catch (err) {
+        console.error('Parent login error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* تسجيل خروج ولي الأمر */
+app.post('/api/parent/logout', function(req, res) {
+    res.clearCookie('parent_token');
+    res.json({ ok: true });
+});
+
+/* معلومات ولي الأمر الحالي */
+app.get('/api/parent/me', parentAuthRequired, async function(req, res) {
+    try {
+        var parent = await db.findParentById(req.parentId);
+        if (!parent) {
+            return res.status(404).json({ error: 'not_found' });
+        }
+        res.json({ parent: { id: parent.id, email: parent.email, name: parent.name, phone: parent.phone } });
+    } catch (err) {
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* جلب أبناء ولي الأمر */
+app.get('/api/parent/children', parentAuthRequired, async function(req, res) {
+    try {
+        var children = await db.getParentChildren(req.parentId);
+        res.json({ children: children });
+    } catch (err) {
+        console.error('Get children error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* ربط ابن بواسطة الكود */
+app.post('/api/parent/link', parentAuthRequired, async function(req, res) {
+    try {
+        var code = (req.body.code || '').trim();
+        if (!code || code.length !== 6) {
+            return res.status(400).json({ error: 'invalid_code', message: 'الكود يجب أن يكون 6 أرقام' });
+        }
+        
+        var linkCode = await db.findLinkCode(code);
+        if (!linkCode) {
+            return res.status(404).json({ error: 'code_not_found', message: 'الكود غير صالح أو منتهي' });
+        }
+        
+        /* أنشئ العلاقة */
+        var relationId = await db.createParentChild(req.parentId, linkCode.user_id);
+        if (!relationId) {
+            return res.status(409).json({ error: 'already_linked', message: 'هذا الابن مرتبط بك مسبقاً' });
+        }
+        
+        /* استعمل الكود */
+        await db.useLinkCode(linkCode.id);
+        
+        res.json({ ok: true, message: 'تم إرسال الطلب. في انتظار موافقة ابنك.' });
+    } catch (err) {
+        console.error('Link error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* إلغاء ربط ابن */
+app.delete('/api/parent/children/:userId', parentAuthRequired, async function(req, res) {
+    try {
+        var userId = parseInt(req.params.userId, 10);
+        await db.removeParentChild(req.parentId, userId);
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* ============================================================
+   Routes للابن
+   ============================================================ */
+
+/* توليد كود لربط ولي أمر */
+app.post('/api/me/generate-link-code', userAuthRequired, async function(req, res) {
+    try {
+        var code = await db.createLinkCode(req.userId);
+        res.json({ ok: true, code: code });
+    } catch (err) {
+        console.error('Generate code error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* جلب طلبات ولي الأمر المعلقة */
+app.get('/api/me/parent-requests', userAuthRequired, async function(req, res) {
+    try {
+        var requests = await db.getPendingParentRequests(req.userId);
+        res.json({ requests: requests });
+    } catch (err) {
+        console.error('Get requests error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* قبول طلب ولي الأمر */
+app.post('/api/me/parent-requests/accept', userAuthRequired, async function(req, res) {
+    try {
+        var parentId = parseInt(req.body.parentId, 10);
+        if (!parentId) {
+            return res.status(400).json({ error: 'missing_parent_id' });
+        }
+        await db.confirmParentChild(parentId, req.userId);
+        res.json({ ok: true });
+    } catch (err) {
+        console.error('Accept error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* رفض طلب ولي الأمر */
+app.post('/api/me/parent-requests/reject', userAuthRequired, async function(req, res) {
+    try {
+        var parentId = parseInt(req.body.parentId, 10);
+        if (!parentId) {
+            return res.status(400).json({ error: 'missing_parent_id' });
+        }
+        await db.removeParentChild(parentId, req.userId);
+        res.json({ ok: true });
+    } catch (err) {
+        console.error('Reject error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* جلب أولياء أمر المستخدم */
+app.get('/api/me/parents', userAuthRequired, async function(req, res) {
+    try {
+        var parents = await db.getUserParents(req.userId);
+        res.json({ parents: parents });
+    } catch (err) {
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* جلب بيانات ابن معين لولي الأمر */
+app.get('/api/parent/children/:userId/data', parentAuthRequired, async function(req, res) {
+    try {
+        var userId = parseInt(req.params.userId, 10);
+        
+        /* تحقق أن الابن مرتبط ومؤكد */
+        var children = await db.getParentChildren(req.parentId);
+        var child = null;
+        for (var i = 0; i < children.length; i++) {
+            if (children[i].id === userId && children[i].confirmed) {
+                child = children[i];
+                break;
+            }
+        }
+        if (!child) {
+            return res.status(403).json({ error: 'forbidden', message: 'غير مسموح بالوصول' });
+        }
+        
+        /* بيانات الابن */
+        var userData = await db.getUserData(userId);
+        var stats = await db.getUserStats(userId);
+        var recent = await db.getRecentProgress(userId, 30);
+        var results = await db.getExamResults(userId);
+        
+        /* استخرج المواضيع والواجبات */
+        var subjects = [];
+        var homework = [];
+        try { subjects = JSON.parse(userData.subjects || '[]'); } catch(e) {}
+        try { homework = JSON.parse(userData.homework || '[]'); } catch(e) {}
+        
+        /* احسب التقدم */
+        var totalItems = 0, doneItems = 0;
+        subjects.forEach(function(s) {
+            if (s.sections) {
+                s.sections.forEach(function(sec) {
+                    sec.items.forEach(function(it) { totalItems++; if (it.checked) doneItems++; });
+                });
+            } else if (s.items) {
+                s.items.forEach(function(it) { totalItems++; if (it.checked) doneItems++; });
+            }
+        });
+        
+        var pendingHw = homework.filter(function(h) { return !h.completed; });
+        
+        res.json({
+            ok: true,
+            child: {
+                id: child.id,
+                name: child.name,
+                avatar: child.avatar,
+                grade: child.grade,
+                term: child.term,
+                schoolYear: child.school_year
+            },
+            progress: {
+                totalItems: totalItems,
+                doneItems: doneItems,
+                percent: totalItems > 0 ? Math.round((doneItems / totalItems) * 100) : 0
+            },
+            stats: {
+                points: stats.points || 0,
+                currentStreak: stats.current_streak || 0,
+                longestStreak: stats.longest_streak || 0
+            },
+            homework: {
+                pending: pendingHw.length,
+                pendingList: pendingHw.slice(0, 10),
+                total: homework.length
+            },
+            recent: recent,
+            results: results
+        });
+    } catch (err) {
+        console.error('Get child data error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
 
 app.get('*', function(req, res) {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
