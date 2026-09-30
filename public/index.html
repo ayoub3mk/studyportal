@@ -643,12 +643,27 @@ input[type="time"]::-webkit-calendar-picker-indicator {
             </div>
             
             <div>
-                <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">كلمة السر (اختيارية)</label>
-                <input type="password" id="newUserPassword" placeholder="اتركه فارغاً لعدم طلب كلمة سر" class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-brand-500 transition-all">
-                <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1">إذا تركت الحقل فارغاً، لن يطلب منك كلمة سر عند الدخول</p>
-            </div>
-            
-            <p id="addUserError" class="text-xs font-semibold text-red-500 mt-2 text-center hidden"></p>
+    <label class="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">كلمة السر (اختيارية)</label>
+    <input type="password" id="newUserPassword" placeholder="اتركه فارغاً لعدم طلب كلمة سر" class="w-full px-4 py-3 rounded-xl border-2 border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm focus:outline-none focus:border-brand-500 transition-all">
+    <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1">إذا تركت الحقل فارغاً، لن يطلب منك كلمة سر عند الدخول</p>
+</div>
+
+<div class="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 rounded-xl p-3">
+    <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" id="copyFromExisting" onchange="toggleCopyOptions()" class="w-4 h-4 rounded accent-brand-600">
+        <span class="text-xs font-bold text-blue-700 dark:text-blue-300">نسخ إعدادات من مستخدم موجود</span>
+    </label>
+    <p class="text-[10px] text-blue-600 dark:text-blue-400 mt-1 mr-6">ينسخ: المواد + الجدول + إعدادات الملف (بدون الأوراق)</p>
+    
+    <div id="copyOptions" class="hidden mt-3 pt-3 border-t border-blue-200 dark:border-blue-800">
+        <label class="block text-[10px] font-bold text-blue-700 dark:text-blue-300 mb-1">اختر المستخدم المصدر</label>
+        <select id="copySourceSelect" class="w-full px-3 py-2 rounded-lg border border-blue-300 dark:border-blue-800 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+            <option value="">— اختر —</option>
+        </select>
+    </div>
+</div>
+
+<p id="addUserError" class="text-xs font-semibold text-red-500 mt-2 text-center hidden"></p>
             
             <div class="flex gap-3 pt-2">
                 <button type="button" onclick="closeAddUserModal()" class="flex-1 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-semibold">
@@ -809,10 +824,12 @@ input[type="time"]::-webkit-calendar-picker-indicator {
             <button onclick="switchTab('homework')" data-tab="homework" class="tab-btn px-3 py-2 text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
                 <i class="fa-solid fa-book-bookmark mr-1"></i> <span data-i18n="tabHomework">الواجبات</span>
                 <span id="hwBadge" class="hidden ml-1 text-[10px] font-black px-1.5 py-0.5 rounded-full bg-red-500 text-white"></span>
-            </button>
             <button onclick="switchTab('stats')" data-tab="stats" class="tab-btn px-3 py-2 text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
-                <i class="fa-solid fa-chart-line mr-1"></i> <span data-i18n="tabStats">الإحصائيات</span>
-            </button>
+    <i class="fa-solid fa-chart-line mr-1"></i> <span data-i18n="tabStats">الإحصائيات</span>
+</button>
+<button onclick="switchTab('tutoring')" data-tab="tutoring" class="tab-btn px-3 py-2 text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
+    <i class="fa-solid fa-chalkboard-user mr-1"></i> <span data-i18n="tabTutoring">دروس خصوصية</span>
+</button>
         </div>
 
         <!-- تبويب قائمة المراجعة -->
@@ -921,10 +938,30 @@ input[type="time"]::-webkit-calendar-picker-indicator {
                     <i class="fa-solid fa-chart-simple text-brand-500 mr-1"></i>
                     <span data-i18n="statBySubject">تقدم كل مادة</span>
                 </h3>
-                <div id="statsBySubject" class="space-y-3"></div>
+                          <div id="statsBySubject" class="space-y-3"></div>
+        </div>
+    </section>
+
+    <!-- تبويب دروس خصوصية -->
+    <section id="tab-tutoring" class="hidden">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-3 sm:p-4 mb-4">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                <div>
+                    <h3 class="font-black text-base text-slate-900 dark:text-white">
+                        <i class="fa-solid fa-chalkboard-user text-brand-500 mr-1"></i>
+                        <span data-i18n="tutoringTitle">دروس خصوصية</span>
+                    </h3>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5" data-i18n="tutoringSubtitle">أضف دروسك الخصوصية وتابع تمارينها</p>
+                </div>
+                <button onclick="openAddTutoringModal()" class="px-3 py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold flex items-center gap-1 self-start">
+                    <i class="fa-solid fa-plus"></i>
+                    <span data-i18n="tutoringNew">درس جديد</span>
+                </button>
             </div>
-        </section>
-    </main>
+            <div id="tutoringList" class="space-y-3"></div>
+        </div>
+    </section>
+</main>
 </div>
 
 
@@ -2901,5 +2938,113 @@ function showAccountScreen() {
     document.getElementById('app').classList.add('hidden');
 }
 </script>
+<!-- ============================================================
+     نافذة إضافة/تعديل درس خصوصي
+     ============================================================ -->
+<div id="tutoringModal" class="fixed inset-0 z-[80] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full p-5 border border-slate-200 dark:border-slate-700 custom-scrollbar max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 dark:border-slate-700">
+            <h3 id="tutoringModalTitle" class="text-base font-bold text-slate-900 dark:text-white">درس خصوصي جديد</h3>
+            <button onclick="closeTutoringModal()" class="text-slate-400"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <form onsubmit="saveTutoring(event)" class="space-y-3">
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">المادة</label>
+                <select id="tutoringSubjectSelect" required class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">اسم الدرس</label>
+                <input type="text" id="tutoringNameInput" required placeholder="مثال: تدارك رياضيات الفصل 1" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+            </div>
+            
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">طريقة الجدولة</label>
+                <select id="tutoringScheduleType" onchange="toggleTutoringSchedule()" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                    <option value="weekly">أسبوعي (كل نفس اليوم)</option>
+                    <option value="interval">كل X أيام</option>
+                </select>
+            </div>
+            
+            <div id="weeklyOptions">
+                <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">اليوم من الأسبوع</label>
+                <select id="tutoringWeekDay" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                    <option value="monday">الإثنين</option>
+                    <option value="tuesday">الثلاثاء</option>
+                    <option value="wednesday">الأربعاء</option>
+                    <option value="thursday">الخميس</option>
+                    <option value="friday">الجمعة</option>
+                    <option value="saturday" selected>السبت</option>
+                    <option value="sunday">الأحد</option>
+                </select>
+            </div>
+            
+            <div id="intervalOptions" class="hidden">
+                <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">كل كم يوم</label>
+                <input type="number" id="tutoringIntervalDays" value="7" min="1" max="60" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+            </div>
+            
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">تاريخ البداية</label>
+                    <input type="date" id="tutoringStartDate" required class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">تاريخ النهاية</label>
+                    <input type="date" id="tutoringEndDate" required class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">من الساعة (اختياري)</label>
+                    <input type="time" id="tutoringTimeStart" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">إلى الساعة (اختياري)</label>
+                    <input type="time" id="tutoringTimeEnd" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">القاعة (اختياري)</label>
+                <input type="text" id="tutoringRoom" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+            </div>
+            
+            <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg bg-slate-50 dark:bg-slate-700/50">
+                <input type="checkbox" id="tutoringAddToTimetable" checked class="w-4 h-4 rounded accent-brand-600">
+                <span class="text-xs font-bold text-slate-700 dark:text-slate-300">إضافة الحصص إلى الجدول الأسبوعي</span>
+            </label>
+            
+            <p id="tutoringError" class="text-xs font-semibold text-red-500 text-center hidden"></p>
+            
+            <div class="flex gap-2 justify-end pt-2">
+                <button type="button" onclick="closeTutoringModal()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold">إلغاء</button>
+                <button type="submit" id="tutoringSubmitBtn" class="px-5 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold">حفظ</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ============================================================
+     نافذة عرض تمارين درس خصوصي
+     ============================================================ -->
+<div id="tutoringDetailModal" class="fixed inset-0 z-[80] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full p-5 border border-slate-200 dark:border-slate-700 custom-scrollbar max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 dark:border-slate-700">
+            <div>
+                <h3 id="tutoringDetailTitle" class="text-base font-bold text-slate-900 dark:text-white">—</h3>
+                <p id="tutoringDetailSubtitle" class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">—</p>
+            </div>
+            <button onclick="closeTutoringDetailModal()" class="text-slate-400"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        
+        <div id="tutoringDetailContent" class="space-y-4"></div>
+        
+        <div class="flex gap-2 justify-end pt-4 mt-4 border-t border-slate-200 dark:border-slate-700">
+            <button onclick="closeTutoringDetailModal()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold">إغلاق</button>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
