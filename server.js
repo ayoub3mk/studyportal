@@ -1398,6 +1398,157 @@ app.get('/api/parent/children/:userId/data', parentAuthRequired, async function(
         res.status(500).json({ error: 'server_error' });
     }
 });
+/* ============================================================
+   نظام جلسات التركيز (Pomodoro)
+   ============================================================ */
+
+/* بدء جلسة جديدة */
+app.post('/api/focus/start', userAuthRequired, async function(req, res) {
+    try {
+        var body = req.body || {};
+        
+        /* نظف الجلسات القديمة */
+        await db.cleanupStaleSessions(req.userId);
+        
+        /* تحقق من عدم وجود جلسة نشطة */
+        var active = await db.getActiveFocusSession(req.userId);
+        if (active) {
+            return res.status(409).json({ 
+                error: 'session_active', 
+                message: 'لديك جلسة نشطة بالفعل',
+                session: active
+            });
+        }
+        
+        var session = await db.startFocusSession(req.userId, {
+            subjectId: body.subjectId || '',
+            subjectName: body.subjectName || '',
+            goal: body.goal || '',
+            sessionType: body.sessionType || 'focus',
+            plannedMinutes: body.plannedMinutes || 25
+        });
+        
+        res.json({ ok: true, session: session });
+    } catch (err) {
+        console.error('Start focus error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* إنهاء الجلسة */
+app.post('/api/focus/end', userAuthRequired, async function(req, res) {
+    try {
+        var sessionId = parseInt(req.body.sessionId, 10);
+        var actualMinutes = parseInt(req.body.actualMinutes, 10) || 0;
+        var completed = !!req.body.completed;
+        
+        if (!sessionId) {
+            return res.status(400).json({ error: 'missing_session_id' });
+        }
+        
+        var result = await db.endFocusSession(sessionId, req.userId, actualMinutes, completed);
+        
+        /* إذا حسبت كمهمة، أضف النقاط */
+        if (result.countedAsTask) {
+            await db.updateUserPoints(req.userId, 15);
+        }
+        
+        res.json({ 
+            ok: true, 
+            countedAsTask: result.countedAsTask,
+            pointsEarned: result.countedAsTask ? 15 : 0
+        });
+    } catch (err) {
+        console.error('End focus error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* جلب الجلسة النشطة */
+app.get('/api/focus/active', userAuthRequired, async function(req, res) {
+    try {
+        var active = await db.getActiveFocusSession(req.userId);
+        res.json({ ok: true, session: active });
+    } catch (err) {
+        console.error('Get active focus error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* جلب إحصائيات اليوم */
+app.get('/api/focus/today', userAuthRequired, async function(req, res) {
+    try {
+        var sessions = await db.getTodayFocusSessions(req.userId);
+        var stats = await db.getFocusStats(req.userId, 1);
+        
+        res.json({
+            ok: true,
+            sessions: sessions,
+            stats: stats
+        });
+    } catch (err) {
+        console.error('Get today focus error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* جلب إحصائيات آخر 7 أيام */
+app.get('/api/focus/stats', userAuthRequired, async function(req, res) {
+    try {
+        var days = parseInt(req.query.days, 10) || 7;
+        var stats = await db.getFocusStats(req.userId, days);
+        var bySubject = await db.getFocusBySubject(req.userId, days);
+        var recent = await db.getRecentFocusSessions(req.userId, days);
+        
+        res.json({
+            ok: true,
+            stats: stats,
+            bySubject: bySubject,
+            recent: recent
+        });
+    } catch (err) {
+        console.error('Get focus stats error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* ============================================================
+   إضافة ساعات التركيز لبيانات ولي الأمر
+   ============================================================ */
+
+/* جلب إحصائيات التركيز لابن معين (لولي الأمر) */
+app.get('/api/parent/children/:userId/focus', parentAuthRequired, async function(req, res) {
+    try {
+        var userId = parseInt(req.params.userId, 10);
+        
+        /* تحقق أن الابن مرتبط ومؤكد */
+        var children = await db.getParentChildren(req.parentId);
+        var child = null;
+        for (var i = 0; i < children.length; i++) {
+            if (children[i].id === userId && children[i].confirmed) {
+                child = children[i];
+                break;
+            }
+        }
+        if (!child) {
+            return res.status(403).json({ error: 'forbidden' });
+        }
+        
+        var stats = await db.getFocusStats(userId, 7);
+        var bySubject = await db.getFocusBySubject(userId, 7);
+        var todayStats = await db.getFocusStats(userId, 1);
+        
+        res.json({
+            ok: true,
+            week: stats,
+            today: todayStats,
+            bySubject: bySubject
+        });
+    } catch (err) {
+        console.error('Get child focus error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
 
 app.get('*', function(req, res) {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
