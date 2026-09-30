@@ -311,7 +311,143 @@ function logoutUser() {
     /* إعادة تحميل الصفحة */
     location.reload();
 }
+/* ============================================================
+   حفظ يدوي واستعادة يدوية من السيرفر
+   ============================================================ */
 
+function manualSaveToServer() {
+    if (!AUTH_TOKEN) {
+        alert('يجب تسجيل الدخول أولا');
+        return;
+    }
+    
+    var btn = document.getElementById('btnManualSave');
+    var original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner loading"></i><span class="hidden sm:inline">جار الحفظ...</span>';
+    
+    saveStateToServer()
+        .then(function() {
+            btn.innerHTML = '<i class="fa-solid fa-check"></i><span class="hidden sm:inline">تم</span>';
+            btn.classList.remove('bg-emerald-50', 'dark:bg-emerald-950/40');
+            btn.classList.add('bg-emerald-500', 'text-white');
+            
+            setTimeout(function() {
+                btn.innerHTML = original;
+                btn.classList.add('bg-emerald-50', 'dark:bg-emerald-950/40');
+                btn.classList.remove('bg-emerald-500', 'text-white');
+                btn.disabled = false;
+            }, 2000);
+        })
+        .catch(function(err) {
+            console.error('فشل الحفظ:', err);
+            btn.innerHTML = '<i class="fa-solid fa-xmark"></i><span class="hidden sm:inline">فشل</span>';
+            btn.classList.remove('bg-emerald-50', 'dark:bg-emerald-950/40');
+            btn.classList.add('bg-red-500', 'text-white');
+            
+            setTimeout(function() {
+                btn.innerHTML = original;
+                btn.classList.add('bg-emerald-50', 'dark:bg-emerald-950/40');
+                btn.classList.remove('bg-red-500', 'text-white');
+                btn.disabled = false;
+            }, 2000);
+            
+            alert('فشل الحفظ على السيرفر. تحقق من الإنترنت.');
+        });
+}
+
+function manualRestoreFromServer() {
+    if (!AUTH_TOKEN) {
+        alert('يجب تسجيل الدخول أولا');
+        return;
+    }
+    
+    if (!confirm('سيتم استبدال البيانات الحالية بالبيانات الموجودة على السيرفر. هل أنت متأكد؟')) {
+        return;
+    }
+    
+    var btn = document.getElementById('btnManualRestore');
+    var original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner loading"></i><span class="hidden sm:inline">جار الجلب...</span>';
+    
+    fetch(API_BASE + '/api/me', {
+        credentials: 'include',
+        headers: AUTH_TOKEN ? { 'Authorization': 'Bearer ' + AUTH_TOKEN } : {}
+    })
+    .then(function(r) {
+        if (r.status === 401) {
+            throw new Error('انتهت الجلسة. سجّل الدخول من جديد.');
+        }
+        return r.json();
+    })
+    .then(function(data) {
+        if (!data || !data.user) {
+            throw new Error('لا توجد بيانات');
+        }
+        
+        var u = data.user;
+        
+        /* حدّث الحالة المحلية */
+        appState.lang = u.lang || 'ar';
+        appState.darkMode = !!u.darkMode;
+        appState.profiles = [{
+            id: 'me',
+            name: u.name,
+            password: '',
+            avatar: u.avatar || DEFAULT_AVATAR,
+            grade: u.grade || '',
+            term: u.term || '',
+            examType: u.examType || '',
+            schoolYear: u.schoolYear || '',
+            subjects: u.subjects || [],
+            timetable: u.timetable || {},
+            homework: u.homework || []
+        }];
+        appState.activeUserId = 'me';
+        
+        /* حفظ محلي */
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(appState)); } catch(e) {}
+        
+        /* إعادة الرسم */
+        applyTheme();
+        applyUILanguage();
+        renderView();
+        
+        btn.innerHTML = '<i class="fa-solid fa-check"></i><span class="hidden sm:inline">تم</span>';
+        btn.classList.remove('bg-blue-50', 'dark:bg-blue-950/40');
+        btn.classList.add('bg-emerald-500', 'text-white');
+        
+        setTimeout(function() {
+            btn.innerHTML = original;
+            btn.classList.add('bg-blue-50', 'dark:bg-blue-950/40');
+            btn.classList.remove('bg-emerald-500', 'text-white');
+            btn.disabled = false;
+        }, 2000);
+        
+        alert('تمت الاستعادة بنجاح!');
+    })
+    .catch(function(err) {
+        console.error('فشل الجلب:', err);
+        btn.innerHTML = '<i class="fa-solid fa-xmark"></i><span class="hidden sm:inline">فشل</span>';
+        btn.classList.remove('bg-blue-50', 'dark:bg-blue-950/40');
+        btn.classList.add('bg-red-500', 'text-white');
+        
+        setTimeout(function() {
+            btn.innerHTML = original;
+            btn.classList.add('bg-blue-50', 'dark:bg-blue-950/40');
+            btn.classList.remove('bg-red-500', 'text-white');
+            btn.disabled = false;
+        }, 2000);
+        
+        alert('فشل الجلب من السيرفر: ' + err.message);
+    });
+}
+
+/* ============================================================
+   نهاية الحفظ والاستعادة اليدوية
+   ============================================================ */
+    
 /* عند تحميل الصفحة: التحقق من وجود جلسة سابقة */
 function checkExistingSession() {
     try {
@@ -614,6 +750,14 @@ input[type="time"]::-webkit-calendar-picker-indicator { cursor: pointer; }
 <option value="fr">Français 🇫🇷</option>
 <option value="en">English 🇬🇧</option>
 </select>
+<button onclick="manualSaveToServer()" id="btnManualSave" title="حفظ كل البيانات على السيرفر" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors">
+    <i class="fa-solid fa-cloud-arrow-up"></i>
+    <span class="hidden sm:inline" id="txtManualSave">حفظ</span>
+</button>
+<button onclick="manualRestoreFromServer()" id="btnManualRestore" title="استعادة كل البيانات من السيرفر" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors">
+    <i class="fa-solid fa-cloud-arrow-down"></i>
+    <span class="hidden sm:inline" id="txtManualRestore">استعادة</span>
+</button>
 <button onclick="toggleDarkMode()" class="p-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300"><i id="themeIcon" class="fa-solid fa-moon text-sm"></i></button>
 </div>
 </div>
@@ -1010,6 +1154,8 @@ ar: {
     appSubtitle: "الثانية علوم 09",
 
     switchUser: "تغيير المستخدم",
+    manualSave: "حفظ",
+    manualRestore: "استعادة",
     selectProfile: "اختر الحساب",
     whoStudying: "من يراجع اليوم؟",
     homeDesc: "اختر حسابك، أدخل كلمة السر، أو أنشئ حساباً جديداً.",
@@ -1207,6 +1353,8 @@ fr: {
     appSubtitle: "2ème Sciences 09",
 
     switchUser: "Changer d'utilisateur",
+    manualSave: "Sauver",
+    manualRestore: "Restaurer",
     selectProfile: "Profil",
     whoStudying: "Qui révise aujourd'hui ?",
     homeDesc: "Choisissez votre profil, entrez le mot de passe ou créez un nouveau compte.",
@@ -1403,6 +1551,8 @@ en: {
     appSubtitle: "2nd Year Science 09",
 
     switchUser: "Switch User",
+    manualSave: "Save",
+    manualRestore: "Restore",
     selectProfile: "Select Profile",
     whoStudying: "Who is studying today?",
     homeDesc: "Choose your profile, enter your password, or create a new one.",
@@ -1995,6 +2145,10 @@ function applyUILanguage() {
     setText("appNavTitle", t("appTitle"));
     setText("appNavSubtitle", t("appSubtitle"));
     setText("txtSwitchUser", t("switchUser"));
+        var _ms = document.getElementById("txtManualSave");
+    if (_ms) _ms.textContent = t("manualSave");
+    var _mr = document.getElementById("txtManualRestore");
+    if (_mr) _mr.textContent = t("manualRestore");
     setText("txtHomeBadge", t("selectProfile"));
     setText("txtHomeTitle", t("whoStudying"));
     setText("txtHomeDesc", t("homeDesc"));
