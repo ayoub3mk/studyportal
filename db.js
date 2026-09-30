@@ -382,6 +382,9 @@ module.exports = {
     updateUserProfile: updateUserProfile,
     deleteUser: deleteUser,
     copyUserSettings: copyUserSettings,
+    updateUserName: updateUserName,
+    updateUserPassword: updateUserPassword,
+    getUserWithPassword: getUserWithPassword,
     /* البيانات */
     getUserData: getUserData,
     saveUserData: saveUserData,
