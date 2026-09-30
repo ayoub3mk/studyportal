@@ -1,9 +1,6 @@
 /* ============================================================
    server.js — سيرفر بوابة المساعد الدراسي
-   - يخدم ملفات الواجهة من مجلد public
-   - يوفر واجهات API لتسجيل الدخول وإنشاء الحسابات
-   - يوفر واجهات API لحفظ وجلب بيانات المستخدم
-   - متوافق مع Postgres (Supabase)
+   نظام: حساب واحد فيه عدة مستخدمين
    ============================================================ */
 
 var express = require('express');
@@ -16,7 +13,7 @@ var db = require('./db');
 var app = express();
 var PORT = process.env.PORT || 3000;
 
-var JWT_SECRET = process.env.JWT_SECRET || 'study-portal-secret-key-' + Date.now();
+var JWT_SECRET = process.env.JWT_SECRET || 'study-portal-secret-' + Date.now();
 
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
@@ -26,45 +23,80 @@ app.use(express.static(path.join(__dirname, 'public')));
    دوال مساعدة
    ============================================================ */
 
-function signToken(user) {
+/* رمز الحساب */
+function signAccountToken(account) {
     return jwt.sign(
-        { id: user.id, username: user.username },
+        { accountId: account.id, username: account.username, type: 'account' },
         JWT_SECRET,
         { expiresIn: '30d' }
     );
 }
 
-function authRequired(req, res, next) {
-    var token = req.cookies.token ||
+/* رمز المستخدم */
+function signUserToken(user, accountId) {
+    return jwt.sign(
+        { userId: user.id, accountId: accountId, name: user.name, type: 'user' },
+        JWT_SECRET,
+        { expiresIn: '30d' }
+    );
+}
+
+/* التحقق من رمز الحساب */
+function accountAuthRequired(req, res, next) {
+    var token = req.cookies.account_token ||
         (req.headers.authorization && req.headers.authorization.replace('Bearer ', ''));
     if (!token) {
         return res.status(401).json({ error: 'not_authenticated' });
     }
     try {
         var payload = jwt.verify(token, JWT_SECRET);
-        req.userId = payload.id;
-        req.username = payload.username;
+        if (payload.type !== 'account') {
+            return res.status(401).json({ error: 'wrong_token_type' });
+        }
+        req.accountId = payload.accountId;
+        req.accountUsername = payload.username;
         next();
     } catch (e) {
         return res.status(401).json({ error: 'invalid_token' });
     }
 }
 
-function setCookie(res, token) {
-    res.cookie('token', token, {
+/* التحقق من رمز المستخدم */
+function userAuthRequired(req, res, next) {
+    var token = req.cookies.user_token ||
+        (req.headers.authorization && req.headers.authorization.replace('Bearer ', ''));
+    if (!token) {
+        return res.status(401).json({ error: 'not_authenticated' });
+    }
+    try {
+        var payload = jwt.verify(token, JWT_SECRET);
+        if (payload.type !== 'user') {
+            return res.status(401).json({ error: 'wrong_token_type' });
+        }
+        req.userId = payload.userId;
+        req.accountId = payload.accountId;
+        req.userName = payload.name;
+        next();
+    } catch (e) {
+        return res.status(401).json({ error: 'invalid_token' });
+    }
+}
+
+function setCookie(res, name, token, days) {
+    res.cookie(name, token, {
         httpOnly: true,
         sameSite: 'lax',
         secure: process.env.NODE_ENV === 'production',
-        maxAge: 30 * 24 * 3600 * 1000
+        maxAge: days * 24 * 3600 * 1000
     });
 }
 
 /* ============================================================
-   واجهات المصادقة
+   المصادقة — الحسابات
    ============================================================ */
 
 /* إنشاء حساب جديد */
-app.post('/api/register', async function(req, res) {
+app.post('/api/account/register', async function(req, res) {
     try {
         var username = (req.body.username || '').trim();
         var password = req.body.password || '';
@@ -73,33 +105,33 @@ app.post('/api/register', async function(req, res) {
             return res.status(400).json({ error: 'missing_fields', message: 'الاسم وكلمة السر مطلوبان' });
         }
         if (username.length < 3) {
-            return res.status(400).json({ error: 'username_too_short', message: 'الاسم قصير جدا (3 أحرف على الأقل)' });
+            return res.status(400).json({ error: 'username_too_short', message: 'اسم الحساب قصير (3 أحرف على الأقل)' });
         }
         if (password.length < 4) {
             return res.status(400).json({ error: 'password_too_short', message: 'كلمة السر قصيرة (4 أحرف على الأقل)' });
         }
 
-        var existing = await db.findUserByUsername(username);
+        var existing = await db.findAccountByUsername(username);
         if (existing) {
-            return res.status(409).json({ error: 'username_taken', message: 'اسم المستخدم مستعمل' });
+            return res.status(409).json({ error: 'username_taken', message: 'اسم الحساب مستعمل' });
         }
 
         var hashed = bcrypt.hashSync(password, 10);
-        var userId = await db.createUser(username, hashed);
+        var accountId = await db.createAccount(username, hashed);
 
-        var user = { id: userId, username: username };
-        var token = signToken(user);
-        setCookie(res, token);
+        var account = { id: accountId, username: username };
+        var token = signAccountToken(account);
+        setCookie(res, 'account_token', token, 30);
 
-        res.json({ ok: true, user: user, token: token });
+        res.json({ ok: true, account: account, token: token });
     } catch (err) {
         console.error('Register error:', err);
         res.status(500).json({ error: 'server_error', message: 'خطأ في السيرفر' });
     }
 });
 
-/* تسجيل الدخول */
-app.post('/api/login', async function(req, res) {
+/* تسجيل دخول الحساب */
+app.post('/api/account/login', async function(req, res) {
     try {
         var username = (req.body.username || '').trim();
         var password = req.body.password || '';
@@ -108,38 +140,149 @@ app.post('/api/login', async function(req, res) {
             return res.status(400).json({ error: 'missing_fields', message: 'الاسم وكلمة السر مطلوبان' });
         }
 
-        var user = await db.findUserByUsername(username);
-        if (!user) {
-            return res.status(401).json({ error: 'invalid_credentials', message: 'اسم المستخدم أو كلمة السر غير صحيحة' });
+        var account = await db.findAccountByUsername(username);
+        if (!account) {
+            return res.status(401).json({ error: 'invalid_credentials', message: 'اسم الحساب أو كلمة السر غير صحيحة' });
         }
 
-        var ok = bcrypt.compareSync(password, user.password);
+        var ok = bcrypt.compareSync(password, account.password);
         if (!ok) {
-            return res.status(401).json({ error: 'invalid_credentials', message: 'اسم المستخدم أو كلمة السر غير صحيحة' });
+            return res.status(401).json({ error: 'invalid_credentials', message: 'اسم الحساب أو كلمة السر غير صحيحة' });
         }
 
-        var token = signToken(user);
-        setCookie(res, token);
+        var token = signAccountToken(account);
+        setCookie(res, 'account_token', token, 30);
 
-        res.json({ ok: true, user: { id: user.id, username: user.username }, token: token });
+        res.json({ ok: true, account: { id: account.id, username: account.username }, token: token });
     } catch (err) {
         console.error('Login error:', err);
         res.status(500).json({ error: 'server_error', message: 'خطأ في السيرفر' });
     }
 });
 
-/* تسجيل الخروج */
-app.post('/api/logout', function(req, res) {
-    res.clearCookie('token');
+/* تسجيل خروج الحساب */
+app.post('/api/account/logout', function(req, res) {
+    res.clearCookie('account_token');
+    res.clearCookie('user_token');
     res.json({ ok: true });
 });
 
+/* معلومات الحساب الحالي */
+app.get('/api/account/me', accountAuthRequired, async function(req, res) {
+    try {
+        var account = await db.findAccountById(req.accountId);
+        if (!account) {
+            return res.status(404).json({ error: 'not_found' });
+        }
+        res.json({ account: { id: account.id, username: account.username } });
+    } catch (err) {
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
 /* ============================================================
-   واجهات البيانات
+   إدارة المستخدمين
+   ============================================================ */
+
+/* جلب قائمة المستخدمين في الحساب */
+app.get('/api/users', accountAuthRequired, async function(req, res) {
+    try {
+        var users = await db.getUsersByAccount(req.accountId);
+        res.json({ users: users });
+    } catch (err) {
+        console.error('Get users error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* إضافة مستخدم جديد للحساب */
+app.post('/api/users', accountAuthRequired, async function(req, res) {
+    try {
+        var name = (req.body.name || '').trim();
+        var password = (req.body.password || '').trim();
+
+        if (!name) {
+            return res.status(400).json({ error: 'missing_name', message: 'اسم المستخدم مطلوب' });
+        }
+        if (name.length < 2) {
+            return res.status(400).json({ error: 'name_too_short', message: 'الاسم قصير جدا' });
+        }
+
+        var existing = await db.findUserByName(req.accountId, name);
+        if (existing) {
+            return res.status(409).json({ error: 'name_taken', message: 'يوجد مستخدم بهذا الاسم' });
+        }
+
+        var hashed = password ? bcrypt.hashSync(password, 10) : '';
+        var userId = await db.createUser(req.accountId, name, hashed);
+
+        res.json({ ok: true, userId: userId, name: name });
+    } catch (err) {
+        console.error('Create user error:', err);
+        res.status(500).json({ error: 'server_error', message: 'خطأ في السيرفر' });
+    }
+});
+
+/* تسجيل دخول مستخدم */
+app.post('/api/users/:userId/login', accountAuthRequired, async function(req, res) {
+    try {
+        var userId = parseInt(req.params.userId, 10);
+        var password = (req.body.password || '').trim();
+
+        var user = await db.findUserById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'user_not_found' });
+        }
+        /* تأكد أن المستخدم ينتمي إلى الحساب */
+        if (user.account_id !== req.accountId) {
+            return res.status(403).json({ error: 'forbidden', message: 'غير مسموح' });
+        }
+
+        /* إذا كان للمستخدم كلمة سر، تحقق منها */
+        if (user.password && user.password.length > 0) {
+            var ok = bcrypt.compareSync(password, user.password);
+            if (!ok) {
+                return res.status(401).json({ error: 'invalid_password', message: 'كلمة السر غير صحيحة' });
+            }
+        }
+
+        var token = signUserToken(user, req.accountId);
+        setCookie(res, 'user_token', token, 30);
+
+        res.json({ ok: true, user: { id: user.id, name: user.name } });
+    } catch (err) {
+        console.error('User login error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* حذف مستخدم */
+app.delete('/api/users/:userId', accountAuthRequired, async function(req, res) {
+    try {
+        var userId = parseInt(req.params.userId, 10);
+
+        var user = await db.findUserById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'user_not_found' });
+        }
+        if (user.account_id !== req.accountId) {
+            return res.status(403).json({ error: 'forbidden' });
+        }
+
+        await db.deleteUser(userId);
+        res.json({ ok: true });
+    } catch (err) {
+        console.error('Delete user error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* ============================================================
+   بيانات المستخدم (بعد الدخول)
    ============================================================ */
 
 /* جلب بيانات المستخدم الحالي */
-app.get('/api/me', authRequired, async function(req, res) {
+app.get('/api/me', userAuthRequired, async function(req, res) {
     try {
         var user = await db.findUserById(req.userId);
         if (!user) {
@@ -159,7 +302,7 @@ app.get('/api/me', authRequired, async function(req, res) {
         res.json({
             user: {
                 id: user.id,
-                name: user.username,
+                name: user.name,
                 avatar: user.avatar || '',
                 grade: user.grade || '',
                 term: user.term || '',
@@ -174,12 +317,12 @@ app.get('/api/me', authRequired, async function(req, res) {
         });
     } catch (err) {
         console.error('Me error:', err);
-        res.status(500).json({ error: 'server_error', message: 'خطأ في السيرفر' });
+        res.status(500).json({ error: 'server_error' });
     }
 });
 
-/* حفظ بيانات المستخدم */
-app.put('/api/me', authRequired, async function(req, res) {
+/* حفظ بيانات المستخدم الحالي */
+app.put('/api/me', userAuthRequired, async function(req, res) {
     try {
         var body = req.body || {};
 
@@ -225,24 +368,12 @@ app.put('/api/me', authRequired, async function(req, res) {
         res.json({ ok: true, savedAt: new Date().toISOString() });
     } catch (err) {
         console.error('Save error:', err);
-        res.status(500).json({ error: 'server_error', message: 'خطأ في السيرفر' });
-    }
-});
-
-/* حذف الحساب */
-app.delete('/api/me', authRequired, async function(req, res) {
-    try {
-        await db.deleteUser(req.userId);
-        res.clearCookie('token');
-        res.json({ ok: true });
-    } catch (err) {
-        console.error('Delete error:', err);
-        res.status(500).json({ error: 'server_error', message: 'خطأ في السيرفر' });
+        res.status(500).json({ error: 'server_error' });
     }
 });
 
 /* ============================================================
-   خدمة الواجهة (لأي مسار غير API)
+   خدمة الواجهة
    ============================================================ */
 app.get('*', function(req, res) {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
