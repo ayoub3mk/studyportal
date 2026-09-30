@@ -2915,21 +2915,62 @@ function importJSON() {
 /* ============================================================
    الجزء 25: ترجمة تلقائية
    ============================================================ */
-function autoTranslate(fieldId) {
+async function autoTranslate(fieldId) {
     var inp = document.getElementById(fieldId);
     if (!inp) return;
     var text = inp.value.trim();
     if (!text) return;
-    var srcLang = /[\u0600-\u06FF]/.test(text) ? 'ar' : /[àâçéèêëîïôûùüÿñæœ]/i.test(text) ? 'fr' : 'en';
+
+    var srcLang = /[\u0600-\u06FF]/.test(text) ? 'ar' : (/[àâçéèêëîïôûùüÿñæœ]/i.test(text) ? 'fr' : 'en');
+    var targets = ['ar','fr','en'].filter(function(l){ return l !== srcLang; });
+
+    /* جرّب القاموس المحلي أولاً */
     var dictAll = {};
     ['ar','fr','en'].forEach(function(l){ dictAll[l] = lookupDict(text, l); });
-    if (dictAll.ar || dictAll.fr || dictAll.en) {
+    var hasDict = dictAll.ar || dictAll.fr || dictAll.en;
+
+    if (hasDict) {
         if (fieldId === 'subjectTitleAr' || fieldId === 'subjectTitleFr' || fieldId === 'subjectTitleEn') {
             if (dictAll.ar) document.getElementById('subjectTitleAr').value = dictAll.ar;
             if (dictAll.fr) document.getElementById('subjectTitleFr').value = dictAll.fr;
             if (dictAll.en) document.getElementById('subjectTitleEn').value = dictAll.en;
         }
+        return;
     }
+
+    /* إذا لم يكن موجودًا في القاموس، استخدم MyMemory API */
+    var btn = (typeof event !== 'undefined' && event) ? event.currentTarget : null;
+    if (btn) btn.classList.add('loading');
+
+    var results = {};
+    for (var i = 0; i < targets.length; i++) {
+        var tr = await myMemoryTranslate(text, srcLang, targets[i]);
+        if (tr) results[targets[i]] = tr;
+    }
+    results[srcLang] = text;
+
+    if (fieldId === 'subjectTitleAr' || fieldId === 'subjectTitleFr' || fieldId === 'subjectTitleEn') {
+        if (results.ar !== undefined) document.getElementById('subjectTitleAr').value = results.ar;
+        if (results.fr !== undefined) document.getElementById('subjectTitleFr').value = results.fr;
+        if (results.en !== undefined) document.getElementById('subjectTitleEn').value = results.en;
+    }
+
+    if (btn) btn.classList.remove('loading');
+}
+
+/* دالة الترجمة عبر MyMemory */
+function myMemoryTranslate(text, from, to) {
+    return new Promise(function(resolve){
+        try {
+            var u = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) + '&langpair=' + from + '|' + to;
+            fetch(u)
+                .then(function(r){ return r.json(); })
+                .then(function(j){
+                    resolve((j && j.responseData && j.responseData.translatedText) || null);
+                })
+                .catch(function(){ resolve(null); });
+        } catch (e) { resolve(null); }
+    });
 }
 
 /* ============================================================
