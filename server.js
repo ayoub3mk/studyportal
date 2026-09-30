@@ -979,6 +979,108 @@ app.get('/api/stats/today', userAuthRequired, async function(req, res) {
         res.status(500).json({ error: 'server_error' });
     }
 });
+/* ============================================================
+   نظام تسجيل النتائج الفعلية
+   ============================================================ */
+
+/* جلب كل النتائج + الإحصائيات */
+app.get('/api/results', userAuthRequired, async function(req, res) {
+    try {
+        var results = await db.getExamResults(req.userId);
+        var coefficients = await db.getSubjectCoefficients(req.userId);
+        
+        res.json({
+            ok: true,
+            results: results,
+            coefficients: coefficients
+        });
+    } catch (err) {
+        console.error('Get results error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* إضافة نتيجة جديدة */
+app.post('/api/results', userAuthRequired, async function(req, res) {
+    try {
+        var body = req.body || {};
+        if (!body.subjectId || !body.subjectName || !body.examType || !body.examDate || body.score == null) {
+            return res.status(400).json({ error: 'missing_fields', message: 'املأ كل الحقول المطلوبة' });
+        }
+        
+        var id = await db.createExamResult(req.userId, {
+            subjectId: body.subjectId,
+            subjectName: body.subjectName,
+            examType: body.examType,
+            examDate: body.examDate,
+            score: parseFloat(body.score),
+            maxScore: parseFloat(body.maxScore) || 20,
+            coefficient: parseFloat(body.coefficient) || 1,
+            note: body.note || ''
+        });
+        
+        res.json({ ok: true, id: id });
+    } catch (err) {
+        console.error('Create result error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* تحديث نتيجة */
+app.put('/api/results/:id', userAuthRequired, async function(req, res) {
+    try {
+        var resultId = parseInt(req.params.id, 10);
+        var existing = await db.getExamResultById(resultId, req.userId);
+        if (!existing) {
+            return res.status(404).json({ error: 'not_found' });
+        }
+        
+        var body = req.body || {};
+        await db.updateExamResult(resultId, req.userId, {
+            subjectId: body.subjectId,
+            subjectName: body.subjectName,
+            examType: body.examType,
+            examDate: body.examDate,
+            score: body.score != null ? parseFloat(body.score) : null,
+            maxScore: body.maxScore != null ? parseFloat(body.maxScore) : null,
+            coefficient: body.coefficient != null ? parseFloat(body.coefficient) : null,
+            note: body.note
+        });
+        
+        res.json({ ok: true });
+    } catch (err) {
+        console.error('Update result error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* حذف نتيجة */
+app.delete('/api/results/:id', userAuthRequired, async function(req, res) {
+    try {
+        var resultId = parseInt(req.params.id, 10);
+        await db.deleteExamResult(resultId, req.userId);
+        res.json({ ok: true });
+    } catch (err) {
+        console.error('Delete result error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* حفظ معامل مادة */
+app.post('/api/results/coefficient', userAuthRequired, async function(req, res) {
+    try {
+        var body = req.body || {};
+        if (!body.subjectId || body.coefficient == null) {
+            return res.status(400).json({ error: 'missing_fields' });
+        }
+        
+        await db.setSubjectCoefficient(req.userId, body.subjectId, parseFloat(body.coefficient));
+        res.json({ ok: true });
+    } catch (err) {
+        console.error('Set coefficient error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
 
 app.get('*', function(req, res) {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
