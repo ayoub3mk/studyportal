@@ -3376,15 +3376,42 @@ function importJSON() {
                 var parsed = JSON.parse(ev.target.result);
                 if (parsed && Array.isArray(parsed.profiles)) {
                     appState = Object.assign({}, appState, parsed);
-                    saveState();
+                    
+                    /* تأكد أن المستخدم الحالي هو 'me' */
+                    if (appState.profiles.length > 0) {
+                        appState.profiles[0].id = 'me';
+                        appState.activeUserId = 'me';
+                    }
+                    
+                    /* حفظ محلي */
+                    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(appState)); } catch(err) {}
+                    
+                    /* حفظ على السيرفر - الأهم */
+                    if (typeof AUTH_TOKEN !== 'undefined' && AUTH_TOKEN) {
+                        saveStateToServer()
+                            .then(function() {
+                                console.log('✓ تم حفظ الاستيراد على السيرفر');
+                                alert('تم الاستيراد والحفظ على السيرفر بنجاح!');
+                            })
+                            .catch(function(err) {
+                                console.error('✗ فشل حفظ الاستيراد:', err);
+                                alert('تم الاستيراد محليا، لكن فشل الحفظ على السيرفر');
+                            });
+                    } else {
+                        alert('تحذير: لا يوجد رمز دخول. لن يُحفظ على السيرفر.');
+                    }
+                    
+                    /* إعادة الرسم */
                     applyTheme();
                     applyUILanguage();
                     renderView();
-                    alert(t("importSuccess"));
                 } else {
                     alert(t("importInvalid"));
                 }
-            } catch (e2) { alert(t("importError")); }
+            } catch (err2) {
+                alert(t("importError"));
+                console.error(err2);
+            }
         };
         r.readAsText(f);
     };
