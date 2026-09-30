@@ -145,6 +145,33 @@ async function saveUserData(userId, data) {
    دالة نسخ الإعدادات من مستخدم موجود
    تنسخ: المواد (بدون أوراق) + الجدول + إعدادات الملف
    ============================================================ */
+/* تحديث اسم المستخدم */
+async function updateUserName(userId, newName) {
+    var result = await pool.query(
+        'UPDATE users SET name = $1 WHERE id = $2 RETURNING id',
+        [newName, userId]
+    );
+    return result.rowCount > 0;
+}
+
+/* تحديث كلمة سر المستخدم */
+async function updateUserPassword(userId, hashedPassword) {
+    var result = await pool.query(
+        'UPDATE users SET password = $1 WHERE id = $2 RETURNING id',
+        [hashedPassword, userId]
+    );
+    return result.rowCount > 0;
+}
+
+/* جلب المستخدم بكلمة السر */
+async function getUserWithPassword(userId) {
+    var result = await pool.query(
+        'SELECT * FROM users WHERE id = $1',
+        [userId]
+    );
+    return result.rows[0] || null;
+}
+
 async function copyUserSettings(sourceUserId, targetUserId) {
     /* جلب مصدر البيانات */
     var sourceUser = await findUserById(sourceUserId);
