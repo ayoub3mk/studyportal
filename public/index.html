@@ -1017,7 +1017,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
             <div class="flex items-center gap-1.5 sm:gap-2">
                 
                 <!-- Pomodoro -->
-                <div id="pomodoroWidget" class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700 rounded-lg px-2 py-1 border border-slate-200 dark:border-slate-600">
+                <div id="pomodoroWidget" class="hidden sm:flex items-center gap-1.5 bg-slate-100 dark:bg-slate-700 rounded-lg px-2 py-1 border border-slate-200 dark:border-slate-600">
                     <span id="pomodoroMode" class="text-[9px] font-black uppercase text-brand-600 dark:text-brand-400 w-10">تركيز</span>
                     <span id="timerDisplay" class="text-[11px] font-bold text-slate-700 dark:text-slate-200 w-9 text-center tabular-nums">25:00</span>
                     <button onclick="togglePomodoro()" id="timerToggleBtn" class="text-slate-600 dark:text-slate-300 hover:text-brand-600">
@@ -1029,24 +1029,101 @@ input[type="time"]::-webkit-calendar-picker-indicator {
                 </div>
                 
                 <!-- حفظ يدوي -->
-                <button onclick="manualSave()" id="btnManualSave" title="حفظ على السيرفر" class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors">
+                <button onclick="manualSave()" id="btnManualSave" title="حفظ على السيرفر" class="hidden sm:flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors">
                     <i class="fa-solid fa-cloud-arrow-up"></i>
                     <span class="hidden sm:inline">حفظ</span>
                 </button>
                 
                 <!-- رجوع -->
-                <button onclick="backToUsers()" title="رجوع إلى المستخدمين" class="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+                <button onclick="backToUsers()" title="رجوع إلى المستخدمين" class="hidden sm:flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-bold bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
                     <i class="fa-solid fa-arrow-right"></i>
                     <span class="hidden sm:inline">رجوع</span>
                 </button>
                 
                 <!-- اللغة -->
-                <select id="langSelect" onchange="changeLanguage(this.value)" class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-bold py-1.5 px-2 rounded-lg border border-slate-200 dark:border-slate-600 cursor-pointer">
+                <select id="langSelect" onchange="changeLanguage(this.value)" class="hidden sm:bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-bold py-1.5 px-2 rounded-lg border border-slate-200 dark:border-slate-600 cursor-pointer">
                     <option value="ar">العربية</option>
                     <option value="fr">Français</option>
                     <option value="en">English</option>
                 </select>
-                
+                                    <!-- زر القائمة (يظهر فقط على الهاتف) -->
+                    <button onclick="toggleMobileMenu()" id="mobileMenuBtn" class="hidden items-center justify-center w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors" title="القائمة">
+                        <i class="fa-solid fa-ellipsis-vertical text-sm"></i>
+                    </button>
+                    
+                    <!-- القائمة المنسدلة (للهاتف) -->
+                    <div id="mobileMenu" class="hidden fixed top-16 right-2 left-2 sm:right-4 sm:left-auto sm:w-72 z-50 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        <div class="p-2 space-y-1">
+                            
+                            <!-- حفظ -->
+                            <button onclick="manualSave(); toggleMobileMenu();" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                <i class="fa-solid fa-cloud-arrow-up text-emerald-500 w-5 text-center"></i>
+                                <span>حفظ البيانات</span>
+                            </button>
+                            
+                            <!-- رجوع -->
+                            <button onclick="backToUsers(); toggleMobileMenu();" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                <i class="fa-solid fa-arrow-right text-slate-500 w-5 text-center"></i>
+                                <span>رجوع للمستخدمين</span>
+                            </button>
+                            
+                            <!-- تركيز -->
+                            <button onclick="openFocusModal(); toggleMobileMenu();" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                <i class="fa-solid fa-hourglass-half text-brand-500 w-5 text-center"></i>
+                                <span>جلسة تركيز</span>
+                            </button>
+                            
+                            <!-- فاصل -->
+                            <div class="h-px bg-slate-200 dark:bg-slate-700 my-1"></div>
+                            
+                            <!-- اللغة -->
+                            <div class="px-4 py-3">
+                                <label class="block text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-2">اللغة</label>
+                                <select onchange="changeLanguage(this.value); toggleMobileMenu();" class="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                                    <option value="ar" id="mobLangAr">العربية</option>
+                                    <option value="fr" id="mobLangFr">Français</option>
+                                    <option value="en" id="mobLangEn">English</option>
+                                </select>
+                            </div>
+                            
+                            <!-- فاصل -->
+                            <div class="h-px bg-slate-200 dark:bg-slate-700 my-1"></div>
+                            
+                            <!-- إعدادات المستخدم -->
+                            <button onclick="openSettingsModal(); toggleMobileMenu();" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                <i class="fa-solid fa-gear text-slate-500 w-5 text-center"></i>
+                                <span>إعدادات المستخدم</span>
+                            </button>
+                            
+                            <!-- أولياء الأمور -->
+                            <button onclick="openMyParentsModal(); toggleMobileMenu();" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                <i class="fa-solid fa-user-shield text-emerald-500 w-5 text-center"></i>
+                                <span>إدارة أولياء الأمور</span>
+                            </button>
+                            
+                            <!-- تثبيت PWA -->
+                            <button onclick="installPWA(); toggleMobileMenu();" id="mobileInstallBtn" class="hidden w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                <i class="fa-solid fa-download text-brand-500 w-5 text-center"></i>
+                                <span>تثبيت التطبيق</span>
+                            </button>
+                            
+                            <!-- فاصل -->
+                            <div class="h-px bg-slate-200 dark:bg-slate-700 my-1"></div>
+                            
+                            <!-- الوضع الليلي -->
+                            <button onclick="toggleDarkMode(); toggleMobileMenu();" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                <i id="mobileThemeIcon" class="fa-solid fa-moon text-slate-500 w-5 text-center"></i>
+                                <span>تبديل المظهر</span>
+                            </button>
+                            
+                            <!-- تسجيل الخروج -->
+                            <button onclick="confirmLogout(); toggleMobileMenu();" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors">
+                                <i class="fa-solid fa-right-from-bracket w-5 text-center"></i>
+                                <span>تسجيل الخروج</span>
+                            </button>
+                            
+                        </div>
+                    </div>
                 <!-- الوضع الليلي -->
                 <button onclick="toggleDarkMode()" class="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
                     <i id="themeIcon" class="fa-solid fa-moon text-xs"></i>
