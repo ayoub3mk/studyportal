@@ -367,6 +367,174 @@ async function updateTutoringItem(itemId, data) {
 async function deleteTutoringItem(itemId) {
     await pool.query('DELETE FROM tutoring_items WHERE id = $1', [itemId]);
 }
+/* ============================================================
+   نظام التقدم اليومي والنقاط والـ Streak
+   ============================================================ */
+
+/* جلب إحصائيات المستخدم */
+async function getUserStats(userId) {
+    var result = await pool.query('SELECT * FROM user_stats WHERE user_id = $1', [userId]);
+    if (result.rows.length === 0) {
+        /* إنشاء صف جديد إذا لم يكن موجوداً */
+        await pool.query('INSERT INTO user_stats (user_id) VALUES ($1)', [userId]);
+        result = await pool.query('SELECT * FROM user_stats WHERE user_id = $1', [userId]);
+    }
+    return result.rows[0];
+}
+
+/* تحديث نقاط المستخدم */
+async function updateUserPoints(userId, delta) {
+    await pool.query(`
+        UPDATE user_stats SET
+            points = GREATEST(0, points + $1),
+            updated_at = NOW()
+        WHERE user_id = $2
+    `, [delta, userId]);
+}
+
+/* حفظ إحصائيات كاملة */
+async function saveUserStats(userId, stats) {
+    await pool.query(`
+        UPDATE user_stats SET
+            points = $1,
+            current_streak = $2,
+            longest_streak = $3,
+            last_completed_day = $4,
+            repair_cost = $5,
+            repair_count = $6,
+            last_repair_day = $7,
+            updated_at = NOW()
+        WHERE user_id = $8
+    `, [
+        stats.points || 0,
+        stats.currentStreak || 0,
+        stats.longestStreak || 0,
+        stats.lastCompletedDay || null,
+        stats.repairCost || 20,
+        stats.repairCount || 0,
+        stats.lastRepairDay || null,
+        userId
+    ]);
+}
+
+/* جلب تقدم يوم معين */
+async function getDailyProgress(userId, day) {
+    var result = await pool.query(
+        'SELECT * FROM daily_progress WHERE user_id = $1 AND day = $2',
+        [userId, day]
+    );
+    return result.rows[0] || null;
+}
+
+/* جلب كل تقدم الأسبوع الأخير */
+async function getRecentProgress(userId, days) {
+    var result = await pool.query(`
+        SELECT * FROM daily_progress 
+        WHERE user_id = $1 AND day >= CURRENT_DATE - $2::int
+        ORDER BY day DESC
+    `, [userId, days || 30]);
+    return result.rows;
+}
+
+/* إنشاء أو تحديث تقدم اليوم */
+async function upsertDailyProgress(userId, day, data) {
+    /* تحقق أولاً */
+    var existing = await getDailyProgress(userId, day);
+    
+    if (existing) {
+        /* تحديث */
+        await pool.query(`
+            UPDATE daily_progress SET
+                goal_type = COALESCE($1, goal_type),
+                goal_value = COALESCE($2, goal_value),
+                current_value = COALESCE($3, current_value),
+                goal_met = COALESCE($4, goal_met),
+                completed_at = COALESCE($5, completed_at)
+            WHERE user_id = $6 AND day = $7
+        `, [
+            data.goalType || null,
+            data.goalValue != null ? data.goalValue : null,
+            data.currentValue != null ? data.currentValue : null,
+            data.goalMet != null ? (data.goalMet ? 1 : 0) : null,
+            data.completedAt || null,
+            userId,
+            day
+        ]);
+    } else {
+        /* إنشاء */
+        await pool.query(`
+            INSERT INTO daily_progress 
+            (user_id, day, goal_type, goal_value, current_value, goal_met, completed_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `, [
+            userId,
+            day,
+            data.goalType || 'papers',
+            data.goalValue != null ? data.goalValue : 5,
+            data.currentValue != null ? data.currentValue : 0,
+            data.goalMet ? 1 : 0,
+            data.completedAt || null
+        ]);
+    }
+}
+
+/* زيادة قيمة اليوم الحالي */
+async function incrementDailyProgress(userId, day, delta) {
+    await pool.query(`
+        UPDATE daily_progress SET
+            current_value = current_value + $1
+        WHERE user_id = $2 AND day = $3
+    `, [delta, userId, day]);
+}
+
+/* جلب آخر N أيام التي حقق فيها الهدف */
+async function getConsecutiveDays(userId, fromDay, count) {
+    var result = await pool.query(`
+        SELECT day FROM daily_progress 
+        WHERE user_id = $1 AND goal_met = 1 AND day < $2
+        ORDER BY day DESC
+        LIMIT $3
+    `, [userId, fromDay, count]);
+    return result.rows.map(function(r) { return r.day; });
+}
+
+/* جلب الأيام الفائتة (التي لم يُحقق فيها الهدف) */
+async function getMissedDays(userId, sinceDay, untilDay) {
+    var result = await pool.query(`
+        SELECT day FROM daily_progress 
+        WHERE user_id = $1 
+            AND day >= $2 
+            AND day < $3 
+            AND goal_met = 0
+        ORDER BY day ASC
+    `, [userId, sinceDay, untilDay]);
+    return result.rows.map(function(r) { return r.day; });
+}
+
+/* حذف تقدم يوم (عند الترميم) */
+async function repairDay(userId, day) {
+    /* نحول الهدف إلى محقق */
+    await pool.query(`
+        UPDATE daily_progress SET
+            goal_met = 1,
+            completed_at = NOW()
+        WHERE user_id = $1 AND day = $2
+    `, [userId, day]);
+}
+
+/* إضافة يوم محقق يدوياً (في حالة الترميم) */
+async function ensureDayMet(userId, day) {
+    var existing = await getDailyProgress(userId, day);
+    if (existing) {
+        await repairDay(userId, day);
+    } else {
+        await pool.query(`
+            INSERT INTO daily_progress 
+            (user_id, day, goal_type, goal_value, current_value, goal_met, completed_at)
+            VALUES ($1, $2, 'papers', 5, 5, 1, NOW())
+        `, [userId, day]);
+    }
+}
 
 module.exports = {
     pool: pool,
@@ -397,5 +565,17 @@ module.exports = {
     getTutoringItems: getTutoringItems,
     createTutoringItem: createTutoringItem,
     updateTutoringItem: updateTutoringItem,
-    deleteTutoringItem: deleteTutoringItem
+    deleteTutoringItem: deleteTutoringItem,
+    /* نظام التقدم والـ Streak */
+    getUserStats: getUserStats,
+    updateUserPoints: updateUserPoints,
+    saveUserStats: saveUserStats,
+    getDailyProgress: getDailyProgress,
+    getRecentProgress: getRecentProgress,
+    upsertDailyProgress: upsertDailyProgress,
+    incrementDailyProgress: incrementDailyProgress,
+    getConsecutiveDays: getConsecutiveDays,
+    getMissedDays: getMissedDays,
+    repairDay: repairDay,
+    ensureDayMet: ensureDayMet
 };
