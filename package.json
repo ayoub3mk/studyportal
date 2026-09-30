@@ -1,7 +1,7 @@
 {
   "name": "study-portal",
-  "version": "1.0.0",
-  "description": "Smart Study Assistant Portal with sync",
+  "version": "2.0.0",
+  "description": "Smart Study Assistant Portal with account+users system",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
