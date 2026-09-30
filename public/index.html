@@ -838,7 +838,10 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     <i class="fa-solid fa-chart-line mr-1"></i> <span data-i18n="tabStats">الإحصائيات</span>
 </button>
 <button onclick="switchTab('tutoring')" data-tab="tutoring" class="tab-btn px-3 py-2 text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
-    <i class="fa-solid fa-chalkboard-user mr-1"></i> <span>دروس خصوصية</span>
+    <i class="fa-solid fa-chalkboard-user mr-1"></i> <span data-i18n="tabTutoring">دروس خصوصية</span>
+</button>
+<button onclick="switchTab('progress')" data-tab="progress" class="tab-btn px-3 py-2 text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
+    <i class="fa-solid fa-trophy mr-1"></i> <span data-i18n="tabProgress">التقدم</span>
 </button>
         </div>
 
@@ -969,6 +972,124 @@ input[type="time"]::-webkit-calendar-picker-indicator {
                 </button>
             </div>
             <div id="tutoringList" class="space-y-3"></div>
+                    </div>
+    </section>
+
+    <!-- تبويب التقدم -->
+    <section id="tab-progress" class="hidden">
+        
+        <!-- بطاقات الإحصائيات -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            
+            <!-- النقاط -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-3">
+                <div class="flex items-center gap-2 mb-1">
+                    <i class="fa-solid fa-star text-amber-400 text-xs"></i>
+                    <p class="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">النقاط</p>
+                </div>
+                <p class="text-2xl font-black text-slate-900 dark:text-white" id="statPoints">0</p>
+            </div>
+            
+            <!-- Streak الحالي -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-3">
+                <div class="flex items-center gap-2 mb-1">
+                    <i class="fa-solid fa-fire text-orange-500 text-xs"></i>
+                    <p class="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">Streak</p>
+                </div>
+                <p class="text-2xl font-black text-slate-900 dark:text-white" id="statStreak">0</p>
+                <p class="text-[9px] text-slate-400">يوم متتالي</p>
+            </div>
+            
+            <!-- أطول Streak -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-3">
+                <div class="flex items-center gap-2 mb-1">
+                    <i class="fa-solid fa-medal text-yellow-500 text-xs"></i>
+                    <p class="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">الأطول</p>
+                </div>
+                <p class="text-2xl font-black text-slate-900 dark:text-white" id="statLongest">0</p>
+                <p class="text-[9px] text-slate-400">يوم</p>
+            </div>
+            
+            <!-- الأيام الفائتة -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-3">
+                <div class="flex items-center gap-2 mb-1">
+                    <i class="fa-solid fa-triangle-exclamation text-red-500 text-xs"></i>
+                    <p class="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">فائتة</p>
+                </div>
+                <p class="text-2xl font-black text-slate-900 dark:text-white" id="statMissed">0</p>
+                <p class="text-[9px] text-slate-400">يوم</p>
+            </div>
+        </div>
+        
+        <!-- الهدف اليومي -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-4 mb-4">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="font-black text-base text-slate-900 dark:text-white">
+                    <i class="fa-solid fa-bullseye text-brand-500 mr-1"></i>
+                    <span>هدف اليوم</span>
+                </h3>
+                <button onclick="openGoalModal()" class="text-[11px] font-bold text-brand-600 dark:text-brand-400 px-2 py-1 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-950/40">
+                    <i class="fa-solid fa-pen mr-1"></i> تعديل
+                </button>
+            </div>
+            
+            <div class="mb-3">
+                <div class="flex items-center justify-between text-xs font-bold mb-2">
+                    <span class="text-slate-600 dark:text-slate-400" id="goalDescription">لم يُحدد هدف</span>
+                    <span class="text-brand-600 dark:text-brand-400"><span id="goalCurrent">0</span> / <span id="goalTarget">0</span></span>
+                </div>
+                <div class="w-full bg-slate-100 dark:bg-slate-700 rounded-full h-3 overflow-hidden">
+                    <div id="goalProgressBar" class="h-3 rounded-full transition-all duration-500 bg-gradient-to-r from-brand-500 to-amber-500" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <div class="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-700">
+                <p class="text-xs text-slate-500 dark:text-slate-400">
+                    <i class="fa-solid fa-info-circle mr-1"></i>
+                    <span id="goalStatus">أنجز المهام لكسب النقاط</span>
+                </p>
+                <p class="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                    <i class="fa-solid fa-plus mr-1"></i> 15 نقطة/مهمة
+                </p>
+            </div>
+        </div>
+        
+        <!-- تحذير الأيام الفائتة -->
+        <div id="missedWarning" class="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-2xl p-4 mb-4 hidden">
+            <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 flex items-center justify-center text-lg flex-shrink-0">
+                    <i class="fa-solid fa-heart-crack"></i>
+                </div>
+                <div class="flex-1">
+                    <h4 class="font-bold text-sm text-red-700 dark:text-red-300 mb-1">الـ Streak انكسر!</h4>
+                    <p class="text-xs text-red-600 dark:text-red-400 mb-3" id="missedDescription">لديك أيام فائتة</p>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="openRepairModal()" class="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-bold">
+                            <i class="fa-solid fa-heart-pulse mr-1"></i> ترميم
+                        </button>
+                        <button onclick="openResetRepairModal()" class="px-3 py-1.5 rounded-lg border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 text-xs font-bold hover:bg-red-100 dark:hover:bg-red-900/40">
+                            <i class="fa-solid fa-rotate mr-1"></i> إعادة ضبط السعر (100 نقطة)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- الأيام الأخيرة -->
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-4">
+            <h3 class="font-black text-base text-slate-900 dark:text-white mb-3">
+                <i class="fa-solid fa-calendar-week text-brand-500 mr-1"></i>
+                <span>آخر 30 يوم</span>
+            </h3>
+            <div id="recentDaysGrid" class="grid grid-cols-7 gap-1.5"></div>
+            <div class="flex items-center justify-center gap-4 mt-3 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                <span><span class="inline-block w-3 h-3 rounded bg-emerald-500 mr-1 align-middle"></span> محقق</span>
+                <span><span class="inline-block w-3 h-3 rounded bg-red-500 mr-1 align-middle"></span> فائت</span>
+                <span><span class="inline-block w-3 h-3 rounded bg-slate-200 dark:bg-slate-700 mr-1 align-middle"></span> بدون نشاط</span>
+            </div>
+        </div>
+        
+    </section>
         </div>
     </section>
 </main>
@@ -3812,6 +3933,103 @@ if ('serviceWorker' in navigator) {
         </form>
     </div>
 </div>
+<!-- ============================================================
+     نافذة تعيين الهدف اليومي
+     ============================================================ -->
+<div id="goalModal" class="fixed inset-0 z-[90] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-5 border border-slate-200 dark:border-slate-700">
+        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 dark:border-slate-700">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">هدف اليوم</h3>
+            <button onclick="closeGoalModal()" class="text-slate-400"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <form onsubmit="submitGoal(event)" class="space-y-3">
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">نوع الهدف</label>
+                <select id="goalTypeInput" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                    <option value="papers">أوراق مراجعة</option>
+                    <option value="tasks">مهام منجزة</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">القيمة (العدد)</label>
+                <input type="number" id="goalValueInput" min="1" max="100" value="5" required class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1">مثال: 5 أوراق، 10 مهام</p>
+            </div>
+            <p id="goalError" class="text-xs font-semibold text-red-500 text-center hidden"></p>
+            <div class="flex gap-2 justify-end pt-2">
+                <button type="button" onclick="closeGoalModal()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold">إلغاء</button>
+                <button type="submit" class="px-5 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold">حفظ</button>
+            </div>
+        </form>
+    </div>
+</div>
 
+<!-- ============================================================
+     نافذة ترميم Streak
+     ============================================================ -->
+<div id="repairModal" class="fixed inset-0 z-[90] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-5 border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 dark:border-slate-700">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white"><i class="fa-solid fa-heart-pulse text-red-500 mr-2"></i>ترميم الـ Streak</h3>
+            <button onclick="closeRepairModal()" class="text-slate-400"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        
+        <div class="bg-slate-50 dark:bg-slate-700/40 rounded-xl p-3 mb-4">
+            <div class="flex items-center justify-between text-sm">
+                <span class="text-slate-600 dark:text-slate-300">نقاطك الحالية:</span>
+                <span class="font-black text-brand-600 dark:text-brand-400" id="repairCurrentPoints">0</span>
+            </div>
+            <div class="flex items-center justify-between text-sm mt-2">
+                <span class="text-slate-600 dark:text-slate-300">السعر الحالي لليوم:</span>
+                <span class="font-black text-red-600 dark:text-red-400" id="repairCurrentCost">20</span>
+            </div>
+        </div>
+        
+        <p class="text-xs text-slate-600 dark:text-slate-400 mb-2 font-bold">اختر الأيام لترميمها:</p>
+        <div id="repairDaysList" class="space-y-2 mb-4 max-h-[200px] overflow-y-auto"></div>
+        
+        <div class="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl p-3 mb-4">
+            <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-amber-700 dark:text-amber-300">المجموع:</span>
+                <span class="text-lg font-black text-amber-700 dark:text-amber-300" id="repairTotalCost">0</span>
+            </div>
+        </div>
+        
+        <p id="repairError" class="text-xs font-semibold text-red-500 text-center hidden mb-3"></p>
+        
+        <div class="flex gap-2">
+            <button onclick="closeRepairModal()" class="flex-1 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold">إلغاء</button>
+            <button onclick="submitRepair()" id="repairSubmitBtn" class="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold">ترميم</button>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     نافذة تأكيد إعادة ضبط السعر
+     ============================================================ -->
+<div id="resetRepairModal" class="fixed inset-0 z-[90] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-5 border border-slate-200 dark:border-slate-700">
+        <div class="text-center mb-4">
+            <div class="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center text-2xl mb-3">
+                <i class="fa-solid fa-rotate"></i>
+            </div>
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">إعادة ضبط سعر الترميم</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-2">ادفع <strong>100 نقطة</strong> لإعادة السعر إلى <strong>20 نقطة</strong></p>
+        </div>
+        <div class="bg-slate-50 dark:bg-slate-700/40 rounded-xl p-3 mb-4">
+            <div class="flex items-center justify-between text-sm">
+                <span class="text-slate-600 dark:text-slate-300">نقاطك:</span>
+                <span class="font-black text-brand-600 dark:text-brand-400" id="resetCurrentPoints">0</span>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="closeResetRepairModal()" class="flex-1 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold">إلغاء</button>
+            <button onclick="submitResetRepairCost()" id="resetRepairBtn" class="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold">دفع 100 نقطة</button>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
 </body>
 </html>
