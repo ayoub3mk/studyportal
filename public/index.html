@@ -743,6 +743,183 @@ input[type="time"]::-webkit-calendar-picker-indicator {
         padding: 10px 12px !important;
     }
 }
+/* ============================================================
+   هيدر متجاوب: قائمة ⋮ على الهاتف
+   ============================================================ */
+
+/* إخفاء القائمة المنسدلة افتراضيًا */
+#mobileMenu {
+    display: none;
+    position: fixed;
+    top: 60px;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    background: white;
+    border-bottom: 1px solid #e2e8f0;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    animation: slideDown 0.2s ease-out;
+    max-height: calc(100vh - 60px);
+    overflow-y: auto;
+}
+.dark #mobileMenu {
+    background: #1e293b;
+    border-bottom-color: #334155;
+}
+#mobileMenu.open {
+    display: block;
+}
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* زر ⋮ مخفي افتراضيًا */
+#mobileMenuBtn {
+    display: none;
+}
+
+/* ============================================================
+   على الهاتف (أقل من 640 بكسل)
+   ============================================================ */
+@media (max-width: 640px) {
+    /* إخفاء الأزرار الأساسية من الهيدر */
+    .desktop-only-action {
+        display: none !important;
+    }
+    
+    /* إظهار زر ⋮ */
+    #mobileMenuBtn {
+        display: flex !important;
+    }
+    
+    /* إبقاء الشعار */
+    header > div > div:first-child button {
+        display: flex !important;
+    }
+    
+    /* إبقاء الوضع الليلي إذا كان خارج desktop-only-action */
+    header .theme-toggle-keep {
+        display: flex !important;
+    }
+    
+    /* تحسين حجم الهيدر */
+    header > div {
+        padding-left: 12px !important;
+        padding-right: 12px !important;
+        padding-top: 8px !important;
+        padding-bottom: 8px !important;
+    }
+    
+    /* الشعار أصغر */
+    header h1 {
+        font-size: 14px !important;
+    }
+    header p {
+        font-size: 10px !important;
+    }
+    header .w-10 {
+        width: 36px !important;
+        height: 36px !important;
+    }
+    header .w-10 i {
+        font-size: 14px !important;
+    }
+    
+    /* عناصر القائمة المنسدلة */
+    #mobileMenu .menu-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 18px;
+        color: #334155;
+        font-size: 14px;
+        font-weight: 600;
+        border: none;
+        background: transparent;
+        width: 100%;
+        text-align: right;
+        cursor: pointer;
+        transition: background 0.15s;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .dark #mobileMenu .menu-item {
+        color: #cbd5e1;
+        border-bottom-color: #334155;
+    }
+    #mobileMenu .menu-item:hover, 
+    #mobileMenu .menu-item:active {
+        background: #f8fafc;
+    }
+    .dark #mobileMenu .menu-item:hover,
+    .dark #mobileMenu .menu-item:active {
+        background: #334155;
+    }
+    #mobileMenu .menu-item:last-child {
+        border-bottom: none;
+    }
+    #mobileMenu .menu-item i {
+        width: 20px;
+        text-align: center;
+        color: #ea580c;
+        font-size: 15px;
+    }
+    .dark #mobileMenu .menu-item i {
+        color: #fb923c;
+    }
+    #mobileMenu .menu-item .arrow {
+        margin-right: auto;
+        color: #94a3b8;
+        font-size: 12px;
+    }
+    #mobileMenu .menu-section-title {
+        padding: 10px 18px;
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+        color: #94a3b8;
+        letter-spacing: 0.05em;
+        background: #f8fafc;
+    }
+    .dark #mobileMenu .menu-section-title {
+        background: #0f172a;
+        color: #64748b;
+    }
+    #mobileMenu .menu-item.danger {
+        color: #dc2626;
+    }
+    .dark #mobileMenu .menu-item.danger {
+        color: #f87171;
+    }
+    #mobileMenu .menu-item.danger i {
+        color: #dc2626;
+    }
+    .dark #mobileMenu .menu-item.danger i {
+        color: #f87171;
+    }
+}
+
+/* ============================================================
+   على الشاشات المتوسطة والكبيرة
+   ============================================================ */
+@media (min-width: 641px) {
+    #mobileMenu {
+        display: none !important;
+    }
+    #mobileMenuBtn {
+        display: none !important;
+    }
+}
+
+/* ============================================================
+   زر التركيز يبقى ظاهرًا في الهاتف (بجانب ⋮)
+   ============================================================ */
+@media (max-width: 640px) {
+    /* إذا كنت تريد إبقاء التركيز، أضف class="keep-on-mobile" */
+    .keep-on-mobile {
+        display: flex !important;
+    }
+}
 </style>
 </head>
 
