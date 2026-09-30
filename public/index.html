@@ -3371,6 +3371,484 @@ function toDateString(d) {
     var dd = String(d.getDate()).padStart(2, '0');
     return y + '-' + m + '-' + dd;
 }
+/* ============================================================
+   الجزء 32: نظام النقاط والـ Streak
+   ============================================================ */
+
+var CURRENT_STATS = {
+    points: 0,
+    currentStreak: 0,
+    longestStreak: 0,
+    lastCompletedDay: null,
+    repairCost: 20,
+    repairCount: 0,
+    todayStr: null,
+    todayProgress: null,
+    missedDays: [],
+    repairCostTotal: 0,
+    recent: []
+};
+
+var selectedRepairDays = {};
+
+/* جلب الإحصائيات من السيرفر */
+function loadStats() {
+    fetch('/api/stats', { credentials: 'include' })
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(data) {
+        if (!data || !data.ok) return;
+        CURRENT_STATS = data;
+        renderStats();
+    })
+    .catch(function(err) { console.error('Load stats error:', err); });
+}
+
+/* عرض الإحصائيات */
+function renderStats() {
+    /* البطاقات */
+    var el;
+    el = document.getElementById('statPoints');
+    if (el) el.textContent = CURRENT_STATS.points || 0;
+    el = document.getElementById('statStreak');
+    if (el) el.textContent = CURRENT_STATS.currentStreak || 0;
+    el = document.getElementById('statLongest');
+    if (el) el.textContent = CURRENT_STATS.longestStreak || 0;
+    el = document.getElementById('statMissed');
+    if (el) el.textContent = (CURRENT_STATS.missedDays || []).length;
+    
+    /* الهدف اليومي */
+    var progress = CURRENT_STATS.todayProgress;
+    if (progress) {
+        var goalType = progress.goal_type === 'papers' ? 'أوراق' : 'مهام';
+        document.getElementById('goalDescription').textContent = 'هدف: ' + progress.goal_value + ' ' + goalType;
+        document.getElementById('goalCurrent').textContent = progress.current_value || 0;
+        document.getElementById('goalTarget').textContent = progress.goal_value || 0;
+        
+        var pct = 0;
+        if (progress.goal_value > 0) {
+            pct = Math.min(100, Math.round((progress.current_value || 0) / progress.goal_value * 100));
+        }
+        var bar = document.getElementById('goalProgressBar');
+        if (bar) bar.style.width = pct + '%';
+        
+        var status = document.getElementById('goalStatus');
+        if (status) {
+            if (progress.goal_met) {
+                status.textContent = '✓ تحقق الهدف!';
+                status.parentElement.classList.add('text-emerald-600', 'dark:text-emerald-400');
+            } else {
+                status.textContent = 'أنجز ' + Math.max(0, progress.goal_value - (progress.current_value || 0)) + ' ' + goalType + ' لتحقيق الهدف';
+            }
+        }
+    } else {
+        document.getElementById('goalDescription').textContent = 'لم يُحدد هدف';
+        document.getElementById('goalCurrent').textContent = '0';
+        document.getElementById('goalTarget').textContent = '0';
+        var bar2 = document.getElementById('goalProgressBar');
+        if (bar2) bar2.style.width = '0%';
+    }
+    
+    /* تحذير الأيام الفائتة */
+    var warning = document.getElementById('missedWarning');
+    var missed = CURRENT_STATS.missedDays || [];
+    if (warning) {
+        if (missed.length > 0) {
+            warning.classList.remove('hidden');
+            var desc = document.getElementById('missedDescription');
+            if (desc) {
+                desc.textContent = 'لديك ' + missed.length + ' يوم فائت. ترميمه سيكلفك ' + CURRENT_STATS.repairCostTotal + ' نقطة.';
+            }
+        } else {
+            warning.classList.add('hidden');
+        }
+    }
+    
+    /* شبكة الأيام الأخيرة */
+    renderRecentDays();
+}
+
+/* عرض الأيام الأخيرة */
+function renderRecentDays() {
+    var grid = document.getElementById('recentDaysGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    
+    var today = new Date();
+    today.setHours(0,0,0,0);
+    
+    /* آخر 30 يوم من الأقدم للأحدث */
+    var days = [];
+    for (var i = 29; i >= 0; i--) {
+        var d = new Date(today);
+        d.setDate(d.getDate() - i);
+        var str = d.getFullYear() + '-' + 
+                  String(d.getMonth() + 1).padStart(2, '0') + '-' + 
+                  String(d.getDate()).padStart(2, '0');
+        days.push({ date: str, day: d });
+    }
+    
+    /* أنشئ خريطة */
+    var map = {};
+    (CURRENT_STATS.recent || []).forEach(function(r) {
+        var dayStr = typeof r.day === 'string' ? r.day.slice(0,10) : '';
+        map[dayStr] = r;
+    });
+    
+    days.forEach(function(item) {
+        var cell = document.createElement('div');
+        cell.className = 'aspect-square rounded-md flex items-center justify-center text-[10px] font-bold transition-all';
+        cell.title = item.date;
+        
+        var r = map[item.date];
+        if (r && r.goal_met) {
+            cell.className += ' bg-emerald-500 text-white';
+            cell.innerHTML = '<i class="fa-solid fa-check"></i>';
+        } else if (r && r.current_value > 0) {
+            cell.className += ' bg-red-500 text-white';
+            cell.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        } else {
+            cell.className += ' bg-slate-200 dark:bg-slate-700 text-slate-400';
+            cell.textContent = item.day.getDate();
+        }
+        grid.appendChild(cell);
+    });
+}
+
+/* تعيين الهدف اليومي */
+function openGoalModal() {
+    var progress = CURRENT_STATS.todayProgress || {};
+    document.getElementById('goalTypeInput').value = progress.goal_type || 'papers';
+    document.getElementById('goalValueInput').value = progress.goal_value || 5;
+    document.getElementById('goalError').classList.add('hidden');
+    document.getElementById('goalModal').classList.remove('hidden');
+}
+function closeGoalModal() {
+    document.getElementById('goalModal').classList.add('hidden');
+}
+function submitGoal(e) {
+    e.preventDefault();
+    var goalType = document.getElementById('goalTypeInput').value;
+    var goalValue = parseInt(document.getElementById('goalValueInput').value, 10) || 5;
+    var err = document.getElementById('goalError');
+    err.classList.add('hidden');
+    
+    fetch('/api/stats/goal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ goalType: goalType, goalValue: goalValue })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (!data.ok) {
+            err.textContent = data.message || 'خطأ';
+            err.classList.remove('hidden');
+            return;
+        }
+        closeGoalModal();
+        loadStats();
+    })
+    .catch(function() {
+        err.textContent = 'خطأ في الاتصال';
+        err.classList.remove('hidden');
+    });
+}
+
+/* فتح نافذة الترميم */
+function openRepairModal() {
+    selectedRepairDays = {};
+    document.getElementById('repairCurrentPoints').textContent = CURRENT_STATS.points || 0;
+    document.getElementById('repairCurrentCost').textContent = CURRENT_STATS.repairCost || 20;
+    renderRepairDaysList();
+    updateRepairTotal();
+    document.getElementById('repairError').classList.add('hidden');
+    document.getElementById('repairModal').classList.remove('hidden');
+}
+function closeRepairModal() {
+    document.getElementById('repairModal').classList.add('hidden');
+}
+function renderRepairDaysList() {
+    var c = document.getElementById('repairDaysList');
+    if (!c) return;
+    c.innerHTML = '';
+    
+    var missed = CURRENT_STATS.missedDays || [];
+    if (missed.length === 0) {
+        c.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">لا توجد أيام فائتة</p>';
+        return;
+    }
+    
+    /* احسب السعر لكل يوم */
+    var cost = CURRENT_STATS.repairCost || 20;
+    var costs = [];
+    for (var i = 0; i < missed.length; i++) {
+        costs.push(cost);
+        cost += 10;
+    }
+    
+    missed.forEach(function(day, idx) {
+        var item = document.createElement('div');
+        item.className = 'flex items-center justify-between p-2 rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer';
+        
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'w-4 h-4 rounded accent-red-500';
+        cb.checked = !!selectedRepairDays[day];
+        cb.onchange = function() {
+            if (cb.checked) selectedRepairDays[day] = true;
+            else delete selectedRepairDays[day];
+            updateRepairTotal();
+        };
+        
+        var lbl = document.createElement('label');
+        lbl.className = 'flex-1 flex items-center gap-2 cursor-pointer mr-2';
+        lbl.appendChild(cb);
+        var span = document.createElement('span');
+        span.className = 'text-xs font-bold text-slate-800 dark:text-slate-100';
+        span.textContent = day;
+        lbl.appendChild(span);
+        
+        var costSpan = document.createElement('span');
+        costSpan.className = 'text-xs font-black text-red-600 dark:text-red-400';
+        costSpan.textContent = costs[idx] + ' نقطة';
+        
+        item.appendChild(lbl);
+        item.appendChild(costSpan);
+        
+        /* النقر على البطاقة كاملة يبدل الحالة */
+        item.onclick = function(e) {
+            if (e.target.tagName !== 'INPUT') {
+                cb.checked = !cb.checked;
+                cb.onchange();
+            }
+        };
+        
+        c.appendChild(item);
+    });
+}
+function updateRepairTotal() {
+    var total = 0;
+    var cost = CURRENT_STATS.repairCost || 20;
+    var missed = CURRENT_STATS.missedDays || [];
+    
+    for (var i = 0; i < missed.length; i++) {
+        if (selectedRepairDays[missed[i]]) {
+            total += cost;
+        }
+        cost += 10;
+    }
+    
+    document.getElementById('repairTotalCost').textContent = total + ' نقطة';
+}
+
+function submitRepair() {
+    var days = Object.keys(selectedRepairDays);
+    var err = document.getElementById('repairError');
+    var btn = document.getElementById('repairSubmitBtn');
+    err.classList.add('hidden');
+    
+    if (days.length === 0) {
+        err.textContent = 'اختر يومًا واحدًا على الأقل';
+        err.classList.remove('hidden');
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner loading"></i>';
+    
+    fetch('/api/stats/repair', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ days: days })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        btn.disabled = false;
+        btn.innerHTML = 'ترميم';
+        if (!data.ok) {
+            var msg = data.message || 'خطأ';
+            if (data.error === 'not_enough_points') {
+                msg = 'نقاطك غير كافية. تحتاج ' + data.needed + ' نقطة، لديك ' + data.have;
+            }
+            err.textContent = msg;
+            err.classList.remove('hidden');
+            return;
+        }
+        closeRepairModal();
+        alert('تم الترميم بنجاح!\nدفعت: ' + data.costPaid + ' نقطة\nStreak الجديد: ' + data.newStreak + ' أيام');
+        loadStats();
+    })
+    .catch(function() {
+        btn.disabled = false;
+        btn.innerHTML = 'ترميم';
+        err.textContent = 'خطأ في الاتصال';
+        err.classList.remove('hidden');
+    });
+}
+
+/* إعادة ضبط السعر */
+function openResetRepairModal() {
+    document.getElementById('resetCurrentPoints').textContent = CURRENT_STATS.points || 0;
+    document.getElementById('resetRepairModal').classList.remove('hidden');
+}
+function closeResetRepairModal() {
+    document.getElementById('resetRepairModal').classList.add('hidden');
+}
+function submitResetRepairCost() {
+    var btn = document.getElementById('resetRepairBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner loading"></i>';
+    
+    fetch('/api/stats/reset-repair-cost', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        btn.disabled = false;
+        btn.innerHTML = 'دفع 100 نقطة';
+        if (!data.ok) {
+            var msg = data.error === 'not_enough_points' 
+                ? 'نقاطك غير كافية (' + data.have + '/' + data.needed + ')'
+                : 'خطأ';
+            alert(msg);
+            return;
+        }
+        closeResetRepairModal();
+        alert('تم إعادة ضبط السعر إلى 20 نقطة');
+        loadStats();
+    })
+    .catch(function() {
+        btn.disabled = false;
+        btn.innerHTML = 'دفع 100 نقطة';
+        alert('خطأ في الاتصال');
+    });
+}
+
+/* تسجيل مهمة منجزة (يُستدعى عند إنجاز أي مهمة) */
+function reportTaskCompleted(delta) {
+    delta = delta || 1;
+    fetch('/api/stats/complete-task', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ delta: delta })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.ok) {
+            /* تحديث فوري */
+            if (data.totalPoints != null) {
+                CURRENT_STATS.points = data.totalPoints;
+            }
+            if (data.currentStreak != null) {
+                CURRENT_STATS.currentStreak = data.currentStreak;
+            }
+            /* إشعارات */
+            if (data.goalMet && data.bonusPoints > 0) {
+                showToast('🎯 تحقق الهدف! +20 نقطة إضافية');
+            }
+            if (data.streakBonus > 0) {
+                showToast('🔥 7 أيام متتالية! +50 نقطة');
+            }
+            loadStats();
+        }
+    })
+    .catch(function(err) { console.error(err); });
+}
+
+/* إشعار صغير */
+function showToast(msg) {
+    var toast = document.createElement('div');
+    toast.className = 'fixed top-20 left-1/2 -translate-x-1/2 z-[200] bg-slate-900 dark:bg-slate-700 text-white px-4 py-2.5 rounded-xl shadow-2xl font-bold text-sm';
+    toast.style.animation = 'fadeIn 0.3s ease-out';
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(function() {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s';
+        setTimeout(function() { toast.remove(); }, 300);
+    }, 2500);
+}
+
+/* ============================================================
+   ربط المهام بنظام النقاط
+   ============================================================ */
+
+/* عند إتمام ورقة في قائمة المراجعة */
+var _originalToggleItem = toggleItem;
+toggleItem = function(sid, sk, i) {
+    var arr = getItemsContainer(sid, sk);
+    if (!arr || !arr[i]) return;
+    var wasChecked = arr[i].checked;
+    
+    _originalToggleItem(sid, sk, i);
+    
+    /* إذا كان الآن محققاً (لم يكن سابقاً) */
+    if (!wasChecked && arr[i].checked) {
+        reportTaskCompleted(1);
+    } else if (wasChecked && !arr[i].checked) {
+        /* ألغى التحقق - نخصم */
+        fetch('/api/stats/complete-task', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ delta: -1 })
+        }).then(function(r) { return r.json(); }).then(function(){ loadStats(); });
+    }
+};
+
+/* عند إتمام تمرين تدارك */
+var _originalToggleTutoringItem = toggleTutoringItem;
+toggleTutoringItem = function(itemId, newChecked) {
+    if (newChecked) {
+        reportTaskCompleted(1);
+    }
+    _originalToggleTutoringItem(itemId, newChecked);
+};
+
+/* عند إتمام واجب */
+var _originalToggleHw = toggleHw;
+toggleHw = function(id) {
+    var h = appState.homework.find(function(x){return x.id === id;});
+    var wasCompleted = h ? h.completed : false;
+    
+    _originalToggleHw(id);
+    
+    if (!wasCompleted && h && h.completed) {
+        reportTaskCompleted(1);
+    } else if (wasCompleted && h && !h.completed) {
+        fetch('/api/stats/complete-task', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ delta: -1 })
+        }).then(function(r) { return r.json(); }).then(function(){ loadStats(); });
+    }
+};
+
+/* عند الدخول للتطبيق - فحص الفوات */
+var _originalEnterUserApp2 = enterUserApp;
+enterUserApp = function() {
+    _originalEnterUserApp2();
+    loadStats();
+    /* إشعار الأيام الفائتة بعد 2 ثانية */
+    setTimeout(function() {
+        var missed = CURRENT_STATS.missedDays || [];
+        if (missed.length > 0) {
+            showToast('⚠ لديك ' + missed.length + ' يوم فائت. انقر التقدم لإصلاحه.');
+        }
+    }, 2000);
+};
+
+/* إضافة support to switchTab */
+var _originalSwitchTab2 = switchTab;
+switchTab = function(tab) {
+    _originalSwitchTab2(tab);
+    if (tab === 'progress') renderStats();
+};
 
 /* تحميل قائمة التدارك */
 function loadTutoring() {
