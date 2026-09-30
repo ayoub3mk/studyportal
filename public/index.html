@@ -558,8 +558,13 @@ input[type="time"]::-webkit-calendar-picker-indicator {
             </div>
             
             <p class="text-center text-[11px] font-semibold text-white/80 mt-6">
-                <i class="fa-solid fa-shield-halved mr-1"></i> بياناتك محفوظة بأمان
-            </p>
+    <i class="fa-solid fa-shield-halved mr-1"></i> بياناتك محفوظة بأمان
+</p>
+
+<button onclick="openParentAuth()" class="w-full mt-4 py-3 rounded-xl bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white text-sm font-bold transition-colors flex items-center justify-center gap-2">
+    <i class="fa-solid fa-user-shield"></i>
+    <span>دخول ولي الأمر</span>
+</button>
         </div>
     </div>
 </div>
@@ -5309,6 +5314,77 @@ if ('serviceWorker' in navigator) {
             <button onclick="closeCoefficientsModal()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold">إغلاق</button>
             <button onclick="saveCoefficients()" class="px-5 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold">حفظ</button>
         </div>
+    </div>
+</div>
+<!-- ============================================================
+     نافذة دخول/تسجيل ولي الأمر
+     ============================================================ -->
+<div id="parentAuthModal" class="fixed inset-0 z-[95] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 hidden overflow-y-auto">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-700 my-8">
+        
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <i class="fa-solid fa-user-shield"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white">بوابة ولي الأمر</h3>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">تابع تقدم ابنك الدراسي</p>
+                </div>
+            </div>
+            <button onclick="closeParentAuth()" class="text-slate-400"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        
+        <!-- التبويبات -->
+        <div class="grid grid-cols-2 gap-2 mb-5 bg-slate-100 dark:bg-slate-700 rounded-xl p-1">
+            <button id="parentTabLoginBtn" onclick="showParentTab('login')" class="py-2.5 rounded-lg text-xs font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm transition-colors">
+                تسجيل الدخول
+            </button>
+            <button id="parentTabRegisterBtn" onclick="showParentTab('register')" class="py-2.5 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors">
+                حساب جديد
+            </button>
+        </div>
+        
+        <!-- نموذج الدخول -->
+        <form id="parentLoginForm" onsubmit="submitParentLogin(event)" class="space-y-3">
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">البريد الإلكتروني</label>
+                <input type="email" id="parentLoginEmail" required class="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm" placeholder="example@email.com">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">كلمة السر</label>
+                <input type="password" id="parentLoginPassword" required class="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+            </div>
+            <p id="parentLoginError" class="text-xs font-semibold text-red-500 text-center hidden"></p>
+            <button type="submit" id="parentLoginBtn" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow transition-colors">
+                <i class="fa-solid fa-right-to-bracket mr-1"></i> دخول
+            </button>
+        </form>
+        
+        <!-- نموذج التسجيل -->
+        <form id="parentRegisterForm" onsubmit="submitParentRegister(event)" class="space-y-3 hidden">
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">الاسم الكامل</label>
+                <input type="text" id="parentRegisterName" required class="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">البريد الإلكتروني</label>
+                <input type="email" id="parentRegisterEmail" required class="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm" placeholder="example@email.com">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">رقم الهاتف (اختياري)</label>
+                <input type="tel" id="parentRegisterPhone" class="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">كلمة السر (6 أحرف على الأقل)</label>
+                <input type="password" id="parentRegisterPassword" required minlength="6" class="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+            </div>
+            <p id="parentRegisterError" class="text-xs font-semibold text-red-500 text-center hidden"></p>
+            <button type="submit" id="parentRegisterBtn" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow transition-colors">
+                <i class="fa-solid fa-user-plus mr-1"></i> إنشاء الحساب
+            </button>
+        </form>
+        
     </div>
 </div>
 
