@@ -1,0 +1,48 @@
+{
+  "name": "Study Portal - بوابة المساعد الدراسي",
+  "short_name": "Study Portal",
+  "description": "منصة المراجعة والتحضير للامتحانات - Ayoub",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f97316",
+  "theme_color": "#f97316",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "قائمة المراجعة",
+      "short_name": "المراجعة",
+      "url": "/?tab=checklist",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "الواجبات",
+      "short_name": "واجبات",
+      "url": "/?tab=homework",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
