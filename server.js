@@ -371,6 +371,198 @@ app.put('/api/me', userAuthRequired, async function(req, res) {
         res.status(500).json({ error: 'server_error' });
     }
 });
+/* ============================================================
+   نسخ إعدادات من مستخدم
+   ============================================================ */
+app.post('/api/users/copy', accountAuthRequired, async function(req, res) {
+    try {
+        var sourceUserId = parseInt(req.body.sourceUserId, 10);
+        var targetName = (req.body.targetName || '').trim();
+        var targetPassword = (req.body.targetPassword || '').trim();
+
+        if (!sourceUserId || !targetName) {
+            return res.status(400).json({ error: 'missing_fields', message: 'املأ كل الحقول' });
+        }
+
+        /* تحقق أن المستخدم المصدر ينتمي إلى هذا الحساب */
+        var sourceUser = await db.findUserById(sourceUserId);
+        if (!sourceUser || sourceUser.account_id !== req.accountId) {
+            return res.status(403).json({ error: 'forbidden', message: 'المستخدم المصدر غير موجود' });
+        }
+
+        /* تحقق أن الاسم غير موجود */
+        var existing = await db.findUserByName(req.accountId, targetName);
+        if (existing) {
+            return res.status(409).json({ error: 'name_taken', message: 'يوجد مستخدم بهذا الاسم' });
+        }
+
+        /* إنشاء المستخدم الجديد */
+        var hashed = targetPassword ? bcrypt.hashSync(targetPassword, 10) : '';
+        var newUserId = await db.createUser(req.accountId, targetName, hashed);
+
+        /* نسخ الإعدادات */
+        await db.copyUserSettings(sourceUserId, newUserId);
+
+        res.json({ ok: true, userId: newUserId, name: targetName });
+    } catch (err) {
+        console.error('Copy user error:', err);
+        res.status(500).json({ error: 'server_error', message: 'خطأ في السيرفر' });
+    }
+});
+
+/* ============================================================
+   دروس خصوصية (التدارك)
+   ============================================================ */
+
+/* جلب كل الجلسات */
+app.get('/api/tutoring', userAuthRequired, async function(req, res) {
+    try {
+        var sessions = await db.getTutoringSessions(req.userId);
+        res.json({ sessions: sessions });
+    } catch (err) {
+        console.error('Get tutoring error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* إنشاء جلسة جديدة */
+app.post('/api/tutoring', userAuthRequired, async function(req, res) {
+    try {
+        var body = req.body || {};
+        if (!body.subjectId || !body.name || !body.startDate || !body.endDate) {
+            return res.status(400).json({ error: 'missing_fields', message: 'املأ كل الحقول المطلوبة' });
+        }
+        var id = await db.createTutoringSession(req.userId, {
+            subjectId: body.subjectId,
+            name: body.name,
+            scheduleType: body.scheduleType || 'weekly',
+            weekDay: body.weekDay || '',
+            intervalDays: body.intervalDays || 7,
+            startDate: body.startDate,
+            endDate: body.endDate,
+            timeStart: body.timeStart || '',
+            timeEnd: body.timeEnd || '',
+            room: body.room || '',
+            addToTimetable: body.addToTimetable
+        });
+        res.json({ ok: true, id: id });
+    } catch (err) {
+        console.error('Create tutoring error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* تحديث جلسة */
+app.put('/api/tutoring/:id', userAuthRequired, async function(req, res) {
+    try {
+        var sessionId = parseInt(req.params.id, 10);
+        var existing = await db.getTutoringSessionById(sessionId, req.userId);
+        if (!existing) {
+            return res.status(404).json({ error: 'not_found' });
+        }
+        var body = req.body || {};
+        await db.updateTutoringSession(sessionId, req.userId, {
+            subjectId: body.subjectId,
+            name: body.name,
+            scheduleType: body.scheduleType,
+            weekDay: body.weekDay,
+            intervalDays: body.intervalDays,
+            startDate: body.startDate,
+            endDate: body.endDate,
+            timeStart: body.timeStart,
+            timeEnd: body.timeEnd,
+            room: body.room,
+            addToTimetable: body.addToTimetable
+        });
+        res.json({ ok: true });
+    } catch (err) {
+        console.error('Update tutoring error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* حذف جلسة */
+app.delete('/api/tutoring/:id', userAuthRequired, async function(req, res) {
+    try {
+        var sessionId = parseInt(req.params.id, 10);
+        await db.deleteTutoringSession(sessionId, req.userId);
+        res.json({ ok: true });
+    } catch (err) {
+        console.error('Delete tutoring error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* جلب تمارين جلسة */
+app.get('/api/tutoring/:id/items', userAuthRequired, async function(req, res) {
+    try {
+        var sessionId = parseInt(req.params.id, 10);
+        /* تحقق أن الجلسة للمستخدم */
+        var existing = await db.getTutoringSessionById(sessionId, req.userId);
+        if (!existing) {
+            return res.status(404).json({ error: 'not_found' });
+        }
+        var items = await db.getTutoringItems(sessionId);
+        res.json({ items: items });
+    } catch (err) {
+        console.error('Get tutoring items error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* إضافة تمرين */
+app.post('/api/tutoring/:id/items', userAuthRequired, async function(req, res) {
+    try {
+        var sessionId = parseInt(req.params.id, 10);
+        var existing = await db.getTutoringSessionById(sessionId, req.userId);
+        if (!existing) {
+            return res.status(404).json({ error: 'not_found' });
+        }
+        var body = req.body || {};
+        if (!body.sessionDate || !body.label) {
+            return res.status(400).json({ error: 'missing_fields' });
+        }
+        var id = await db.createTutoringItem(sessionId, {
+            sessionDate: body.sessionDate,
+            label: body.label,
+            checked: body.checked,
+            note: body.note || ''
+        });
+        res.json({ ok: true, id: id });
+    } catch (err) {
+        console.error('Create tutoring item error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* تحديث تمرين */
+app.put('/api/tutoring/items/:itemId', userAuthRequired, async function(req, res) {
+    try {
+        var itemId = parseInt(req.params.itemId, 10);
+        var body = req.body || {};
+        await db.updateTutoringItem(itemId, {
+            label: body.label,
+            checked: body.checked,
+            note: body.note
+        });
+        res.json({ ok: true });
+    } catch (err) {
+        console.error('Update tutoring item error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* حذف تمرين */
+app.delete('/api/tutoring/items/:itemId', userAuthRequired, async function(req, res) {
+    try {
+        var itemId = parseInt(req.params.itemId, 10);
+        await db.deleteTutoringItem(itemId);
+        res.json({ ok: true });
+    } catch (err) {
+        console.error('Delete tutoring item error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
 
 /* ============================================================
    خدمة الواجهة
