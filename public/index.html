@@ -2937,6 +2937,560 @@ function showAccountScreen() {
     document.getElementById('usersScreen').classList.add('hidden');
     document.getElementById('app').classList.add('hidden');
 }
+    
+/* ============================================================
+   الجزء 29: التعديلات على الدوال الموجودة
+   ============================================================ */
+
+/* تعديل switchTab لدعم tutoring */
+var _originalSwitchTab = switchTab;
+switchTab = function(tab) {
+    _originalSwitchTab(tab);
+    if (tab === 'tutoring') renderTutoringList();
+};
+
+/* تعديل renderTimetable لإضافة حصص التدارك */
+var _originalRenderTimetable = renderTimetable;
+
+/* ============================================================
+   الجزء 30: دوال النسخ من مستخدم
+   ============================================================ */
+function toggleCopyOptions() {
+    var checkbox = document.getElementById('copyFromExisting');
+    var options = document.getElementById('copyOptions');
+    if (checkbox.checked) {
+        options.classList.remove('hidden');
+        populateCopySourceSelect();
+    } else {
+        options.classList.add('hidden');
+    }
+}
+
+function populateCopySourceSelect() {
+    var sel = document.getElementById('copySourceSelect');
+    sel.innerHTML = '<option value="">— اختر —</option>';
+    CURRENT_USERS.forEach(function(u) {
+        var o = document.createElement('option');
+        o.value = u.id;
+        o.textContent = u.name;
+        sel.appendChild(o);
+    });
+}
+
+/* تعديل openAddUserModal لإعادة تعيين حالة النسخ */
+var _originalOpenAddUserModal = openAddUserModal;
+openAddUserModal = function() {
+    _originalOpenAddUserModal();
+    var cb = document.getElementById('copyFromExisting');
+    if (cb) cb.checked = false;
+    var opts = document.getElementById('copyOptions');
+    if (opts) opts.classList.add('hidden');
+};
+
+/* تعديل submitAddUser لدعم النسخ */
+var _originalSubmitAddUser = submitAddUser;
+submitAddUser = function(e) {
+    e.preventDefault();
+    var name = document.getElementById('newUserName').value.trim();
+    var pwd = document.getElementById('newUserPassword').value.trim();
+    var err = document.getElementById('addUserError');
+    var btn = document.getElementById('addUserBtn');
+    err.classList.add('hidden');
+    if (!name) {
+        err.textContent = 'اسم المستخدم مطلوب';
+        err.classList.remove('hidden');
+        return;
+    }
+    
+    var copyFrom = document.getElementById('copyFromExisting').checked;
+    var sourceUserId = document.getElementById('copySourceSelect').value;
+    
+    if (copyFrom && !sourceUserId) {
+        err.textContent = 'اختر المستخدم المصدر';
+        err.classList.remove('hidden');
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner loading"></i>';
+    
+    var url = copyFrom ? '/api/users/copy' : '/api/users';
+    var body = copyFrom 
+        ? { sourceUserId: sourceUserId, targetName: name, targetPassword: pwd }
+        : { name: name, password: pwd };
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + AUTH_TOKEN
+        },
+        credentials: 'include',
+        body: JSON.stringify(body)
+    })
+    .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, data: j }; }); })
+    .then(function(res) {
+        btn.disabled = false;
+        btn.innerHTML = 'إضافة';
+        if (!res.ok) {
+            err.textContent = res.data.message || 'خطأ';
+            err.classList.remove('hidden');
+            return;
+        }
+        closeAddUserModal();
+        loadUsers();
+    })
+    .catch(function() {
+        btn.disabled = false;
+        btn.innerHTML = 'إضافة';
+        err.textContent = 'خطأ في الاتصال';
+        err.classList.remove('hidden');
+    });
+};
+
+/* ============================================================
+   الجزء 31: دوال دروس خصوصية (التدارك)
+   ============================================================ */
+
+var CURRENT_TUTORING = [];
+var editingTutoringId = null;
+var currentTutoringForDetail = null;
+
+/* حساب تواريخ جلسات التدارك */
+function computeTutoringDates(session) {
+    var dates = [];
+    var start = new Date(session.start_date);
+    var end = new Date(session.end_date);
+    start.setHours(0,0,0,0);
+    end.setHours(0,0,0,0);
+    
+    if (session.schedule_type === 'weekly') {
+        var targetDay = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'].indexOf(session.week_day);
+        var current = new Date(start);
+        while (current <= end) {
+            if (current.getDay() === targetDay) {
+                dates.push(new Date(current));
+            }
+            current.setDate(current.getDate() + 1);
+        }
+    } else if (session.schedule_type === 'interval') {
+        var interval = session.interval_days || 7;
+        var current = new Date(start);
+        while (current <= end) {
+            dates.push(new Date(current));
+            current.setDate(current.getDate() + interval);
+        }
+    }
+    
+    return dates;
+}
+
+/* تنسيق التاريخ */
+function formatDateAr(d) {
+    var days = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+    var months = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+    return days[d.getDay()] + ' ' + d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear();
+}
+
+function toDateString(d) {
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var dd = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + dd;
+}
+
+/* تحميل قائمة التدارك */
+function loadTutoring() {
+    fetch('/api/tutoring', { credentials: 'include' })
+    .then(function(r) { return r.ok ? r.json() : { sessions: [] }; })
+    .then(function(data) {
+        CURRENT_TUTORING = data.sessions || [];
+        renderTutoringList();
+    })
+    .catch(function(err) { console.error(err); });
+}
+
+/* عرض قائمة التدارك */
+function renderTutoringList() {
+    var c = document.getElementById('tutoringList');
+    if (!c) return;
+    
+    /* إذا لم تكن محمّلة بعد، حمّلها */
+    if (CURRENT_TUTORING.length === 0) {
+        loadTutoring();
+    }
+    
+    if (CURRENT_TUTORING.length === 0) {
+        c.innerHTML = '<div class="text-center py-8 text-slate-500 dark:text-slate-400"><i class="fa-solid fa-chalkboard-user text-3xl mb-2 opacity-30"></i><p class="text-sm">لا توجد دروس خصوصية بعد</p><p class="text-xs mt-1">انقر "درس جديد" للبدء</p></div>';
+        return;
+    }
+    
+    c.innerHTML = '';
+    CURRENT_TUTORING.forEach(function(s) {
+        var subj = findSubjectById(s.subject_id);
+        var nm = subj ? displayName(subj) : '—';
+        var dates = computeTutoringDates(s);
+        var count = dates.length;
+        
+        var card = document.createElement('div');
+        card.className = 'border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-white dark:bg-slate-800 hover:shadow-md transition-shadow';
+        
+        var html = '';
+        html += '<div class="flex items-start justify-between gap-2 mb-2">';
+        html += '<div class="flex-1 min-w-0">';
+        html += '<h4 class="font-bold text-sm text-slate-900 dark:text-white truncate">' + escapeHtml(s.name) + '</h4>';
+        html += '<div class="flex flex-wrap items-center gap-1.5 mt-1">';
+        html += '<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-brand-100 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300">' + escapeHtml(nm) + '</span>';
+        html += '<span class="text-[10px] font-semibold text-slate-500 dark:text-slate-400">' + count + ' حصة</span>';
+        html += '<span class="text-[10px] font-semibold text-slate-500 dark:text-slate-400">' + (s.schedule_type === 'weekly' ? 'أسبوعي' : 'كل ' + s.interval_days + ' أيام') + '</span>';
+        html += '</div>';
+        html += '<p class="text-[10px] text-slate-400 mt-1">' + s.start_date + ' → ' + s.end_date + '</p>';
+        html += '</div>';
+        html += '<div class="flex items-center gap-1 flex-shrink-0">';
+        html += '<button onclick="openEditTutoring(\'' + s.id + '\')" class="w-7 h-7 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 text-xs"><i class="fa-solid fa-pen"></i></button>';
+        html += '<button onclick="deleteTutoringSession(\'' + s.id + '\')" class="w-7 h-7 rounded-md text-slate-500 hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-600 text-xs"><i class="fa-solid fa-trash-can"></i></button>';
+        html += '</div>';
+        html += '</div>';
+        
+        html += '<button onclick="openTutoringDetail(\'' + s.id + '\')" class="w-full mt-2 py-2 rounded-lg bg-brand-50 dark:bg-brand-950/40 text-brand-600 dark:text-brand-400 hover:bg-brand-100 dark:hover:bg-brand-900/50 text-xs font-bold transition-colors">';
+        html += '<i class="fa-solid fa-list-check mr-1"></i> عرض الحصص والتمارين';
+        html += '</button>';
+        
+        card.innerHTML = html;
+        c.appendChild(card);
+    });
+}
+
+/* فتح نافذة إضافة تدارك */
+function openAddTutoringModal() {
+    editingTutoringId = null;
+    document.getElementById('tutoringModalTitle').textContent = 'درس خصوصي جديد';
+    document.getElementById('tutoringNameInput').value = '';
+    document.getElementById('tutoringScheduleType').value = 'weekly';
+    document.getElementById('tutoringWeekDay').value = 'saturday';
+    document.getElementById('tutoringIntervalDays').value = 7;
+    document.getElementById('tutoringStartDate').value = toDateString(new Date());
+    var endDate = new Date();
+    endDate.setMonth(endDate.getMonth() + 3);
+    document.getElementById('tutoringEndDate').value = toDateString(endDate);
+    document.getElementById('tutoringTimeStart').value = '';
+    document.getElementById('tutoringTimeEnd').value = '';
+    document.getElementById('tutoringRoom').value = '';
+    document.getElementById('tutoringAddToTimetable').checked = true;
+    document.getElementById('tutoringError').classList.add('hidden');
+    
+    /* ملء قائمة المواد */
+    var sel = document.getElementById('tutoringSubjectSelect');
+    sel.innerHTML = '';
+    appState.subjects.forEach(function(s) {
+        var o = document.createElement('option');
+        o.value = s.id;
+        o.textContent = displayName(s);
+        sel.appendChild(o);
+    });
+    
+    toggleTutoringSchedule();
+    document.getElementById('tutoringModal').classList.remove('hidden');
+}
+
+/* فتح نافذة تعديل تدارك */
+function openEditTutoring(id) {
+    var s = CURRENT_TUTORING.find(function(x){ return String(x.id) === String(id); });
+    if (!s) return;
+    editingTutoringId = id;
+    document.getElementById('tutoringModalTitle').textContent = 'تعديل الدرس';
+    document.getElementById('tutoringNameInput').value = s.name || '';
+    document.getElementById('tutoringScheduleType').value = s.schedule_type || 'weekly';
+    document.getElementById('tutoringWeekDay').value = s.week_day || 'saturday';
+    document.getElementById('tutoringIntervalDays').value = s.interval_days || 7;
+    document.getElementById('tutoringStartDate').value = s.start_date || '';
+    document.getElementById('tutoringEndDate').value = s.end_date || '';
+    document.getElementById('tutoringTimeStart').value = s.time_start || '';
+    document.getElementById('tutoringTimeEnd').value = s.time_end || '';
+    document.getElementById('tutoringRoom').value = s.room || '';
+    document.getElementById('tutoringAddToTimetable').checked = !!s.add_to_timetable;
+    document.getElementById('tutoringError').classList.add('hidden');
+    
+    var sel = document.getElementById('tutoringSubjectSelect');
+    sel.innerHTML = '';
+    appState.subjects.forEach(function(sub) {
+        var o = document.createElement('option');
+        o.value = sub.id;
+        o.textContent = displayName(sub);
+        sel.appendChild(o);
+    });
+    sel.value = s.subject_id;
+    
+    toggleTutoringSchedule();
+    document.getElementById('tutoringModal').classList.remove('hidden');
+}
+
+function closeTutoringModal() {
+    document.getElementById('tutoringModal').classList.add('hidden');
+    editingTutoringId = null;
+}
+
+function toggleTutoringSchedule() {
+    var type = document.getElementById('tutoringScheduleType').value;
+    document.getElementById('weeklyOptions').classList.toggle('hidden', type !== 'weekly');
+    document.getElementById('intervalOptions').classList.toggle('hidden', type !== 'interval');
+}
+
+function saveTutoring(e) {
+    e.preventDefault();
+    var name = document.getElementById('tutoringNameInput').value.trim();
+    var subjectId = document.getElementById('tutoringSubjectSelect').value;
+    var scheduleType = document.getElementById('tutoringScheduleType').value;
+    var weekDay = document.getElementById('tutoringWeekDay').value;
+    var intervalDays = parseInt(document.getElementById('tutoringIntervalDays').value, 10) || 7;
+    var startDate = document.getElementById('tutoringStartDate').value;
+    var endDate = document.getElementById('tutoringEndDate').value;
+    var timeStart = document.getElementById('tutoringTimeStart').value;
+    var timeEnd = document.getElementById('tutoringTimeEnd').value;
+    var room = document.getElementById('tutoringRoom').value.trim();
+    var addToTimetable = document.getElementById('tutoringAddToTimetable').checked;
+    var err = document.getElementById('tutoringError');
+    var btn = document.getElementById('tutoringSubmitBtn');
+    
+    err.classList.add('hidden');
+    if (!name || !subjectId || !startDate || !endDate) {
+        err.textContent = 'املأ كل الحقول المطلوبة';
+        err.classList.remove('hidden');
+        return;
+    }
+    if (startDate > endDate) {
+        err.textContent = 'تاريخ النهاية يجب أن يكون بعد البداية';
+        err.classList.remove('hidden');
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner loading"></i>';
+    
+    var body = {
+        subjectId: subjectId,
+        name: name,
+        scheduleType: scheduleType,
+        weekDay: weekDay,
+        intervalDays: intervalDays,
+        startDate: startDate,
+        endDate: endDate,
+        timeStart: timeStart,
+        timeEnd: timeEnd,
+        room: room,
+        addToTimetable: addToTimetable
+    };
+    
+    var url = editingTutoringId ? '/api/tutoring/' + editingTutoringId : '/api/tutoring';
+    var method = editingTutoringId ? 'PUT' : 'POST';
+    
+    fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body)
+    })
+    .then(function(r) { return r.json().then(function(j){ return { ok: r.ok, data: j }; }); })
+    .then(function(res) {
+        btn.disabled = false;
+        btn.innerHTML = 'حفظ';
+        if (!res.ok) {
+            err.textContent = res.data.message || 'خطأ';
+            err.classList.remove('hidden');
+            return;
+        }
+        closeTutoringModal();
+        loadTutoring();
+        
+        /* إذا كان يجب إضافتها للجدول */
+        if (addToTimetable) {
+            addTutoringToTimetable(subjectId, name, timeStart, timeEnd, room, weekDay, scheduleType, intervalDays);
+        }
+    })
+    .catch(function() {
+        btn.disabled = false;
+        btn.innerHTML = 'حفظ';
+        err.textContent = 'خطأ في الاتصال';
+        err.classList.remove('hidden');
+    });
+}
+
+/* إضافة التدارك إلى الجدول الأسبوعي */
+function addTutoringToTimetable(subjectId, name, timeStart, timeEnd, room, weekDay, scheduleType, intervalDays) {
+    if (!timeStart || !timeEnd) return;
+    if (scheduleType !== 'weekly') return; /* فقط الأسبوعي يُضاف للجدول */
+    if (!weekDay) return;
+    
+    if (!appState.timetable[weekDay]) appState.timetable[weekDay] = [];
+    
+    /* تحقق أن الحصة غير موجودة */
+    var exists = appState.timetable[weekDay].some(function(s) {
+        return s.subjectId === subjectId && s.start === timeStart && s.end === timeEnd;
+    });
+    if (exists) return;
+    
+    appState.timetable[weekDay].push({
+        subjectId: subjectId,
+        room: room || '',
+        start: timeStart,
+        end: timeEnd,
+        week: 'AB'
+    });
+    appState.timetable[weekDay].sort(function(a,b){ return a.start.localeCompare(b.start); });
+    saveState();
+}
+
+function deleteTutoringSession(id) {
+    if (!confirm('حذف الدرس وكل حصصه وتمارينه؟')) return;
+    fetch('/api/tutoring/' + id, {
+        method: 'DELETE',
+        credentials: 'include'
+    })
+    .then(function(r) { return r.json(); })
+    .then(function() { loadTutoring(); })
+    .catch(function(err) { console.error(err); });
+}
+
+/* فتح نافذة التفاصيل */
+function openTutoringDetail(id) {
+    var s = CURRENT_TUTORING.find(function(x){ return String(x.id) === String(id); });
+    if (!s) return;
+    currentTutoringForDetail = s;
+    
+    var subj = findSubjectById(s.subject_id);
+    var nm = subj ? displayName(subj) : '—';
+    document.getElementById('tutoringDetailTitle').textContent = s.name;
+    document.getElementById('tutoringDetailSubtitle').textContent = nm + ' · ' + (s.schedule_type === 'weekly' ? 'أسبوعي' : 'كل ' + s.interval_days + ' أيام');
+    
+    document.getElementById('tutoringDetailModal').classList.remove('hidden');
+    renderTutoringDetail();
+}
+
+function closeTutoringDetailModal() {
+    document.getElementById('tutoringDetailModal').classList.add('hidden');
+    currentTutoringForDetail = null;
+}
+
+function renderTutoringDetail() {
+    var s = currentTutoringForDetail;
+    if (!s) return;
+    var c = document.getElementById('tutoringDetailContent');
+    c.innerHTML = '<p class="text-center text-slate-500 py-4"><i class="fa-solid fa-spinner loading"></i></p>';
+    
+    fetch('/api/tutoring/' + s.id + '/items', { credentials: 'include' })
+    .then(function(r) { return r.ok ? r.json() : { items: [] }; })
+    .then(function(data) {
+        var items = data.items || [];
+        var dates = computeTutoringDates(s);
+        
+        if (dates.length === 0) {
+            c.innerHTML = '<p class="text-center text-slate-500 py-4">لا توجد حصص</p>';
+            return;
+        }
+        
+        var html = '';
+        dates.forEach(function(d) {
+            var dateStr = toDateString(d);
+            var dayItems = items.filter(function(it) {
+                var itDate = typeof it.session_date === 'string' ? it.session_date.slice(0,10) : '';
+                return itDate === dateStr;
+            });
+            
+            html += '<div class="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">';
+            html += '<div class="bg-slate-50 dark:bg-slate-700/40 px-3 py-2 flex items-center justify-between">';
+            html += '<div class="flex items-center gap-2">';
+            html += '<i class="fa-solid fa-calendar-day text-brand-500 text-xs"></i>';
+            html += '<span class="font-bold text-xs text-slate-900 dark:text-white">' + formatDateAr(d) + '</span>';
+            html += '</div>';
+            html += '<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-brand-100 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300">' + dayItems.length + ' تمرين</span>';
+            html += '</div>';
+            html += '<div class="p-2 space-y-1">';
+            
+            if (dayItems.length === 0) {
+                html += '<p class="text-xs text-slate-400 text-center py-2">لا توجد تمارين</p>';
+            } else {
+                dayItems.forEach(function(it) {
+                    html += '<div class="flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 group">';
+                    html += '<button onclick="toggleTutoringItem(' + it.id + ', ' + (it.checked ? 'false' : 'true') + ')" class="w-6 h-6 rounded-lg flex items-center justify-center text-xs flex-shrink-0 ' +
+                        (it.checked ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-400') + '">' +
+                        (it.checked ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
+                    html += '<span class="flex-1 text-xs font-semibold ' + (it.checked ? 'line-through opacity-60' : '') + ' text-slate-800 dark:text-slate-100">' + escapeHtml(it.label) + '</span>';
+                    if (it.note) {
+                        html += '<span class="text-[10px] text-slate-400">' + escapeHtml(it.note) + '</span>';
+                    }
+                    html += '<button onclick="deleteTutoringItem(' + it.id + ')" class="w-6 h-6 rounded-md text-slate-400 hover:text-red-500 text-xs opacity-0 group-hover:opacity-100 transition-opacity"><i class="fa-solid fa-trash-can"></i></button>';
+                    html += '</div>';
+                });
+            }
+            
+            html += '<button onclick="quickAddTutoringItem(\'' + dateStr + '\')" class="w-full py-1.5 mt-1 rounded-lg border border-dashed border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400 hover:border-brand-500 hover:text-brand-600 text-[11px] font-semibold transition-colors">';
+            html += '<i class="fa-solid fa-plus mr-1"></i> إضافة تمرين في هذا التاريخ';
+            html += '</button>';
+            
+            html += '</div></div>';
+        });
+        
+        c.innerHTML = html;
+    })
+    .catch(function(err) {
+        console.error(err);
+        c.innerHTML = '<p class="text-center text-red-500 py-4">خطأ في التحميل</p>';
+    });
+}
+
+/* إضافة تمرين سريعًا */
+function quickAddTutoringItem(dateStr) {
+    var s = currentTutoringForDetail;
+    if (!s) return;
+    var label = prompt('اسم التمرين:', 'Exercice 1');
+    if (!label || !label.trim()) return;
+    
+    fetch('/api/tutoring/' + s.id + '/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+            sessionDate: dateStr,
+            label: label.trim(),
+            checked: false
+        })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(res) {
+        if (res.ok) renderTutoringDetail();
+    })
+    .catch(function(err) { console.error(err); });
+}
+
+function toggleTutoringItem(itemId, newChecked) {
+    fetch('/api/tutoring/items/' + itemId, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ checked: newChecked })
+    })
+    .then(function() { renderTutoringDetail(); })
+    .catch(function(err) { console.error(err); });
+}
+
+function deleteTutoringItem(itemId) {
+    if (!confirm('حذف التمرين؟')) return;
+    fetch('/api/tutoring/items/' + itemId, {
+        method: 'DELETE',
+        credentials: 'include'
+    })
+    .then(function() { renderTutoringDetail(); })
+    .catch(function(err) { console.error(err); });
+}
+
+/* ============================================================
+   تحميل التدارك عند الدخول
+   ============================================================ */
+var _originalEnterUserApp = enterUserApp;
+enterUserApp = function() {
+    _originalEnterUserApp();
+    loadTutoring();
+};
 </script>
 <!-- ============================================================
      نافذة إضافة/تعديل درس خصوصي
