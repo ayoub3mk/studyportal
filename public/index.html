@@ -6342,7 +6342,142 @@ if ('serviceWorker' in navigator) {
         </div>
     </div>
 </div>
+<!-- ============================================================
+     نافذة جلسة التركيز الكبيرة
+     ============================================================ -->
+<div id="focusModal" class="fixed inset-0 z-[200] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 hidden overflow-y-auto">
+    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-200 dark:border-slate-700 my-8">
+        
+        <!-- شريط العنوان -->
+        <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-amber-500 text-white flex items-center justify-center shadow">
+                    <i class="fa-solid fa-hourglass-half"></i>
+                </div>
+                <div>
+                    <h3 class="font-black text-base text-slate-900 dark:text-white">جلسة تركيز</h3>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">Pomodoro Timer</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-1">
+                <button onclick="minimizeFocusModal()" title="تصغير" class="w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-window-minimize text-sm"></i>
+                </button>
+                <button onclick="closeFocusModal()" title="إغلاق" class="w-8 h-8 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-600 text-slate-500 dark:text-slate-400 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+        </div>
 
+        <!-- المحتوى -->
+        <div class="p-6">
+            
+            <!-- مرحلة الإعداد -->
+            <div id="focusSetupStage">
+                
+                <!-- اختيار النوع -->
+                <div class="mb-5">
+                    <label class="block text-xs font-bold uppercase text-slate-600 dark:text-slate-300 mb-2">نوع الجلسة</label>
+                    <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 dark:bg-slate-700 rounded-xl">
+                        <button onclick="selectSessionType('focus')" id="typeFocusBtn" class="py-3 rounded-lg text-sm font-bold bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm transition-colors">
+                            <i class="fa-solid fa-brain mr-1"></i> تركيز
+                        </button>
+                        <button onclick="selectSessionType('break')" id="typeBreakBtn" class="py-3 rounded-lg text-sm font-bold text-slate-600 dark:text-slate-300 transition-colors">
+                            <i class="fa-solid fa-mug-hot mr-1"></i> استراحة
+                        </button>
+                    </div>
+                </div>
+
+                <!-- المدة -->
+                <div class="mb-5">
+                    <label class="block text-xs font-bold uppercase text-slate-600 dark:text-slate-300 mb-2">المدة (دقائق)</label>
+                    <div id="durationButtons" class="grid grid-cols-5 gap-2"></div>
+                    <div class="mt-2 flex items-center gap-2">
+                        <input type="number" id="focusCustomDuration" min="1" max="180" placeholder="مخصص" class="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                        <span class="text-xs text-slate-500 dark:text-slate-400">دقيقة</span>
+                    </div>
+                </div>
+
+                <!-- المادة -->
+                <div class="mb-5">
+                    <label class="block text-xs font-bold uppercase text-slate-600 dark:text-slate-300 mb-2">المادة (اختياري)</label>
+                    <select id="focusSubjectSelect" class="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                        <option value="">— بدون مادة —</option>
+                    </select>
+                </div>
+
+                <!-- الهدف -->
+                <div class="mb-5">
+                    <label class="block text-xs font-bold uppercase text-slate-600 dark:text-slate-300 mb-2">هدف الجلسة (اختياري)</label>
+                    <input type="text" id="focusGoalInput" placeholder="مثال: مراجعة الفصل 3" class="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                </div>
+
+                <!-- زر البدء -->
+                <button onclick="startFocusSession()" class="w-full py-4 rounded-xl bg-gradient-to-r from-brand-600 to-amber-500 hover:from-brand-700 hover:to-amber-600 text-white text-base font-black shadow-lg transition-all">
+                    <i class="fa-solid fa-play mr-2"></i> ابدأ الجلسة
+                </button>
+                
+            </div>
+
+            <!-- مرحلة التشغيل -->
+            <div id="focusRunningStage" class="hidden text-center">
+                
+                <!-- الدائرة الكبيرة -->
+                <div class="relative w-64 h-64 mx-auto mb-6">
+                    <svg class="w-64 h-64 transform -rotate-90">
+                        <circle cx="128" cy="128" r="112" stroke="currentColor" stroke-width="12" class="text-slate-200 dark:text-slate-700" fill="transparent"></circle>
+                        <circle id="focusProgressRing" cx="128" cy="128" r="112" stroke="currentColor" stroke-width="12" class="text-brand-500 transition-all" stroke-dasharray="703.7" stroke-dashoffset="703.7" stroke-linecap="round" fill="transparent"></circle>
+                    </svg>
+                    <div class="absolute inset-0 flex flex-col items-center justify-center">
+                        <div id="focusTimerDisplay" class="text-6xl font-black text-slate-900 dark:text-white tabular-nums">25:00</div>
+                        <div id="focusTimerLabel" class="text-sm font-bold text-slate-500 dark:text-slate-400 mt-2">جاري التركيز</div>
+                    </div>
+                </div>
+
+                <!-- معلومات الجلسة -->
+                <div id="focusSessionInfo" class="mb-6 text-sm text-slate-600 dark:text-slate-400"></div>
+
+                <!-- أزرار التحكم -->
+                <div class="flex gap-2 justify-center">
+                    <button onclick="pauseFocusSession()" id="focusPauseBtn" class="px-5 py-3 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-sm hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+                        <i class="fa-solid fa-pause mr-1"></i> إيقاف مؤقت
+                    </button>
+                    <button onclick="stopFocusSession()" class="px-5 py-3 rounded-xl bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400 font-bold text-sm hover:bg-red-200 dark:hover:bg-red-900/60 transition-colors">
+                        <i class="fa-solid fa-stop mr-1"></i> إنهاء
+                    </button>
+                </div>
+                
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================
+     الشريط العائم (يظهر عند التصغير)
+     ============================================================ -->
+<div id="focusFloat" class="fixed z-[150] bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-3 hidden" style="cursor: move; top: 100px; right: 20px; min-width: 220px;">
+    <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-amber-500 text-white flex items-center justify-center flex-shrink-0">
+            <i class="fa-solid fa-hourglass-half"></i>
+        </div>
+        <div class="flex-1 min-w-0">
+            <p id="focusFloatTimer" class="text-lg font-black text-slate-900 dark:text-white tabular-nums leading-tight">25:00</p>
+            <p id="focusFloatLabel" class="text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate">جاري التركيز</p>
+        </div>
+        <div class="flex flex-col gap-1">
+            <button onclick="maximizeFocusModal()" title="تكبير" class="w-7 h-7 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center text-xs hover:bg-brand-500 hover:text-white transition-colors">
+                <i class="fa-solid fa-up-right-and-down-left-from-center"></i>
+            </button>
+            <button onclick="stopFocusSession()" title="إنهاء" class="w-7 h-7 rounded-md bg-red-100 dark:bg-red-950/40 text-red-600 dark:text-red-400 flex items-center justify-center text-xs hover:bg-red-500 hover:text-white transition-colors">
+                <i class="fa-solid fa-stop"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
 </body>
 </html>
 </body>
