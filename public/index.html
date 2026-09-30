@@ -196,12 +196,15 @@ function onLoginSuccess() {
         if (typeof renderView === 'function') {
             renderView();
         }
+        /* بدء المزامنة التلقائية */
+        if (typeof startAutoSync === 'function') {
+            startAutoSync();
+        }
     }).catch(function(err) {
         console.error('خطأ في جلب البيانات:', err);
         alert('تعذر جلب البيانات من السيرفر');
     });
 }
-
 /* جلب البيانات من السيرفر */
 function loadDataFromServer() {
     return fetch(API_BASE + '/api/me', {
@@ -319,9 +322,13 @@ function checkExistingSession() {
             if (savedUser) CURRENT_USER = JSON.parse(savedUser);
             
             /* التحقق من صلاحية الرمز بطلب me */
-            return loadDataFromServer().then(function() {
+                        return loadDataFromServer().then(function() {
                 document.getElementById('authScreen').classList.add('hidden');
                 if (typeof renderView === 'function') renderView();
+                /* بدء المزامنة التلقائية */
+                if (typeof startAutoSync === 'function') {
+                    startAutoSync();
+                }
                 return true;
             }).catch(function() {
                 /* الرمز غير صالح */
@@ -338,6 +345,95 @@ function checkExistingSession() {
         console.error(e);
     }
     return Promise.resolve(false);
+
+/* ============================================================
+   المزامنة التلقائية: قراءة السيرفر كل 10 ثوان
+   ============================================================ */
+
+var SYNC_INTERVAL = null;
+
+function startAutoSync() {
+    if (SYNC_INTERVAL) clearInterval(SYNC_INTERVAL);
+    SYNC_INTERVAL = setInterval(function() {
+        /* فقط إذا كان المستخدم مسجلا */
+        if (!AUTH_TOKEN) return;
+        
+        /* اجلب البيانات من السيرفر */
+        fetch(API_BASE + '/api/me', {
+            credentials: 'include',
+            headers: { 'Authorization': 'Bearer ' + AUTH_TOKEN }
+        })
+        .then(function(r) {
+            if (r.status === 401) {
+                logoutUser();
+                return null;
+            }
+            return r.json();
+        })
+        .then(function(data) {
+            if (!data || !data.user) return;
+            
+            /* هل التغيير حقيقي؟ تحقق من طول البيانات */
+            var u = data.user;
+            var currentProfile = null;
+            for (var i = 0; i < appState.profiles.length; i++) {
+                if (appState.profiles[i].id === 'me') { currentProfile = appState.profiles[i]; break; }
+            }
+            if (!currentProfile) return;
+            
+            /* قارن - استخدم JSON.stringify */
+            var serverData = JSON.stringify({
+                subjects: u.subjects,
+                timetable: u.timetable,
+                homework: u.homework,
+                name: u.name,
+                grade: u.grade,
+                term: u.term,
+                examType: u.examType,
+                schoolYear: u.schoolYear
+            });
+            
+            var localData = JSON.stringify({
+                subjects: currentProfile.subjects,
+                timetable: currentProfile.timetable,
+                homework: currentProfile.homework,
+                name: currentProfile.name,
+                grade: currentProfile.grade,
+                term: currentProfile.term,
+                examType: currentProfile.examType,
+                schoolYear: currentProfile.schoolYear
+            });
+            
+            /* إذا مختلف، حدّث الحالة وأعد الرسم */
+            if (serverData !== localData) {
+                currentProfile.name = u.name;
+                currentProfile.grade = u.grade;
+                currentProfile.term = u.term;
+                currentProfile.examType = u.examType;
+                currentProfile.schoolYear = u.schoolYear;
+                currentProfile.subjects = u.subjects;
+                currentProfile.timetable = u.timetable;
+                currentProfile.homework = u.homework;
+                
+                appState.lang = u.lang || 'ar';
+                appState.darkMode = !!u.darkMode;
+                
+                /* أعد الرسم */
+                if (typeof renderDashboard === 'function') renderDashboard();
+                if (typeof applyTheme === 'function') applyTheme();
+                
+                console.log('↻ تمت المزامنة من السيرفر');
+            }
+        })
+        .catch(function(err) {
+            /* تجاهل الأخطاء - ستحدث عند انقطاع الشبكة */
+        });
+    }, 10000); /* كل 10 ثوان */
+}
+
+/* ============================================================
+   نهاية المزامنة التلقائية
+   ============================================================ */
 }
 </script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
