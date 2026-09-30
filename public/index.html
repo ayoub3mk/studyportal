@@ -4766,13 +4766,14 @@ function renderResultsList() {
         }[r.exam_type] || r.exam_type;
         
         var card = document.createElement('div');
-        card.className = 'border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-white dark:bg-slate-800 hover:shadow-md transition-shadow flex items-center gap-3 group';
+        card.className = 'border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-white dark:bg-slate-800 hover:shadow-md transition-shadow flex items-center gap-3';
         card.innerHTML = 
             '<div class="flex-1 min-w-0">' +
                 '<div class="flex items-center gap-2 flex-wrap mb-1">' +
                     '<span class="text-xs font-bold text-slate-900 dark:text-white">' + escapeHtml(r.subject_name) + '</span>' +
                     '<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-brand-100 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300">' + typeLabel + '</span>' +
                     '<span class="text-[10px] text-slate-400">' + r.exam_date + '</span>' +
+                    (parseFloat(r.coefficient) > 1 ? '<span class="text-[10px] text-slate-400">× ' + r.coefficient + '</span>' : '') +
                 '</div>' +
                 (r.note ? '<p class="text-[11px] text-slate-500 dark:text-slate-400">' + escapeHtml(r.note) + '</p>' : '') +
             '</div>' +
@@ -4780,11 +4781,10 @@ function renderResultsList() {
                 '<p class="text-lg font-black ' + scoreColor + '">' + parseFloat(r.score).toFixed(2) + '</p>' +
                 '<p class="text-[10px] text-slate-400">من ' + parseFloat(r.max_score).toFixed(0) + '</p>' +
             '</div>' +
-            '<div class="flex flex-col gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">' +
-                '<button onclick="openEditResult(\'' + r.id + '\')" class="w-6 h-6 rounded-md text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 text-[10px]"><i class="fa-solid fa-pen"></i></button>' +
-                '<button onclick="deleteResult(\'' + r.id + '\')" class="w-6 h-6 rounded-md text-slate-500 hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-600 text-[10px]"><i class="fa-solid fa-trash-can"></i></button>' +
-            '</div>';
-        c.appendChild(list);
+            '<button onclick="deleteResult(\'' + r.id + '\')" title="حذف" class="w-8 h-8 rounded-lg text-slate-400 hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-600 flex items-center justify-center flex-shrink-0 transition-colors">' +
+                '<i class="fa-solid fa-trash-can text-xs"></i>' +
+            '</button>';
+        c.appendChild(card);
     });
 }
 
