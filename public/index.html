@@ -4980,6 +4980,513 @@ switchTab = function(tab) {
     _originalSwitchTab3(tab);
     if (tab === 'results') renderResults();
 };
+/* ============================================================
+   الجزء 34: لوحة ولي الأمر
+   ============================================================ */
+
+var CURRENT_PARENT = null;
+var CURRENT_CHILDREN = [];
+var CURRENT_SELECTED_CHILD = null;
+
+/* فتح نافذة الدخول */
+function openParentAuth() {
+    document.getElementById('parentAuthModal').classList.remove('hidden');
+    showParentTab('login');
+}
+function closeParentAuth() {
+    document.getElementById('parentAuthModal').classList.add('hidden');
+}
+function showParentTab(tab) {
+    var loginBtn = document.getElementById('parentTabLoginBtn');
+    var registerBtn = document.getElementById('parentTabRegisterBtn');
+    var loginForm = document.getElementById('parentLoginForm');
+    var registerForm = document.getElementById('parentRegisterForm');
+    
+    if (tab === 'login') {
+        loginBtn.classList.add('bg-white', 'dark:bg-slate-800', 'text-slate-900', 'dark:text-white', 'shadow-sm');
+        loginBtn.classList.remove('text-slate-600', 'dark:text-slate-300');
+        registerBtn.classList.remove('bg-white', 'dark:bg-slate-800', 'text-slate-900', 'dark:text-white', 'shadow-sm');
+        registerBtn.classList.add('text-slate-600', 'dark:text-slate-300');
+        loginForm.classList.remove('hidden');
+        registerForm.classList.add('hidden');
+    } else {
+        registerBtn.classList.add('bg-white', 'dark:bg-slate-800', 'text-slate-900', 'dark:text-white', 'shadow-sm');
+        registerBtn.classList.remove('text-slate-600', 'dark:text-slate-300');
+        loginBtn.classList.remove('bg-white', 'dark:bg-slate-800', 'text-slate-900', 'dark:text-white', 'shadow-sm');
+        loginBtn.classList.add('text-slate-600', 'dark:text-slate-300');
+        registerForm.classList.remove('hidden');
+        loginForm.classList.add('hidden');
+    }
+}
+
+/* تسجيل الدخول */
+function submitParentLogin(e) {
+    e.preventDefault();
+    var email = document.getElementById('parentLoginEmail').value.trim();
+    var password = document.getElementById('parentLoginPassword').value;
+    var err = document.getElementById('parentLoginError');
+    var btn = document.getElementById('parentLoginBtn');
+    err.classList.add('hidden');
+    
+    if (!email || !password) {
+        err.textContent = 'املأ الحقول';
+        err.classList.remove('hidden');
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner loading"></i>';
+    
+    fetch('/api/parent/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email: email, password: password })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-right-to-bracket mr-1"></i> دخول';
+        if (!data.ok) {
+            err.textContent = data.message || 'خطأ';
+            err.classList.remove('hidden');
+            return;
+        }
+        CURRENT_PARENT = data.parent;
+        closeParentAuth();
+        enterParentDashboard();
+    })
+    .catch(function() {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-right-to-bracket mr-1"></i> دخول';
+        err.textContent = 'خطأ في الاتصال';
+        err.classList.remove('hidden');
+    });
+}
+
+/* التسجيل */
+function submitParentRegister(e) {
+    e.preventDefault();
+    var name = document.getElementById('parentRegisterName').value.trim();
+    var email = document.getElementById('parentRegisterEmail').value.trim();
+    var phone = document.getElementById('parentRegisterPhone').value.trim();
+    var password = document.getElementById('parentRegisterPassword').value;
+    var err = document.getElementById('parentRegisterError');
+    var btn = document.getElementById('parentRegisterBtn');
+    err.classList.add('hidden');
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner loading"></i>';
+    
+    fetch('/api/parent/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ name: name, email: email, phone: phone, password: password })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-user-plus mr-1"></i> إنشاء الحساب';
+        if (!data.ok) {
+            err.textContent = data.message || 'خطأ';
+            err.classList.remove('hidden');
+            return;
+        }
+        CURRENT_PARENT = data.parent;
+        closeParentAuth();
+        enterParentDashboard();
+    })
+    .catch(function() {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-user-plus mr-1"></i> إنشاء الحساب';
+        err.textContent = 'خطأ في الاتصال';
+        err.classList.remove('hidden');
+    });
+}
+
+/* دخول لوحة ولي الأمر */
+function enterParentDashboard() {
+    document.getElementById('accountScreen').classList.add('hidden');
+    document.getElementById('usersScreen').classList.add('hidden');
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('parentDashboard').classList.remove('hidden');
+    document.getElementById('parentNameDisplay').textContent = CURRENT_PARENT.name + ' · ' + CURRENT_PARENT.email;
+    loadParentChildren();
+}
+
+/* خروج ولي الأمر */
+function logoutParent() {
+    if (!confirm('تسجيل الخروج؟')) return;
+    fetch('/api/parent/logout', { method: 'POST', credentials: 'include' })
+    .then(function() {
+        CURRENT_PARENT = null;
+        location.reload();
+    })
+    .catch(function() { location.reload(); });
+}
+
+/* جلب الأبناء */
+function loadParentChildren() {
+    fetch('/api/parent/children', { credentials: 'include' })
+    .then(function(r) { return r.ok ? r.json() : { children: [] }; })
+    .then(function(data) {
+        CURRENT_CHILDREN = data.children || [];
+        renderParentChildren();
+    })
+    .catch(function(err) { console.error('Load children error:', err); });
+}
+
+/* عرض الأبناء */
+function renderParentChildren() {
+    var c = document.getElementById('parentChildrenList');
+    if (!c) return;
+    c.innerHTML = '';
+    
+    if (CURRENT_CHILDREN.length === 0) {
+        c.innerHTML = '<div class="col-span-full text-center py-8 text-slate-500 dark:text-slate-400"><i class="fa-solid fa-user-plus text-3xl mb-2 opacity-30"></i><p class="text-sm">لم تربط أي ابن بعد</p><p class="text-xs mt-1">انقر "ربط ابن" واستخدم الكود الذي حصلت عليه</p></div>';
+        return;
+    }
+    
+    CURRENT_CHILDREN.forEach(function(child) {
+        var card = document.createElement('div');
+        card.className = 'bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-4 hover:shadow-lg transition-shadow';
+        
+        var statusBadge = child.confirmed 
+            ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">مؤكد</span>'
+            : '<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">في الانتظار</span>';
+        
+        var html = '';
+        html += '<div class="flex items-start gap-3 mb-3">';
+        html += '<img class="w-12 h-12 rounded-xl object-cover border-2 border-emerald-500/30" src="' + escapeHtml(child.avatar || DEFAULT_AVATAR) + '" alt="">';
+        html += '<div class="flex-1 min-w-0">';
+        html += '<div class="flex items-center gap-2 flex-wrap">';
+        html += '<h4 class="font-bold text-sm text-slate-900 dark:text-white">' + escapeHtml(child.name) + '</h4>';
+        html += statusBadge;
+        html += '</div>';
+        html += '<p class="text-[11px] text-slate-500 dark:text-slate-400">' + escapeHtml(child.grade || '—') + '</p>';
+        html += '</div>';
+        html += '</div>';
+        
+        if (child.confirmed) {
+            html += '<button onclick="openChildDetail(' + child.id + ')" class="w-full py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-xs font-bold transition-colors">';
+            html += '<i class="fa-solid fa-chart-line mr-1"></i> عرض التفاصيل';
+            html += '</button>';
+        } else {
+            html += '<p class="text-[11px] text-slate-500 dark:text-slate-400 text-center py-2">في انتظار موافقة ' + escapeHtml(child.name) + '</p>';
+        }
+        
+        html += '<button onclick="unlinkChild(' + child.id + ', \'' + escapeHtml(child.name) + '\')" class="w-full mt-2 py-1.5 rounded-lg border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 text-xs font-bold transition-colors">';
+        html += '<i class="fa-solid fa-link-slash mr-1"></i> إلغاء الربط';
+        html += '</button>';
+        
+        card.innerHTML = html;
+        c.appendChild(card);
+    });
+}
+
+/* إلغاء ربط */
+function unlinkChild(userId, name) {
+    if (!confirm('إلغاء ربط ' + name + '؟')) return;
+    fetch('/api/parent/children/' + userId, {
+        method: 'DELETE',
+        credentials: 'include'
+    })
+    .then(function() { loadParentChildren(); })
+    .catch(function(err) { console.error(err); });
+}
+
+/* فتح تفاصيل ابن */
+function openChildDetail(userId) {
+    CURRENT_SELECTED_CHILD = userId;
+    
+    fetch('/api/parent/children/' + userId + '/data', { credentials: 'include' })
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(data) {
+        if (!data || !data.ok) {
+            alert('تعذر جلب البيانات');
+            return;
+        }
+        
+        var detail = document.getElementById('parentChildDetail');
+        detail.classList.remove('hidden');
+        
+        /* الإحصائيات */
+        var statsGrid = document.getElementById('childStatsGrid');
+        statsGrid.innerHTML = '';
+        
+        var stats = [
+            { label: 'التقدم', value: data.progress.percent + '%', icon: 'fa-chart-line', color: 'brand' },
+            { label: 'النقاط', value: data.stats.points, icon: 'fa-star', color: 'amber' },
+            { label: 'Streak', value: data.stats.currentStreak, icon: 'fa-fire', color: 'orange' },
+            { label: 'أطول Streak', value: data.stats.longestStreak, icon: 'fa-medal', color: 'yellow' }
+        ];
+        
+        stats.forEach(function(s) {
+            var box = document.createElement('div');
+            box.className = 'bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-3';
+            box.innerHTML = '<div class="flex items-center gap-2 mb-1">' +
+                '<i class="fa-solid ' + s.icon + ' text-' + s.color + '-500 text-xs"></i>' +
+                '<p class="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">' + s.label + '</p>' +
+                '</div>' +
+                '<p class="text-2xl font-black text-slate-900 dark:text-white">' + s.value + '</p>';
+            statsGrid.appendChild(box);
+        });
+        
+        /* الواجبات */
+        var hwDiv = document.getElementById('childPendingHw');
+        hwDiv.innerHTML = '';
+        if (data.homework.pendingList.length === 0) {
+            hwDiv.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">لا واجبات معلقة ✓</p>';
+        } else {
+            data.homework.pendingList.forEach(function(hw) {
+                var item = document.createElement('div');
+                item.className = 'flex items-center gap-2 py-2 px-3 rounded-lg bg-slate-50 dark:bg-slate-700/40';
+                item.innerHTML = '<i class="fa-solid fa-circle text-[6px] text-amber-500"></i>' +
+                    '<span class="flex-1 text-xs font-bold text-slate-800 dark:text-slate-100">' + escapeHtml(hw.title) + '</span>' +
+                    (hw.due ? '<span class="text-[10px] text-slate-400">' + hw.due + '</span>' : '');
+                hwDiv.appendChild(item);
+            });
+        }
+        
+        /* النتائج */
+        var resultsDiv = document.getElementById('childResultsList');
+        resultsDiv.innerHTML = '';
+        if (data.results.length === 0) {
+            resultsDiv.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">لا نتائج مسجلة</p>';
+        } else {
+            data.results.slice(0, 10).forEach(function(r) {
+                var norm = (parseFloat(r.score) / parseFloat(r.max_score)) * 20;
+                var color = norm >= 14 ? 'text-emerald-600 dark:text-emerald-400' 
+                          : norm >= 10 ? 'text-amber-600 dark:text-amber-400' 
+                          : 'text-red-600 dark:text-red-400';
+                var item = document.createElement('div');
+                item.className = 'flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50 dark:bg-slate-700/40';
+                item.innerHTML = '<div class="flex-1"><span class="text-xs font-bold text-slate-800 dark:text-slate-100">' + escapeHtml(r.subject_name) + '</span>' +
+                    '<span class="text-[10px] text-slate-400 mr-2"> · ' + r.exam_date + '</span></div>' +
+                    '<span class="text-sm font-black ' + color + '">' + parseFloat(r.score).toFixed(2) + '/' + parseFloat(r.max_score).toFixed(0) + '</span>';
+                resultsDiv.appendChild(item);
+            });
+        }
+        
+        /* التمرير للتفاصيل */
+        detail.scrollIntoView({ behavior: 'smooth' });
+    })
+    .catch(function(err) {
+        console.error(err);
+        alert('خطأ في الاتصال');
+    });
+}
+
+function closeChildDetail() {
+    document.getElementById('parentChildDetail').classList.add('hidden');
+    CURRENT_SELECTED_CHILD = null;
+}
+
+/* فتح نافذة ربط ابن */
+function openAddChildModal() {
+    document.getElementById('linkCodeInput').value = '';
+    document.getElementById('linkCodeError').classList.add('hidden');
+    document.getElementById('addChildModal').classList.remove('hidden');
+    setTimeout(function() { document.getElementById('linkCodeInput').focus(); }, 100);
+}
+function closeAddChildModal() {
+    document.getElementById('addChildModal').classList.add('hidden');
+}
+function submitLinkChild(e) {
+    e.preventDefault();
+    var code = document.getElementById('linkCodeInput').value.trim();
+    var err = document.getElementById('linkCodeError');
+    var btn = document.getElementById('linkSubmitBtn');
+    err.classList.add('hidden');
+    
+    if (!/^\d{6}$/.test(code)) {
+        err.textContent = 'الكود يجب أن يكون 6 أرقام';
+        err.classList.remove('hidden');
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner loading"></i>';
+    
+    fetch('/api/parent/link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ code: code })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        btn.disabled = false;
+        btn.innerHTML = 'ربط';
+        if (!data.ok) {
+            err.textContent = data.message || 'خطأ';
+            err.classList.remove('hidden');
+            return;
+        }
+        closeAddChildModal();
+        alert(data.message || 'تم إرسال الطلب!');
+        loadParentChildren();
+    })
+    .catch(function() {
+        btn.disabled = false;
+        btn.innerHTML = 'ربط';
+        err.textContent = 'خطأ في الاتصال';
+        err.classList.remove('hidden');
+    });
+}
+
+/* ============================================================
+   من جهة الابن - إدارة أولياء الأمور
+   ============================================================ */
+
+function openMyParentsModal() {
+    document.getElementById('myParentsModal').classList.remove('hidden');
+    document.getElementById('linkCodeDisplay').classList.add('hidden');
+    loadMyParents();
+}
+function closeMyParentsModal() {
+    document.getElementById('myParentsModal').classList.add('hidden');
+}
+
+function loadMyParents() {
+    /* طلبات معلقة */
+    fetch('/api/me/parent-requests', { credentials: 'include' })
+    .then(function(r) { return r.ok ? r.json() : { requests: [] }; })
+    .then(function(data) {
+        var sec = document.getElementById('pendingRequestsSection');
+        var list = document.getElementById('pendingRequestsList');
+        list.innerHTML = '';
+        if (data.requests.length === 0) {
+            sec.classList.add('hidden');
+        } else {
+            sec.classList.remove('hidden');
+            data.requests.forEach(function(req) {
+                var item = document.createElement('div');
+                item.className = 'flex items-center gap-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50';
+                item.innerHTML = '<div class="flex-1"><p class="text-xs font-bold text-slate-800 dark:text-slate-100">' + escapeHtml(req.name) + '</p>' +
+                    '<p class="text-[10px] text-slate-500">' + escapeHtml(req.email) + '</p></div>' +
+                    '<button onclick="acceptParentRequest(' + req.parent_id + ')" class="px-2 py-1 rounded-md bg-emerald-600 text-white text-[10px] font-bold">قبول</button>' +
+                    '<button onclick="rejectParentRequest(' + req.parent_id + ')" class="px-2 py-1 rounded-md bg-red-600 text-white text-[10px] font-bold">رفض</button>';
+                list.appendChild(item);
+            });
+        }
+    })
+    .catch(function(err) { console.error(err); });
+    
+    /* أولياء الأمر المؤكدون */
+    fetch('/api/me/parents', { credentials: 'include' })
+    .then(function(r) { return r.ok ? r.json() : { parents: [] }; })
+    .then(function(data) {
+        var list = document.getElementById('myParentsList');
+        list.innerHTML = '';
+        var confirmed = data.parents.filter(function(p) { return p.confirmed; });
+        if (confirmed.length === 0) {
+            list.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">لا أولياء أمور مرتبطون بعد</p>';
+        } else {
+            confirmed.forEach(function(p) {
+                var item = document.createElement('div');
+                item.className = 'flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-700/40';
+                item.innerHTML = '<i class="fa-solid fa-user-shield text-emerald-500"></i>' +
+                    '<div class="flex-1"><p class="text-xs font-bold text-slate-800 dark:text-slate-100">' + escapeHtml(p.name) + '</p>' +
+                    '<p class="text-[10px] text-slate-500">' + escapeHtml(p.email) + '</p></div>';
+                list.appendChild(item);
+            });
+        }
+    })
+    .catch(function(err) { console.error(err); });
+}
+
+function generateLinkCode() {
+    var btn = document.getElementById('genCodeBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner loading"></i>';
+    
+    fetch('/api/me/generate-link-code', {
+        method: 'POST',
+        credentials: 'include'
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-key mr-1"></i> توليد كود 6 أرقام';
+        if (data.ok && data.code) {
+            document.getElementById('linkCodeValue').textContent = data.code;
+            document.getElementById('linkCodeDisplay').classList.remove('hidden');
+        }
+    })
+    .catch(function() {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-key mr-1"></i> توليد كود 6 أرقام';
+    });
+}
+
+function acceptParentRequest(parentId) {
+    fetch('/api/me/parent-requests/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ parentId: parentId })
+    })
+    .then(function() { loadMyParents(); })
+    .catch(function(err) { console.error(err); });
+}
+
+function rejectParentRequest(parentId) {
+    fetch('/api/me/parent-requests/reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ parentId: parentId })
+    })
+    .then(function() { loadMyParents(); })
+    .catch(function(err) { console.error(err); });
+}
+
+/* إضافة زر أولياء الأمور في نافذة الإعدادات */
+var _originalOpenSettingsModal = openSettingsModal;
+openSettingsModal = function() {
+    _originalOpenSettingsModal();
+    /* إذا لم يكن الزر موجوداً، أضفه */
+    if (!document.getElementById('btnManageParents')) {
+        var form = document.querySelector('#settingsModal form');
+        if (form) {
+            var div = document.createElement('div');
+            div.className = 'pt-3 border-t border-slate-200 dark:border-slate-700';
+            div.innerHTML = '<button type="button" id="btnManageParents" onclick="openMyParentsModal()" class="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors">' +
+                '<i class="fa-solid fa-user-shield"></i>' +
+                '<span>إدارة أولياء الأمور</span>' +
+                '</button>';
+            /* أضف قبل آخر div (أزرار الحفظ) */
+            var lastDiv = form.querySelector('.pt-4, .pt-3');
+            if (lastDiv) {
+                form.insertBefore(div, lastDiv);
+            } else {
+                form.appendChild(div);
+            }
+        }
+    }
+};
+
+/* تحميل أولياء الأمور عند فتح الإعدادات */
+var _originalOpenSettingsModal2 = openSettingsModal;
+openSettingsModal = function() {
+    _originalOpenSettingsModal2();
+};
+
+/* استرجاع جلسة ولي الأمر عند التحميل */
+window.addEventListener('DOMContentLoaded', function() {
+    /* محاولة استرجاع جلسة ولي الأمر */
+    fetch('/api/parent/me', { credentials: 'include' })
+    .then(function(r) { return r.ok ? r.json() : null; })
+    .then(function(data) {
+        if (data && data.parent) {
+            CURRENT_PARENT = data.parent;
+            /* لا ندخل تلقائياً، ننتظر نقرة "دخول ولي الأمر" */
+        }
+    })
+    .catch(function() {});
+});
 
 /* ============================================================
    تسجيل Service Worker (PWA)
