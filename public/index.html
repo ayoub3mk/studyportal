@@ -838,10 +838,10 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     <i class="fa-solid fa-chart-line mr-1"></i> <span data-i18n="tabStats">الإحصائيات</span>
 </button>
 <button onclick="switchTab('tutoring')" data-tab="tutoring" class="tab-btn px-3 py-2 text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
-    <i class="fa-solid fa-chalkboard-user mr-1"></i> <span data-i18n="tabTutoring">دروس خصوصية</span>
+    <i class="fa-solid fa-chalkboard-user mr-1"></i> <span>دروس خصوصية</span>
 </button>
 <button onclick="switchTab('progress')" data-tab="progress" class="tab-btn px-3 py-2 text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
-    <i class="fa-solid fa-trophy mr-1"></i> <span data-i18n="tabProgress">التقدم</span>
+    <i class="fa-solid fa-trophy mr-1"></i> <span>التقدم</span>
 </button>
         </div>
 
@@ -2638,7 +2638,7 @@ function renderStats() {
    ============================================================ */
 function switchTab(tab) {
     currentTab = tab;
-    ['checklist','timetable','homework','stats','tutoring'].forEach(function(x){
+    ['checklist','timetable','homework','stats','tutoring','progress'].forEach(function(x){
         var el = document.getElementById('tab-'+x);
         if (el) el.classList.toggle('hidden', x !== tab);
     });
@@ -2650,6 +2650,7 @@ function switchTab(tab) {
     if (tab === 'stats') renderStats();
     if (tab === 'checklist') renderSubjects();
     if (tab === 'tutoring') renderTutoringList();
+    if (tab === 'progress') renderStats();
 }
 
 /* ============================================================
