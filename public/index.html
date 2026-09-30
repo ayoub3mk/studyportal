@@ -5474,15 +5474,22 @@ openSettingsModal = function() {
     _originalOpenSettingsModal2();
 };
 
-/* استرجاع جلسة ولي الأمر عند التحميل */
+/* استرجاع جلسة ولي الأمر عند التحميل (فقط إذا كانت هناك جلسة محفوظة) */
 window.addEventListener('DOMContentLoaded', function() {
-    /* محاولة استرجاع جلسة ولي الأمر */
+    /* لا نطلب /api/parent/me إذا لم يكن هناك كوكي */
+    try {
+        if (document.cookie.indexOf('parent_token') === -1) {
+            return;
+        }
+    } catch(e) {
+        return;
+    }
+    
     fetch('/api/parent/me', { credentials: 'include' })
     .then(function(r) { return r.ok ? r.json() : null; })
     .then(function(data) {
         if (data && data.parent) {
             CURRENT_PARENT = data.parent;
-            /* لا ندخل تلقائياً، ننتظر نقرة "دخول ولي الأمر" */
         }
     })
     .catch(function() {});
