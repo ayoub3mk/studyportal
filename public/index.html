@@ -561,10 +561,12 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     <i class="fa-solid fa-shield-halved mr-1"></i> بياناتك محفوظة بأمان
 </p>
 
-<button onclick="openParentAuth()" class="w-full mt-4 py-3 rounded-xl bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white text-sm font-bold transition-colors flex items-center justify-center gap-2">
-    <i class="fa-solid fa-user-shield"></i>
-    <span>دخول ولي الأمر</span>
-</button>
+<div class="mt-6 pt-4 border-t border-white/20 text-center">
+    <button onclick="openParentAuth()" class="inline-flex items-center gap-2 text-white/70 hover:text-white text-xs font-semibold transition-colors py-2 px-3 rounded-lg hover:bg-white/10">
+        <i class="fa-solid fa-user-shield text-xs"></i>
+        <span>هل أنت ولي أمر؟ ادخل من هنا</span>
+    </button>
+</div>
         </div>
     </div>
 </div>
