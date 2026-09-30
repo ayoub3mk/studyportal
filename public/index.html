@@ -5387,7 +5387,148 @@ if ('serviceWorker' in navigator) {
         
     </div>
 </div>
+<!-- ============================================================
+     شاشة لوحة ولي الأمر
+     ============================================================ -->
+<div id="parentDashboard" class="fixed inset-0 z-[85] bg-slate-50 dark:bg-slate-900 overflow-y-auto hidden">
+    
+    <!-- هيدر -->
+    <header class="sticky top-0 z-10 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-md">
+                    <i class="fa-solid fa-user-shield text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-sm text-slate-900 dark:text-white">بوابة ولي الأمر</h1>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400" id="parentNameDisplay">—</p>
+                </div>
+            </div>
+            <button onclick="logoutParent()" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span class="hidden sm:inline">خروج</span>
+            </button>
+        </div>
+    </header>
 
+    <div class="max-w-6xl mx-auto p-4 sm:p-6">
+        
+        <!-- زر إضافة ابن -->
+        <div class="mb-5 flex flex-wrap gap-2">
+            <button onclick="openAddChildModal()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold flex items-center gap-1 shadow">
+                <i class="fa-solid fa-plus"></i>
+                <span>ربط ابن</span>
+            </button>
+        </div>
+        
+        <!-- قائمة الأبناء -->
+        <div id="parentChildrenList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6"></div>
+        
+        <!-- عرض تفاصيل ابن مختار -->
+        <div id="parentChildDetail" class="hidden">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="font-black text-lg text-slate-900 dark:text-white">
+                    <i class="fa-solid fa-chart-line text-emerald-500 mr-2"></i>
+                    <span>تفاصيل الأداء</span>
+                </h2>
+                <button onclick="closeChildDetail()" class="text-xs font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+                    <i class="fa-solid fa-arrow-right mr-1"></i> إغلاق
+                </button>
+            </div>
+            
+            <!-- بطاقات الإحصائيات -->
+            <div id="childStatsGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4"></div>
+            
+            <!-- الواجبات المعلقة -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-4 mb-4">
+                <h3 class="font-black text-base text-slate-900 dark:text-white mb-3">
+                    <i class="fa-solid fa-book-bookmark text-brand-500 mr-1"></i>
+                    <span>الواجبات المعلقة</span>
+                </h3>
+                <div id="childPendingHw" class="space-y-2"></div>
+            </div>
+            
+            <!-- النتائج الأخيرة -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-4">
+                <h3 class="font-black text-base text-slate-900 dark:text-white mb-3">
+                    <i class="fa-solid fa-graduation-cap text-brand-500 mr-1"></i>
+                    <span>النتائج الأخيرة</span>
+                </h3>
+                <div id="childResultsList" class="space-y-2"></div>
+            </div>
+        </div>
+        
+    </div>
+</div>
+
+<!-- ============================================================
+     نافذة ربط ابن
+     ============================================================ -->
+<div id="addChildModal" class="fixed inset-0 z-[90] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-700">
+        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 dark:border-slate-700">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">ربط ابن</h3>
+            <button onclick="closeAddChildModal()" class="text-slate-400"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">أدخل الكود المكوّن من 6 أرقام الذي حصلت عليه من ابنك.</p>
+        <form onsubmit="submitLinkChild(event)" class="space-y-3">
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">كود الربط</label>
+                <input type="text" id="linkCodeInput" required maxlength="6" pattern="[0-9]{6}" placeholder="123456" class="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-center text-2xl font-black tracking-widest font-mono">
+                <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1">الكود صالح لمدة 24 ساعة</p>
+            </div>
+            <p id="linkCodeError" class="text-xs font-semibold text-red-500 text-center hidden"></p>
+            <div class="flex gap-2 justify-end pt-2">
+                <button type="button" onclick="closeAddChildModal()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold">إلغاء</button>
+                <button type="submit" id="linkSubmitBtn" class="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">ربط</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ============================================================
+     نافذة إدارة أولياء الأمور (من جهة الابن)
+     ============================================================ -->
+<div id="myParentsModal" class="fixed inset-0 z-[90] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full p-5 border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 dark:border-slate-700">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white"><i class="fa-solid fa-user-shield text-emerald-500 mr-2"></i>أولياء الأمور</h3>
+            <button onclick="closeMyParentsModal()" class="text-slate-400"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        
+        <!-- زر توليد كود -->
+        <div class="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-xl p-3 mb-4">
+            <p class="text-xs text-emerald-700 dark:text-emerald-300 font-bold mb-2">لإضافة ولي أمر جديد:</p>
+            <button onclick="generateLinkCode()" id="genCodeBtn" class="w-full py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">
+                <i class="fa-solid fa-key mr-1"></i> توليد كود 6 أرقام
+            </button>
+            <div id="linkCodeDisplay" class="hidden mt-3 text-center">
+                <p class="text-[10px] text-emerald-600 dark:text-emerald-400 mb-1">الكود الخاص بك:</p>
+                <div class="text-3xl font-black text-emerald-700 dark:text-emerald-300 tracking-widest font-mono" id="linkCodeValue">------</div>
+                <p class="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1">صالح لمدة 24 ساعة. أعطه لوالدك.</p>
+            </div>
+        </div>
+        
+        <!-- طلبات معلقة -->
+        <div id="pendingRequestsSection" class="hidden mb-4">
+            <h4 class="text-xs font-bold text-amber-700 dark:text-amber-300 mb-2">طلبات في انتظار موافقتك:</h4>
+            <div id="pendingRequestsList" class="space-y-2"></div>
+        </div>
+        
+        <!-- أولياء الأمر المؤكدون -->
+        <div>
+            <h4 class="text-xs font-bold text-slate-600 dark:text-slate-300 mb-2">أولياء الأمور المرتبطون:</h4>
+            <div id="myParentsList" class="space-y-2"></div>
+        </div>
+        
+        <div class="flex justify-end pt-4 mt-4 border-t border-slate-200 dark:border-slate-700">
+            <button onclick="closeMyParentsModal()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold">إغلاق</button>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
 </body>
 </html>
 </body>
