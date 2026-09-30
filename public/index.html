@@ -981,6 +981,13 @@ input[type="time"]::-webkit-calendar-picker-indicator {
                 <button type="button" onclick="document.getElementById('avatarFileInput').click()" class="text-xs font-semibold text-brand-600 dark:text-brand-400 mt-2 hover:underline">تغيير الصورة</button>
             </div>
             <div><label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">الاسم</label><input type="text" id="settingUsername" required class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></div>
+
+<div class="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl p-3 mt-2">
+    <button type="button" onclick="openChangePasswordModal()" class="flex items-center gap-2 text-xs font-bold text-amber-700 dark:text-amber-300">
+        <i class="fa-solid fa-key"></i> تغيير كلمة السر
+    </button>
+    <p class="text-[10px] text-amber-600 dark:text-amber-400 mt-1 mr-6">يتطلب كلمة السر القديمة</p>
+</div>
             <div><label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">المستوى</label><input type="text" id="settingGrade" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></div>
             <div><label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">الثلاثي</label><input type="text" id="settingTerm" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></div>
             <div><label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">نوع الامتحان</label>
@@ -2647,16 +2654,100 @@ function handleAvatarUpload(e) {
 }
 function saveProfileSettings(e) {
     e.preventDefault();
-    CURRENT_USER.name = document.getElementById('settingUsername').value.trim();
+    var newName = document.getElementById('settingUsername').value.trim();
+    var oldName = CURRENT_USER.name;
+    
+    /* حدّث محليا */
     CURRENT_USER.grade = document.getElementById('settingGrade').value.trim();
     CURRENT_USER.term = document.getElementById('settingTerm').value.trim();
     CURRENT_USER.examType = document.getElementById('settingExamType').value;
     CURRENT_USER.schoolYear = document.getElementById('settingSchoolYear').value.trim();
     CURRENT_USER.avatar = document.getElementById('settingsAvatarPreview').src;
     appState.weekAStart = document.getElementById('settingWeekAStart').value;
-    closeSettingsModal();
-    renderApp();
-    saveState();
+    
+    /* إذا تغير الاسم، أرسله للسيرفر */
+    var namePromise = Promise.resolve();
+    if (newName && newName !== oldName) {
+        namePromise = fetch('/api/me/name', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ name: newName })
+        }).then(function(r) { return r.json().then(function(j){ return {ok: r.ok, data: j}; }); })
+        .then(function(res) {
+            if (!res.ok) throw new Error(res.data.message || 'فشل تغيير الاسم');
+            CURRENT_USER.name = newName;
+        });
+    }
+    
+    namePromise.then(function() {
+        /* حدّث البيانات */
+        saveState();
+        closeSettingsModal();
+        renderApp();
+    }).catch(function(err) {
+        alert(err.message);
+    });
+}
+
+/* نافذة تغيير كلمة السر */
+function openChangePasswordModal() {
+    document.getElementById('cpOldPassword').value = '';
+    document.getElementById('cpNewPassword').value = '';
+    document.getElementById('cpNewPassword2').value = '';
+    document.getElementById('cpError').classList.add('hidden');
+    document.getElementById('changePasswordModal').classList.remove('hidden');
+}
+function closeChangePasswordModal() {
+    document.getElementById('changePasswordModal').classList.add('hidden');
+}
+function submitChangePassword(e) {
+    e.preventDefault();
+    var oldPwd = document.getElementById('cpOldPassword').value;
+    var newPwd = document.getElementById('cpNewPassword').value;
+    var newPwd2 = document.getElementById('cpNewPassword2').value;
+    var err = document.getElementById('cpError');
+    var btn = document.getElementById('cpSubmitBtn');
+    
+    err.classList.add('hidden');
+    if (newPwd !== newPwd2) {
+        err.textContent = 'كلمتا السر الجديدتان مختلفتان';
+        err.classList.remove('hidden');
+        return;
+    }
+    if (newPwd.length < 4) {
+        err.textContent = 'كلمة السر قصيرة (4 أحرف على الأقل)';
+        err.classList.remove('hidden');
+        return;
+    }
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner loading"></i>';
+    
+    fetch('/api/me/password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ oldPassword: oldPwd, newPassword: newPwd })
+    })
+    .then(function(r) { return r.json().then(function(j){ return {ok: r.ok, data: j}; }); })
+    .then(function(res) {
+        btn.disabled = false;
+        btn.innerHTML = 'تغيير';
+        if (!res.ok) {
+            err.textContent = res.data.message || 'خطأ';
+            err.classList.remove('hidden');
+            return;
+        }
+        closeChangePasswordModal();
+        alert('تم تغيير كلمة السر بنجاح');
+    })
+    .catch(function() {
+        btn.disabled = false;
+        btn.innerHTML = 'تغيير';
+        err.textContent = 'خطأ في الاتصال';
+        err.classList.remove('hidden');
+    });
 }
 function deleteCurrentUser() {
     if (!CURRENT_USER) return;
@@ -3607,6 +3698,37 @@ enterUserApp = function() {
         <div class="flex gap-2 justify-end pt-4 mt-4 border-t border-slate-200 dark:border-slate-700">
             <button onclick="closeTutoringDetailModal()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold">إغلاق</button>
         </div>
+    </div>
+</div>
+<!-- ============================================================
+     نافذة تغيير كلمة سر المستخدم
+     ============================================================ -->
+<div id="changePasswordModal" class="fixed inset-0 z-[90] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-5 border border-slate-200 dark:border-slate-700">
+        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 dark:border-slate-700">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">تغيير كلمة السر</h3>
+            <button onclick="closeChangePasswordModal()" class="text-slate-400"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <form onsubmit="submitChangePassword(event)" class="space-y-3">
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">كلمة السر الحالية</label>
+                <input type="password" id="cpOldPassword" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1">اتركها فارغة إن لم تكن هناك كلمة سر</p>
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">كلمة السر الجديدة</label>
+                <input type="password" id="cpNewPassword" required minlength="4" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">تأكيد الجديدة</label>
+                <input type="password" id="cpNewPassword2" required minlength="4" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+            </div>
+            <p id="cpError" class="text-xs font-semibold text-red-500 text-center hidden"></p>
+            <div class="flex gap-2 justify-end pt-2">
+                <button type="button" onclick="closeChangePasswordModal()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold">إلغاء</button>
+                <button type="submit" id="cpSubmitBtn" class="px-5 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold">تغيير</button>
+            </div>
+        </form>
     </div>
 </div>
 
