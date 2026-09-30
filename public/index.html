@@ -26,6 +26,414 @@ tailwind.config = {
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   التصميم العام
+   ============================================================ */
+html, body {
+    min-height: 100%;
+    overflow-x: hidden;
+}
+html.dark, html.dark body {
+    background: #0f172a !important;
+    color: #e2e8f0;
+}
+html.dark { color-scheme: dark; }
+html.dark input, html.dark select, html.dark textarea { color-scheme: dark; }
+
+/* إصلاح أيقونات التاريخ في الوضع الليلي */
+.dark input[type="date"]::-webkit-calendar-picker-indicator,
+.dark input[type="time"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(1.2);
+    cursor: pointer;
+}
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+}
+
+/* شريط التمرير المخصص */
+.custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; }
+
+/* ============================================================
+   جدول الأوقات
+   ============================================================ */
+.tt-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 3px;
+    min-width: 900px;
+    font-size: 11px;
+}
+.tt-table th.tt-day-head {
+    width: 70px;
+    font-weight: 800;
+    font-size: 10px;
+    color: #c2410c;
+    text-align: center;
+    padding: 6px 3px;
+    text-transform: uppercase;
+}
+.dark .tt-table th.tt-day-head { color: #fdba74; }
+.tt-table th.tt-hour-head {
+    font-weight: 800;
+    font-size: 10px;
+    color: #64748b;
+    text-align: center;
+    padding: 6px 3px;
+}
+.dark .tt-table th.tt-hour-head { color: #94a3b8; }
+.tt-table td.tt-day-cell {
+    font-weight: 800;
+    font-size: 10px;
+    color: #64748b;
+    text-align: center;
+    vertical-align: middle;
+    background: rgba(148,163,184,.08);
+    border-radius: 8px;
+    padding: 4px;
+}
+.dark .tt-table td.tt-day-cell {
+    color: #94a3b8;
+    background: rgba(30,41,59,.5);
+}
+.tt-table td.tt-slot { padding: 0; }
+.tt-block {
+    min-height: 50px;
+    padding: 5px 6px;
+    border-radius: 10px;
+    font-size: 11px;
+    line-height: 1.2;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform .15s, box-shadow .15s;
+    overflow: hidden;
+}
+.tt-block:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,.1);
+}
+.tt-empty {
+    background: rgba(148,163,184,.08);
+    border: 1px dashed rgba(148,163,184,.35);
+    min-height: 50px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    font-size: 10px;
+}
+.dark .tt-empty {
+    background: rgba(30,41,59,.6);
+    border-color: rgba(71,85,105,.7);
+    color: #64748b;
+}
+.tt-subject {
+    background: rgba(249,115,22,.12);
+    border: 1px solid rgba(249,115,22,.3);
+    color: #9a3412;
+    font-weight: 700;
+}
+.dark .tt-subject {
+    background: rgba(249,115,22,.22);
+    border-color: rgba(249,115,22,.5);
+    color: #fed7aa;
+}
+.tt-subject.week-a {
+    background: rgba(59,130,246,.12);
+    border-color: rgba(59,130,246,.35);
+    color: #1e40af;
+}
+.dark .tt-subject.week-a {
+    background: rgba(59,130,246,.22);
+    border-color: rgba(59,130,246,.55);
+    color: #bfdbfe;
+}
+.tt-subject.week-b {
+    background: rgba(34,197,94,.12);
+    border-color: rgba(34,197,94,.35);
+    color: #166534;
+}
+.dark .tt-subject.week-b {
+    background: rgba(34,197,94,.22);
+    border-color: rgba(34,197,94,.55);
+    color: #bbf7d0;
+}
+
+/* ============================================================
+   أولويات الواجبات
+   ============================================================ */
+.prio-urgent {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+.dark .prio-urgent {
+    background: rgba(153,27,27,.4);
+    color: #fecaca;
+    border-color: rgba(239,68,68,.6);
+}
+.prio-medium {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+.dark .prio-medium {
+    background: rgba(120,53,15,.4);
+    color: #fde68a;
+    border-color: rgba(245,158,11,.6);
+}
+.prio-normal {
+    background: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+.dark .prio-normal {
+    background: rgba(22,101,52,.4);
+    color: #bbf7d0;
+    border-color: rgba(34,197,94,.6);
+}
+.hw-done {
+    text-decoration: line-through;
+    opacity: .55;
+}
+
+/* ============================================================
+   التبويبات
+   ============================================================ */
+.tab-btn {
+    position: relative;
+    transition: all .2s;
+}
+.tab-btn.active { color: #ea580c; }
+.dark .tab-btn.active { color: #fb923c; }
+.tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -9px;
+    left: 10%;
+    right: 10%;
+    height: 3px;
+    background: currentColor;
+    border-radius: 3px;
+}
+
+/* ============================================================
+   تبديل الأسبوع A / B
+   ============================================================ */
+.week-toggle {
+    display: inline-flex;
+    background: rgba(148,163,184,.15);
+    border-radius: 10px;
+    padding: 3px;
+    gap: 2px;
+}
+.dark .week-toggle { background: rgba(51,65,85,.6); }
+.week-toggle button {
+    padding: 5px 10px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    transition: all .15s;
+    color: #475569;
+}
+.dark .week-toggle button { color: #cbd5e1; }
+.week-toggle button.active {
+    background: #ea580c;
+    color: #fff;
+}
+
+/* ============================================================
+   بطاقة المستخدم في لوحة المستخدمين
+   ============================================================ */
+.user-card {
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform .15s, box-shadow .15s;
+}
+.user-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px rgba(0,0,0,.08);
+}
+.user-card .delete-user-btn {
+    opacity: 0;
+    transition: opacity .2s, transform .15s;
+}
+.user-card:hover .delete-user-btn {
+    opacity: 1;
+}
+.user-card .delete-user-btn:hover {
+    transform: scale(1.1);
+}
+
+/* ============================================================
+   تأثير دوران أثناء التحميل
+   ============================================================ */
+.loading {
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   تحسينات للهواتف — منع المظهر الممطوط والفراغ
+   ============================================================ */
+@media (max-width: 640px) {
+    html {
+        font-size: 14px;
+    }
+    body {
+        overflow-x: hidden;
+    }
+    
+    /* الشاشة الأولى: تصغير الحشو */
+    #accountScreen > div {
+        padding: 12px !important;
+    }
+    #accountScreen .p-6,
+    #accountScreen .sm\:p-8 {
+        padding: 16px !important;
+    }
+    #accountScreen h1 {
+        font-size: 22px !important;
+    }
+    #accountScreen .w-20 {
+        width: 60px !important;
+        height: 60px !important;
+    }
+    #accountScreen .text-4xl {
+        font-size: 26px !important;
+    }
+    #accountScreen input {
+        padding: 10px 12px 10px 40px !important;
+        font-size: 14px !important;
+    }
+    #accountScreen .py-4 {
+        padding-top: 12px !important;
+        padding-bottom: 12px !important;
+    }
+    #accountScreen .tab-btn,
+    #accountScreen button[id^="tabAcc"] {
+        padding-top: 10px !important;
+        padding-bottom: 10px !important;
+        font-size: 12px !important;
+    }
+    
+    /* الهيدر */
+    header > div {
+        padding-left: 10px !important;
+        padding-right: 10px !important;
+        padding-top: 8px !important;
+        padding-bottom: 8px !important;
+    }
+    header h1 { font-size: 13px !important; }
+    header p { font-size: 9px !important; }
+    
+    /* التطبيق الرئيسي */
+    main {
+        padding: 10px !important;
+    }
+    
+    /* المساعد الذكي */
+    #smartAssistant {
+        padding: 12px !important;
+        margin-bottom: 10px !important;
+    }
+    #smartAssistant .w-10 {
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 14px !important;
+    }
+    #smartAssistant h3 {
+        font-size: 14px !important;
+    }
+    #smartAssistant p {
+        font-size: 10px !important;
+        line-height: 1.4 !important;
+    }
+    #smartAssistant .text-2xl {
+        font-size: 18px !important;
+    }
+    
+    /* بانر المستخدم */
+    #viewUserAvatar {
+        width: 48px !important;
+        height: 48px !important;
+    }
+    #viewUserName {
+        font-size: 16px !important;
+    }
+    #countdownDisplay,
+    #overallPercentage {
+        font-size: 14px !important;
+    }
+    
+    /* التبويبات: تمرير أفقي */
+    .tab-btn {
+        padding: 8px 10px !important;
+        font-size: 11px !important;
+        white-space: nowrap !important;
+    }
+    .tab-btn i {
+        font-size: 11px !important;
+    }
+    
+    /* البطاقات */
+    #subjectsContainer,
+    #usersList {
+        gap: 10px !important;
+    }
+    #subjectsContainer > div,
+    #usersList > div {
+        border-radius: 14px !important;
+    }
+    
+    /* الحقول */
+    input, select, textarea {
+        font-size: 14px !important;
+    }
+    
+    /* الجدول الأسبوعي: تمرير أفقي */
+    .tt-table {
+        min-width: 750px !important;
+        font-size: 10px !important;
+    }
+    .tt-block {
+        min-height: 44px !important;
+        padding: 4px !important;
+    }
+    .tt-empty {
+        min-height: 44px !important;
+    }
+    
+    /* الـ modals */
+    .fixed.inset-0 > div {
+        max-height: 92vh !important;
+        overflow-y: auto !important;
+    }
+}
+
+/* شاشات صغيرة جدًا */
+@media (max-width: 380px) {
+    html { font-size: 13px; }
+    #accountScreen h1 { font-size: 18px !important; }
+    header h1 { font-size: 12px !important; }
+    .tab-btn { font-size: 10px !important; padding: 6px 8px !important; }
+    .tab-btn i { display: none; }
+}
+</style>
 </head>
 
 <body class="h-full font-sans antialiased text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-900">
