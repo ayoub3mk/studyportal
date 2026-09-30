@@ -629,6 +629,136 @@ async function setSubjectCoefficient(userId, subjectId, coefficient) {
         DO UPDATE SET coefficient = $3
     `, [userId, subjectId, coefficient]);
 }
+/* ============================================================
+   نظام لوحة ولي الأمر
+   ============================================================ */
+
+/* إنشاء حساب ولي أمر */
+async function createParent(email, hashedPassword, name, phone) {
+    var result = await pool.query(
+        'INSERT INTO parent_accounts (email, password, name, phone) VALUES ($1, $2, $3, $4) RETURNING id',
+        [email, hashedPassword, name, phone || '']
+    );
+    return result.rows[0].id;
+}
+
+/* البحث عن ولي أمر بالبريد */
+async function findParentByEmail(email) {
+    var result = await pool.query('SELECT * FROM parent_accounts WHERE email = $1', [email]);
+    return result.rows[0] || null;
+}
+
+/* البحث عن ولي أمر بالمعرف */
+async function findParentById(id) {
+    var result = await pool.query('SELECT * FROM parent_accounts WHERE id = $1', [id]);
+    return result.rows[0] || null;
+}
+
+/* توليد كود 6 أرقام للابن */
+async function createLinkCode(userId) {
+    /* احذف الأكواد القديمة للمستخدم */
+    await pool.query('DELETE FROM parent_link_codes WHERE user_id = $1', [userId]);
+    
+    /* ولّد كوداً فريداً */
+    var code = '';
+    var attempts = 0;
+    while (attempts < 10) {
+        code = '';
+        for (var i = 0; i < 6; i++) {
+            code += Math.floor(Math.random() * 10);
+        }
+        var exists = await pool.query('SELECT id FROM parent_link_codes WHERE code = $1', [code]);
+        if (exists.rows.length === 0) break;
+        attempts++;
+    }
+    
+    /* ينتهي بعد 24 ساعة */
+    var expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24);
+    
+    await pool.query(
+        'INSERT INTO parent_link_codes (user_id, code, expires_at) VALUES ($1, $2, $3)',
+        [userId, code, expiresAt.toISOString()]
+    );
+    
+    return code;
+}
+
+/* البحث عن كود */
+async function findLinkCode(code) {
+    var result = await pool.query(
+        'SELECT * FROM parent_link_codes WHERE code = $1 AND used = 0 AND expires_at > NOW()',
+        [code]
+    );
+    return result.rows[0] || null;
+}
+
+/* استعمال الكود */
+async function useLinkCode(codeId) {
+    await pool.query('UPDATE parent_link_codes SET used = 1 WHERE id = $1', [codeId]);
+}
+
+/* إنشاء علاقة parent-child */
+async function createParentChild(parentId, userId) {
+    var result = await pool.query(
+        'INSERT INTO parent_children (parent_id, user_id, confirmed) VALUES ($1, $2, 0) ON CONFLICT (parent_id, user_id) DO NOTHING RETURNING id',
+        [parentId, userId]
+    );
+    return result.rows[0] ? result.rows[0].id : null;
+}
+
+/* تأكيد العلاقة */
+async function confirmParentChild(parentId, userId) {
+    await pool.query(
+        'UPDATE parent_children SET confirmed = 1 WHERE parent_id = $1 AND user_id = $2',
+        [parentId, userId]
+    );
+}
+
+/* رفض/حذف العلاقة */
+async function removeParentChild(parentId, userId) {
+    await pool.query(
+        'DELETE FROM parent_children WHERE parent_id = $1 AND user_id = $2',
+        [parentId, userId]
+    );
+}
+
+/* جلب أبناء ولي الأمر */
+async function getParentChildren(parentId) {
+    var result = await pool.query(`
+        SELECT pc.id as relation_id, pc.confirmed, pc.created_at as linked_at,
+               u.id, u.name, u.avatar, u.grade, u.term, u.exam_type, u.school_year
+        FROM parent_children pc
+        JOIN users u ON u.id = pc.user_id
+        WHERE pc.parent_id = $1
+        ORDER BY pc.confirmed ASC, pc.created_at DESC
+    `, [parentId]);
+    return result.rows;
+}
+
+/* جلب أولياء أمر الابن (المؤكدين) */
+async function getUserParents(userId) {
+    var result = await pool.query(`
+        SELECT pa.id, pa.name, pa.email, pc.confirmed
+        FROM parent_children pc
+        JOIN parent_accounts pa ON pa.id = pc.parent_id
+        WHERE pc.user_id = $1
+        ORDER BY pc.created_at DESC
+    `, [userId]);
+    return result.rows;
+}
+
+/* جلب طلبات ولي الأمر المعلقة للابن */
+async function getPendingParentRequests(userId) {
+    var result = await pool.query(`
+        SELECT pa.id as parent_id, pa.name, pa.email, pc.created_at
+        FROM parent_children pc
+        JOIN parent_accounts pa ON pa.id = pc.parent_id
+        WHERE pc.user_id = $1 AND pc.confirmed = 0
+        ORDER BY pc.created_at DESC
+    `, [userId]);
+    return result.rows;
+}
 
 module.exports = {
     pool: pool,
@@ -679,5 +809,18 @@ module.exports = {
     updateExamResult: updateExamResult,
     deleteExamResult: deleteExamResult,
     getSubjectCoefficients: getSubjectCoefficients,
-    setSubjectCoefficient: setSubjectCoefficient
+    setSubjectCoefficient: setSubjectCoefficient,
+    /* لوحة ولي الأمر */
+    createParent: createParent,
+    findParentByEmail: findParentByEmail,
+    findParentById: findParentById,
+    createLinkCode: createLinkCode,
+    findLinkCode: findLinkCode,
+    useLinkCode: useLinkCode,
+    createParentChild: createParentChild,
+    confirmParentChild: confirmParentChild,
+    removeParentChild: removeParentChild,
+    getParentChildren: getParentChildren,
+    getUserParents: getUserParents,
+    getPendingParentRequests: getPendingParentRequests
 };
