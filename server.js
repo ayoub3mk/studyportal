@@ -9,7 +9,11 @@ var jwt = require('jsonwebtoken');
 var cookieParser = require('cookie-parser');
 var path = require('path');
 var db = require('./db');
-
+function parseJsonField(value, fallback) {
+    if (value == null) return fallback;
+    if (typeof value === 'object') return value;   // JSONB يرجع كائنًا جاهزًا
+    try { return JSON.parse(value); } catch (e) { return fallback; }
+}
 var app = express();
 var PORT = process.env.PORT || 3000;
 
@@ -300,9 +304,8 @@ var prepChecked = { date: null, checked: {} };
 try { subjects = JSON.parse(data.subjects || '[]'); } catch (e) { subjects = []; }
 try { timetable = JSON.parse(data.timetable || '{}'); } catch (e) { timetable = {}; }
 try { homework = JSON.parse(data.homework || '[]'); } catch (e) { homework = []; }
-try { preparation = JSON.parse(data.preparation || '{}'); } catch (e) { preparation = {}; }
-try { prepChecked = JSON.parse(data.prep_checked || '{"date":null,"checked":{}}'); } catch (e) { prepChecked = { date: null, checked: {} }; }
-
+preparation = parseJsonField(data.preparation, {});
+prepChecked = parseJsonField(data.prep_checked, { date: null, checked: {} });
 res.json({
     user: {
         id: user.id,
@@ -362,12 +365,8 @@ if (timetable == null) {
 if (homework == null) {
     try { homework = JSON.parse(currentData.homework || '[]'); } catch (e) { homework = []; }
 }
-if (preparation == null) {
-    try { preparation = JSON.parse(currentData.preparation || '{}'); } catch (e) { preparation = {}; }
-}
-if (prepChecked == null) {
-    try { prepChecked = JSON.parse(currentData.prep_checked || '{"date":null,"checked":{}}'); } catch (e) { prepChecked = { date: null, checked: {} }; }
-}
+if (preparation == null) preparation = parseJsonField(currentData.preparation, {});
+if (prepChecked == null) prepChecked = parseJsonField(currentData.prep_checked, { date: null, checked: {} });
 if (lang == null) lang = currentData.lang || 'ar';
 if (darkMode == null) darkMode = !!currentData.dark_mode;
 
