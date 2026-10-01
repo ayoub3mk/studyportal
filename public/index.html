@@ -6800,7 +6800,16 @@ function togglePrepTool(subjectId, toolId) {
     saveState();
 }
     /* -------- حفظ الأدوات مع تحقق من السيرفر -------- */
-
+/* مقارنة مستقلة عن ترتيب المفاتيح */
+function stableStringify(v) {
+    if (Array.isArray(v)) return '[' + v.map(stableStringify).join(',') + ']';
+    if (v && typeof v === 'object') {
+        return '{' + Object.keys(v).sort().map(function(k) {
+            return JSON.stringify(k) + ':' + stableStringify(v[k]);
+        }).join(',') + '}';
+    }
+    return JSON.stringify(v);
+}
 function savePrepVerified() {
     if (!CURRENT_USER) { showToast('❌ سجّل الدخول أولاً'); return; }
 
@@ -6821,7 +6830,7 @@ function savePrepVerified() {
         }
     }
 
-    var sent = JSON.stringify(appState.preparation || {});
+    var sent = stableStringify(appState.preparation || {});
 
     /* 1) أرسل إلى السيرفر */
     fetch('/api/me', {
@@ -6858,7 +6867,7 @@ function savePrepVerified() {
         return r.json();
     })
     .then(function(d) {
-        var saved = JSON.stringify((d.user && d.user.preparation) || {});
+        var saved = stableStringify((d.user && d.user.preparation) || {});
         /* 3) قارن */
         if (saved === sent) {
             finish(true, '✅ تم الحفظ والتأكد من السيرفر');
