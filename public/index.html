@@ -6506,6 +6506,27 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeMobileMenu();
 });
 /* ============================================================
+   ربط زر القائمة (احتياطي)
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(function() {
+        var btn = document.getElementById('mobileMenuBtn');
+        if (btn) {
+            /* أزل onclick القديم وأضف مستمع جديد */
+            btn.onclick = null;
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🖱️ تم النقر على زر القائمة');
+                toggleMobileMenu();
+            });
+            console.log('✓ تم ربط زر القائمة');
+        } else {
+            console.error('❌ لم يتم العثور على mobileMenuBtn');
+        }
+    }, 1500);
+});
+/* ============================================================
    حفظ واسترجاع الوضع الليلي من السيرفر
    ============================================================ */
 
