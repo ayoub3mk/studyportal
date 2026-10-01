@@ -3293,7 +3293,7 @@ function renderStats() {
    ============================================================ */
 function switchTab(tab) {
     currentTab = tab;
-    ['checklist','timetable','homework','stats','tutoring','progress','results'].forEach(function(x){
+    ['checklist','timetable','homework','stats','tutoring','progress','results','preparation'].forEach(function(x){
         var el = document.getElementById('tab-'+x);
         if (el) el.classList.toggle('hidden', x !== tab);
     });
