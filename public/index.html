@@ -6799,6 +6799,79 @@ function togglePrepTool(subjectId, toolId) {
     /* حفظ على السيرفر */
     saveState();
 }
+    /* -------- حفظ الأدوات مع تحقق من السيرفر -------- */
+
+function savePrepVerified() {
+    if (!CURRENT_USER) { showToast('❌ سجّل الدخول أولاً'); return; }
+
+    var btn = document.getElementById('prepSaveBtn');
+    var orig = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> <span>جارٍ الحفظ...</span>';
+    }
+
+    function finish(ok, msg) {
+        showToast(msg);
+        if (btn) {
+            btn.innerHTML = ok
+                ? '<i class="fa-solid fa-check"></i> <span>تم الحفظ</span>'
+                : '<i class="fa-solid fa-triangle-exclamation"></i> <span>فشل — أعد المحاولة</span>';
+            setTimeout(function() { btn.innerHTML = orig; btn.disabled = false; }, 2000);
+        }
+    }
+
+    var sent = JSON.stringify(appState.preparation || {});
+
+    /* 1) أرسل إلى السيرفر */
+    fetch('/api/me', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            name: CURRENT_USER.name,
+            avatar: CURRENT_USER.avatar,
+            grade: CURRENT_USER.grade,
+            term: CURRENT_USER.term,
+            examType: CURRENT_USER.examType,
+            schoolYear: CURRENT_USER.schoolYear,
+            subjects: appState.subjects,
+            timetable: appState.timetable,
+            homework: appState.homework,
+            preparation: appState.preparation,
+            prepChecked: appState.prepChecked,
+            lang: appState.lang,
+            darkMode: appState.darkMode
+        })
+    })
+    .then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+    })
+    .then(function(d) {
+        if (!d.ok) throw new Error('server_not_ok');
+        /* 2) اقرأ من السيرفر للتأكد */
+        return fetch('/api/me', { credentials: 'include', cache: 'no-store' });
+    })
+    .then(function(r) {
+        if (!r.ok) throw new Error('verify HTTP ' + r.status);
+        return r.json();
+    })
+    .then(function(d) {
+        var saved = JSON.stringify((d.user && d.user.preparation) || {});
+        /* 3) قارن */
+        if (saved === sent) {
+            finish(true, '✅ تم الحفظ والتأكد من السيرفر');
+        } else {
+            console.error('محليًا:', sent, '\nعلى السيرفر:', saved);
+            finish(false, '❌ السيرفر لم يحفظ الأدوات');
+        }
+    })
+    .catch(function(err) {
+        console.error('savePrepVerified error:', err);
+        finish(false, '❌ فشل الحفظ: ' + err.message);
+    });
+}
 /* -------- إدارة الأدوات (Modal) -------- */
 
 function openPrepManager() {
@@ -6824,6 +6897,7 @@ function openPrepManager() {
 }
 
 function closePrepManager() {
+    saveState();
     var modal = document.getElementById('prepManagerModal');
     if (modal) modal.classList.add('hidden');
 }
@@ -7837,9 +7911,13 @@ if ('serviceWorker' in navigator) {
         
         <!-- أزرار -->
         <div class="flex gap-2 justify-end pt-3 border-t border-slate-200 dark:border-slate-700">
-            <button onclick="closePrepManager()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold">
-                إغلاق
-            </button>
+            <button id="prepSaveBtn" onclick="savePrepVerified()" class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5">
+    <i class="fa-solid fa-floppy-disk"></i>
+    <span>حفظ الأدوات</span>
+</button>
+<button onclick="closePrepManager()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold">
+    إغلاق
+</button>
         </div>
         
     </div>
