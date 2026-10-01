@@ -3922,9 +3922,13 @@ function setText(id, txt) {
 }
 
 function showAccountScreen() {
-    document.getElementById('accountScreen').classList.remove('hidden');
-    document.getElementById('usersScreen').classList.add('hidden');
-    document.getElementById('app').classList.add('hidden');
+    var acc = document.getElementById('accountScreen');
+    var usr = document.getElementById('usersScreen');
+    var appEl = document.getElementById('app');
+    
+    if (acc) acc.classList.remove('hidden');
+    if (usr) usr.classList.add('hidden');
+    if (appEl) appEl.classList.add('hidden');
 }
     
 /* ============================================================
