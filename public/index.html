@@ -2214,7 +2214,12 @@ var appState = {
     user: null,
     subjects: [],
     timetable: {},
-    homework: []
+    homework: [],
+    preparation: {},        /* أدوات كل مادة (ثابتة) */
+    prepChecked: {          /* حالة الـ checkbox اليومية */
+        date: null,
+        checked: {}
+    }
 };
 
 var AUTH_TOKEN = null;
@@ -2609,6 +2614,8 @@ function loadUserData() {
         appState.subjects = u.subjects && u.subjects.length > 0 ? u.subjects : getDefaultSubjects();
         appState.timetable = u.timetable && Object.keys(u.timetable).length > 0 ? u.timetable : getDefaultTimetable();
         appState.homework = u.homework || [];
+        appState.preparation = u.preparation || {};
+        appState.prepChecked = u.prepChecked || { date: null, checked: {} };
         CURRENT_USER = u;
         applyTheme();
         applyLanguage();
@@ -3754,6 +3761,8 @@ function saveState() {
         subjects: appState.subjects,
         timetable: appState.timetable,
         homework: appState.homework,
+        preparation: appState.preparation,
+        prepChecked: appState.prepChecked,
         lang: appState.lang,
         darkMode: appState.darkMode
     };
@@ -6515,6 +6524,298 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }, 500);
 });
+    /* ============================================================
+   الجزء 36-أ: نظام التحضير (Preparation)
+   ============================================================ */
+
+/* -------- دوال مساعدة -------- */
+
+/* تاريخ اليوم بصيغة YYYY-MM-DD */
+function todayStr() {
+    var d = new Date();
+    return d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0');
+}
+
+/* تاريخ غدًا بصيغة YYYY-MM-DD */
+function tomorrowStr() {
+    var d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.getFullYear() + '-' +
+        String(d.getMonth() + 1).padStart(2, '0') + '-' +
+        String(d.getDate()).padStart(2, '0');
+}
+
+/* مفتاح اليوم من التاريخ (monday, tuesday...) */
+function dayKeyFromDate(d) {
+    var days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    return days[d.getDay()];
+}
+
+/* -------- التصفير اليومي -------- */
+
+function resetPrepIfNewDay() {
+    var today = todayStr();
+    if (!appState.prepChecked) {
+        appState.prepChecked = { date: null, checked: {} };
+    }
+    if (appState.prepChecked.date !== today) {
+        appState.prepChecked.date = today;
+        appState.prepChecked.checked = {};
+        console.log('🔄 تم تصفير قائمة التحضير لليوم الجديد');
+    }
+}
+
+/* -------- حساب مواد الغد -------- */
+
+function getTomorrowSubjects() {
+    var tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    var dayKey = dayKeyFromDate(tomorrow);
+    var week = currentWeekLetter();
+    
+    /* حصص الغد */
+    var slots = (appState.timetable[dayKey] || []).filter(function(s) {
+        return s.week === 'AB' || s.week === week;
+    });
+    
+    /* استخرج المواد الفريدة */
+    var seen = {};
+    var subjects = [];
+    slots.forEach(function(slot) {
+        if (seen[slot.subjectId]) return;
+        seen[slot.subjectId] = true;
+        var subj = findSubjectById(slot.subjectId);
+        if (subj) {
+            subjects.push({
+                subject: subj,
+                slots: slots.filter(function(x) { return x.subjectId === slot.subjectId; })
+            });
+        }
+    });
+    
+    /* رتّب حسب أول وقت */
+    subjects.sort(function(a, b) {
+        return (a.slots[0].start || '00:00').localeCompare(b.slots[0].start || '00:00');
+    });
+    
+    return subjects;
+}
+
+/* -------- عرض قائمة التحضير -------- */
+
+function renderPreparation() {
+    resetPrepIfNewDay();
+    
+    /* رأس الصفحة: التاريخ */
+    var dateEl = document.getElementById('prepTomorrowDate');
+    if (dateEl) {
+        var tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        dateEl.textContent = tomorrow.toLocaleDateString(localeTag(), {
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+        });
+    }
+    
+    var list = document.getElementById('prepSubjectsList');
+    if (!list) return;
+    list.innerHTML = '';
+    
+    var subjects = getTomorrowSubjects();
+    
+    /* إحصائيات */
+    var totalTools = 0;
+    var readyTools = 0;
+    var totalHw = 0;
+    
+    /* إذا لا حصص غدًا */
+    if (subjects.length === 0) {
+        list.innerHTML = '<div class="text-center py-10 bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700">' +
+            '<i class="fa-solid fa-mug-hot text-4xl text-slate-300 dark:text-slate-600 mb-3"></i>' +
+            '<p class="font-bold text-slate-700 dark:text-slate-300">غدًا يوم راحة 🎉</p>' +
+            '<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">لا حصص — لا تحضير مطلوب</p>' +
+            '</div>';
+        setText('prepSubjectsCount', '0');
+        setText('prepToolsReady', '0');
+        setText('prepToolsTotal', '0');
+        setText('prepHomeworkCount', '0');
+        return;
+    }
+    
+    /* لكل مادة */
+    subjects.forEach(function(item) {
+        var subj = item.subject;
+        var subjectId = subj.id;
+        var subjectName = displayName(subj);
+        
+        /* أدوات المادة */
+        var tools = appState.preparation[subjectId] || [];
+        
+        /* الواجبات المعلقة لهذه المادة */
+        var homeworks = (appState.homework || []).filter(function(h) {
+            return h.subjectId === subjectId && !h.completed;
+        });
+        
+        /* حسابات */
+        var toolsReady = 0;
+        tools.forEach(function(t) {
+            if (appState.prepChecked.checked[t.id]) toolsReady++;
+        });
+        totalTools += tools.length;
+        readyTools += toolsReady;
+        totalHw += homeworks.length;
+        
+        var allReady = tools.length > 0 && toolsReady === tools.length;
+        
+        /* بناء الكارد */
+        var card = document.createElement('div');
+        card.className = 'bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 overflow-hidden';
+        
+        var html = '';
+        
+        /* رأس الكارد */
+        html += '<div class="p-3 sm:p-4 border-b border-slate-200 dark:border-slate-700 ' +
+            (allReady ? 'bg-emerald-50 dark:bg-emerald-950/30' : 'bg-slate-50 dark:bg-slate-700/40') + '">';
+        html += '<div class="flex items-center justify-between gap-2">';
+        html += '<div class="flex items-center gap-2 min-w-0 flex-1">';
+        html += '<div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center flex-shrink-0 shadow">';
+        html += '<i class="fa-solid fa-book text-sm"></i>';
+        html += '</div>';
+        html += '<div class="min-w-0 flex-1">';
+        html += '<h4 class="font-bold text-sm text-slate-900 dark:text-white truncate">' + escapeHtml(subjectName) + '</h4>';
+        html += '<p class="text-[10px] text-slate-500 dark:text-slate-400">';
+        html += item.slots.length + ' حصة · ';
+        html += item.slots.map(function(s) { return s.start; }).join('، ');
+        html += '</p>';
+        html += '</div>';
+        html += '</div>';
+        
+        /* شارة "محضّر" */
+        if (tools.length > 0) {
+            if (allReady) {
+                html += '<span class="text-[10px] font-black px-2 py-1 rounded-full bg-emerald-500 text-white flex items-center gap-1 flex-shrink-0">';
+                html += '<i class="fa-solid fa-check"></i> جاهز';
+                html += '</span>';
+            } else {
+                html += '<span class="text-[10px] font-bold px-2 py-1 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 flex-shrink-0">';
+                html += toolsReady + '/' + tools.length;
+                html += '</span>';
+            }
+        }
+        html += '</div></div>';
+        
+        /* الأدوات */
+        html += '<div class="p-3 space-y-1.5">';
+        
+        if (tools.length === 0) {
+            html += '<p class="text-xs text-slate-400 text-center py-2">';
+            html += '<i class="fa-solid fa-circle-info mr-1"></i>';
+            html += 'لم تُضف أدوات لهذه المادة بعد';
+            html += '</p>';
+        } else {
+            tools.forEach(function(tool) {
+                var checked = !!appState.prepChecked.checked[tool.id];
+                html += '<button onclick="togglePrepTool(\'' + subjectId + '\', \'' + tool.id + '\')" class="w-full flex items-center gap-2.5 py-2 px-3 rounded-xl transition-colors ' +
+                    (checked ? 'bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/40' : 'bg-slate-50 dark:bg-slate-700/40 hover:bg-slate-100 dark:hover:bg-slate-700') + '">';
+                
+                html += '<span class="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 ' +
+                    (checked ? 'bg-emerald-500 text-white' : 'bg-white dark:bg-slate-600 border-2 border-slate-300 dark:border-slate-500 text-transparent') + '">';
+                html += '<i class="fa-solid fa-check text-xs"></i>';
+                html += '</span>';
+                
+                html += '<span class="flex-1 text-right text-xs font-semibold ' +
+                    (checked ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-700 dark:text-slate-200') + '">';
+                html += escapeHtml(tool.label);
+                html += '</span>';
+                
+                if (checked) {
+                    html += '<i class="fa-solid fa-check-circle text-emerald-500 text-sm"></i>';
+                }
+                
+                html += '</button>';
+            });
+        }
+        html += '</div>';
+        
+        /* الواجبات */
+        if (homeworks.length > 0) {
+            html += '<div class="border-t border-slate-200 dark:border-slate-700 p-3 bg-amber-50/50 dark:bg-amber-950/20">';
+            html += '<p class="text-[10px] font-black uppercase text-amber-700 dark:text-amber-300 mb-2">';
+            html += '<i class="fa-solid fa-book-bookmark mr-1"></i> واجبات للمادة:';
+            html += '</p>';
+            html += '<div class="space-y-1.5">';
+            
+            homeworks.forEach(function(hw) {
+                var priorityColor = hw.priority === 'urgent' ? 'red' : hw.priority === 'medium' ? 'amber' : 'slate';
+                var priorityLabel = hw.priority === 'urgent' ? 'عاجل' : hw.priority === 'medium' ? 'متوسط' : '';
+                
+                html += '<div class="flex items-start gap-2 py-1.5 px-2 rounded-lg bg-white dark:bg-slate-800">';
+                html += '<i class="fa-solid fa-circle text-[' + (hw.priority === 'urgent' ? '8px' : '6px') + '] text-' + priorityColor + '-500 mt-1.5 flex-shrink-0"></i>';
+                html += '<div class="flex-1 min-w-0">';
+                html += '<p class="text-xs font-bold text-slate-800 dark:text-slate-100">' + escapeHtml(hw.title) + '</p>';
+                if (hw.due) {
+                    html += '<p class="text-[10px] text-slate-500 dark:text-slate-400">';
+                    html += '<i class="fa-regular fa-clock mr-0.5"></i> ' + formatDue(hw.due);
+                    html += '</p>';
+                }
+                html += '</div>';
+                if (priorityLabel) {
+                    html += '<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-' + priorityColor + '-100 dark:bg-' + priorityColor + '-950/60 text-' + priorityColor + '-700 dark:text-' + priorityColor + '-300 flex-shrink-0">' + priorityLabel + '</span>';
+                }
+                html += '</div>';
+            });
+            
+            html += '</div></div>';
+        }
+        
+        card.innerHTML = html;
+        list.appendChild(card);
+    });
+    
+    /* إحصائيات */
+    setText('prepSubjectsCount', subjects.length);
+    setText('prepToolsReady', readyTools);
+    setText('prepToolsTotal', totalTools);
+    setText('prepHomeworkCount', totalHw);
+}
+
+/* -------- تفعيل/تعطيل أداة -------- */
+
+function togglePrepTool(subjectId, toolId) {
+    resetPrepIfNewDay();
+    
+    if (!appState.prepChecked.checked) appState.prepChecked.checked = {};
+    
+    if (appState.prepChecked.checked[toolId]) {
+        delete appState.prepChecked.checked[toolId];
+    } else {
+        appState.prepChecked.checked[toolId] = true;
+    }
+    
+    /* إعادة عرض */
+    renderPreparation();
+    
+    /* حفظ على السيرفر */
+    saveState();
+}
+
+/* -------- ربط مع switchTab -------- */
+
+var _originalSwitchTabPrep = switchTab;
+switchTab = function(tab) {
+    _originalSwitchTabPrep(tab);
+    if (tab === 'preparation') renderPreparation();
+};
+
+/* -------- ربط مع enterUserApp -------- */
+
+var _originalEnterUserAppPrep = enterUserApp;
+enterUserApp = function() {
+    _originalEnterUserAppPrep();
+    /* تصفير إن كان يومًا جديدًا */
+    setTimeout(resetPrepIfNewDay, 500);
+};
 /* ============================================================
    الجزء 36: القائمة المنسدلة للهاتف (نسخة موحدة ومصلحة)
    ============================================================ */
