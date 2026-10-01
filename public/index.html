@@ -6560,13 +6560,7 @@ function refreshMobileMenu() {
     /* يمكن إضافة محتوى ديناميكي هنا إذا لزم الأمر */
 }
 
-/* عند تغيير اللغة، أعد تحميل القائمة */
-var _originalApplyLanguage = applyLanguage;
-applyLanguage = function() {
-    _originalApplyLanguage();
-    /* ترجم القائمة */
-    var t = TRANSLATIONS[appState.lang] || TRANSLATIONS.ar;
-};
+
 
 /* ============================================================
    تسجيل Service Worker (PWA)
