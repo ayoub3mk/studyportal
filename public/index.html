@@ -6799,7 +6799,150 @@ function togglePrepTool(subjectId, toolId) {
     /* حفظ على السيرفر */
     saveState();
 }
+/* -------- إدارة الأدوات (Modal) -------- */
 
+function openPrepManager() {
+    var modal = document.getElementById('prepManagerModal');
+    if (!modal) return;
+    
+    /* ملء قائمة المواد */
+    var sel = document.getElementById('prepManagerSubjectSelect');
+    sel.innerHTML = '<option value="">— اختر —</option>';
+    appState.subjects.forEach(function(s) {
+        var o = document.createElement('option');
+        o.value = s.id;
+        o.textContent = displayName(s);
+        sel.appendChild(o);
+    });
+    
+    /* تفريغ القائمة + حقل الإدخال */
+    document.getElementById('prepManagerToolsList').innerHTML =
+        '<p class="text-xs text-slate-400 text-center py-6">اختر مادة لعرض أدواتها</p>';
+    document.getElementById('prepNewToolInput').value = '';
+    
+    modal.classList.remove('hidden');
+}
+
+function closePrepManager() {
+    var modal = document.getElementById('prepManagerModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function renderPrepManagerList() {
+    var sel = document.getElementById('prepManagerSubjectSelect');
+    var list = document.getElementById('prepManagerToolsList');
+    if (!sel || !list) return;
+    
+    var subjectId = sel.value;
+    
+    if (!subjectId) {
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">اختر مادة لعرض أدواتها</p>';
+        return;
+    }
+    
+    var tools = appState.preparation[subjectId] || [];
+    
+    if (tools.length === 0) {
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6">' +
+            '<i class="fa-solid fa-inbox mr-1"></i>' +
+            'لا توجد أدوات لهذه المادة بعد' +
+            '</p>';
+        return;
+    }
+    
+    list.innerHTML = '';
+    tools.forEach(function(tool, idx) {
+        var item = document.createElement('div');
+        item.className = 'flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600';
+        
+        item.innerHTML = 
+            '<div class="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center flex-shrink-0">' +
+                '<i class="fa-solid fa-toolbox text-xs"></i>' +
+            '</div>' +
+            '<span class="flex-1 text-sm font-bold text-slate-800 dark:text-slate-100">' + escapeHtml(tool.label) + '</span>' +
+            '<button onclick="deletePrepTool(\'' + subjectId + '\', ' + idx + ')" class="w-8 h-8 rounded-lg text-slate-400 hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-600 flex items-center justify-center transition-colors" title="حذف">' +
+                '<i class="fa-solid fa-trash-can text-xs"></i>' +
+            '</button>';
+        
+        list.appendChild(item);
+    });
+}
+
+function addPrepTool() {
+    var sel = document.getElementById('prepManagerSubjectSelect');
+    var input = document.getElementById('prepNewToolInput');
+    if (!sel || !input) return;
+    
+    var subjectId = sel.value;
+    var label = input.value.trim();
+    
+    if (!subjectId) {
+        alert('اختر مادة أولاً');
+        return;
+    }
+    if (!label) {
+        input.focus();
+        return;
+    }
+    
+    /* تأكد من وجود المصفوفة */
+    if (!appState.preparation[subjectId]) {
+        appState.preparation[subjectId] = [];
+    }
+    
+    /* تحقق من عدم التكرار */
+    var exists = appState.preparation[subjectId].some(function(t) {
+        return t.label.toLowerCase() === label.toLowerCase();
+    });
+    if (exists) {
+        alert('هذه الأداة موجودة بالفعل');
+        return;
+    }
+    
+    /* أضف الأداة */
+    var toolId = 'tool_' + subjectId + '_' + Date.now();
+    appState.preparation[subjectId].push({
+        id: toolId,
+        label: label
+    });
+    
+    /* فرّغ الحقل */
+    input.value = '';
+    input.focus();
+    
+    /* أعد العرض */
+    renderPrepManagerList();
+    
+    /* احفظ */
+    saveState();
+}
+
+function deletePrepTool(subjectId, toolIndex) {
+    var tools = appState.preparation[subjectId];
+    if (!tools || !tools[toolIndex]) return;
+    
+    var tool = tools[toolIndex];
+    if (!confirm('حذف الأداة: ' + tool.label + '؟')) return;
+    
+    /* احذف من الحالة */
+    tools.splice(toolIndex, 1);
+    
+    /* احذف من الحالة المُحضّرة (إن كانت موجودة) */
+    if (appState.prepChecked.checked && appState.prepChecked.checked[tool.id]) {
+        delete appState.prepChecked.checked[tool.id];
+    }
+    
+    /* إذا كانت المصفوفة فارغة، احذف المفتاح */
+    if (tools.length === 0) {
+        delete appState.preparation[subjectId];
+    }
+    
+    /* أعد العرض */
+    renderPrepManagerList();
+    
+    /* احفظ */
+    saveState();
+}
 /* -------- ربط مع switchTab -------- */
 
 var _originalSwitchTabPrep = switchTab;
@@ -6816,6 +6959,42 @@ enterUserApp = function() {
     /* تصفير إن كان يومًا جديدًا */
     setTimeout(resetPrepIfNewDay, 500);
 };
+/* -------- ربط زر Enter لحقل إضافة أداة -------- */
+
+document.addEventListener('DOMContentLoaded', function() {
+    var input = document.getElementById('prepNewToolInput');
+    if (input) {
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addPrepTool();
+            }
+        });
+    }
+});
+
+/* -------- إغلاق المودال بمفتاح Escape -------- */
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        var modal = document.getElementById('prepManagerModal');
+        if (modal && !modal.classList.contains('hidden')) {
+            closePrepManager();
+        }
+    }
+});
+
+/* -------- إغلاق المودال عند النقر خارج المحتوى -------- */
+
+document.addEventListener('click', function(e) {
+    var modal = document.getElementById('prepManagerModal');
+    if (!modal || modal.classList.contains('hidden')) return;
+    
+    /* إذا كان النقر على الخلفية المعتمة (ليس داخل المحتوى) */
+    if (e.target === modal) {
+        closePrepManager();
+    }
+});
 /* ============================================================
    الجزء 36: القائمة المنسدلة للهاتف (نسخة موحدة ومصلحة)
    ============================================================ */
