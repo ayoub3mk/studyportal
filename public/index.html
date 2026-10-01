@@ -37,6 +37,32 @@ tailwind.config = {
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Study Portal">
 <meta name="mobile-web-app-capable" content="yes">
+/* ============================================================ */
+/* إصلاح قائمة الهاتف المنسدلة */
+/* ============================================================ */
+
+#mobileMenuBtn {
+    display: none !important;
+}
+
+@media (max-width: 640px) {
+    #mobileMenuBtn {
+        display: flex !important;
+    }
+}
+
+#mobileMenu.hidden {
+    display: none !important;
+}
+
+#mobileMenu:not(.hidden) {
+    display: block !important;
+}
+
+.dark #mobileMenu {
+    background-color: #1e293b;
+    border-color: #334155;
+}
 <style>
 /* ============================================================
    التصميم العام
@@ -6435,20 +6461,26 @@ document.addEventListener('DOMContentLoaded', function() {
     }, 500);
 });
 /* ============================================================
-   الجزء 36: القائمة المنسدلة للهاتف
+   الجزء 36: القائمة المنسدلة للهاتف (نسخة موحدة ومصلحة)
    ============================================================ */
 
 function toggleMobileMenu() {
     var menu = document.getElementById('mobileMenu');
-    if (!menu) return;
+    if (!menu) {
+        console.error('❌ mobileMenu غير موجود');
+        return;
+    }
     
     if (menu.classList.contains('hidden')) {
+        /* فتح القائمة */
         menu.classList.remove('hidden');
-        /* منع التمرير في الخلفية */
         document.body.style.overflow = 'hidden';
+        console.log('✓ فتح القائمة');
     } else {
+        /* إغلاق القائمة */
         menu.classList.add('hidden');
         document.body.style.overflow = '';
+        console.log('✓ إغلاق القائمة');
     }
 }
 
@@ -6458,6 +6490,22 @@ function closeMobileMenu() {
     document.body.style.overflow = '';
 }
 
+/* إغلاق القائمة عند النقر خارجها */
+document.addEventListener('click', function(e) {
+    var menu = document.getElementById('mobileMenu');
+    var btn = document.getElementById('mobileMenuBtn');
+    
+    if (!menu || menu.classList.contains('hidden')) return;
+    if (menu.contains(e.target)) return;
+    if (btn && btn.contains(e.target)) return;
+    
+    closeMobileMenu();
+});
+
+/* إغلاق القائمة بمفتاح Escape */
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeMobileMenu();
+});
 /* ============================================================
    حفظ واسترجاع الوضع الليلي من السيرفر
    ============================================================ */
@@ -6539,35 +6587,7 @@ if ('serviceWorker' in navigator) {
 /* ============================================================
    تسجيل Service Worker (PWA)
    ============================================================ */
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/service-worker.js')
-            .then(function(registration) {
-                console.log('✓ Service Worker registered:', registration.scope);
-            })
-            .catch(function(err) {
-                console.log('✗ Service Worker registration failed:', err);
-            });
-    });
-}
 
-function toggleMobileMenu() {
-    var menu = document.getElementById('mobileMenu');
-    if (!menu) {
-        console.error('❌ القائمة غير موجودة (mobileMenu)');
-        return;
-    }
-    
-    if (menu.classList.contains('hidden')) {
-        // فتح القائمة
-        menu.classList.remove('hidden');
-        document.body.classList.add('menu-open');
-    } else {
-        // إغلاق القائمة
-        menu.classList.add('hidden');
-        document.body.classList.remove('menu-open');
-    }
-}
 </script>
 <!-- ============================================================
      نافذة إضافة/تعديل درس خصوصي
