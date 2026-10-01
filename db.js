@@ -124,14 +124,18 @@ async function saveUserData(userId, data) {
             subjects = $1,
             timetable = $2,
             homework = $3,
-            lang = $4,
-            dark_mode = $5,
+            preparation = $4,
+            prep_checked = $5,
+            lang = $6,
+            dark_mode = $7,
             updated_at = NOW()
-        WHERE user_id = $6
+        WHERE user_id = $8
     `, [
         JSON.stringify(data.subjects || []),
         JSON.stringify(data.timetable || {}),
         JSON.stringify(data.homework || []),
+        JSON.stringify(data.preparation || {}),
+        JSON.stringify(data.prepChecked || { date: null, checked: {} }),
         data.lang || 'ar',
         data.darkMode ? 1 : 0,
         userId
