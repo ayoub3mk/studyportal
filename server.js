@@ -292,29 +292,35 @@ app.get('/api/me', userAuthRequired, async function(req, res) {
         var data = (await db.getUserData(req.userId)) || {};
 
         var subjects = [];
-        var timetable = {};
-        var homework = [];
+var timetable = {};
+var homework = [];
+var preparation = {};
+var prepChecked = { date: null, checked: {} };
 
-        try { subjects = JSON.parse(data.subjects || '[]'); } catch (e) { subjects = []; }
-        try { timetable = JSON.parse(data.timetable || '{}'); } catch (e) { timetable = {}; }
-        try { homework = JSON.parse(data.homework || '[]'); } catch (e) { homework = []; }
+try { subjects = JSON.parse(data.subjects || '[]'); } catch (e) { subjects = []; }
+try { timetable = JSON.parse(data.timetable || '{}'); } catch (e) { timetable = {}; }
+try { homework = JSON.parse(data.homework || '[]'); } catch (e) { homework = []; }
+try { preparation = JSON.parse(data.preparation || '{}'); } catch (e) { preparation = {}; }
+try { prepChecked = JSON.parse(data.prep_checked || '{"date":null,"checked":{}}'); } catch (e) { prepChecked = { date: null, checked: {} }; }
 
-        res.json({
-            user: {
-                id: user.id,
-                name: user.name,
-                avatar: user.avatar || '',
-                grade: user.grade || '',
-                term: user.term || '',
-                examType: user.exam_type || '',
-                schoolYear: user.school_year || '',
-                subjects: subjects,
-                timetable: timetable,
-                homework: homework,
-                lang: data.lang || 'ar',
-                darkMode: !!data.dark_mode
-            }
-        });
+res.json({
+    user: {
+        id: user.id,
+        name: user.name,
+        avatar: user.avatar || '',
+        grade: user.grade || '',
+        term: user.term || '',
+        examType: user.exam_type || '',
+        schoolYear: user.school_year || '',
+        subjects: subjects,
+        timetable: timetable,
+        homework: homework,
+        preparation: preparation,
+        prepChecked: prepChecked,
+        lang: data.lang || 'ar',
+        darkMode: !!data.dark_mode
+    }
+});
     } catch (err) {
         console.error('Me error:', err);
         res.status(500).json({ error: 'server_error' });
@@ -340,30 +346,40 @@ app.put('/api/me', userAuthRequired, async function(req, res) {
         var currentData = (await db.getUserData(req.userId)) || {};
 
         var subjects = body.subjects != null ? body.subjects : null;
-        var timetable = body.timetable != null ? body.timetable : null;
-        var homework = body.homework != null ? body.homework : null;
-        var lang = body.lang != null ? body.lang : null;
-        var darkMode = body.darkMode != null ? body.darkMode : null;
+var timetable = body.timetable != null ? body.timetable : null;
+var homework = body.homework != null ? body.homework : null;
+var preparation = body.preparation != null ? body.preparation : null;
+var prepChecked = body.prepChecked != null ? body.prepChecked : null;
+var lang = body.lang != null ? body.lang : null;
+var darkMode = body.darkMode != null ? body.darkMode : null;
 
-        if (subjects == null) {
-            try { subjects = JSON.parse(currentData.subjects || '[]'); } catch (e) { subjects = []; }
-        }
-        if (timetable == null) {
-            try { timetable = JSON.parse(currentData.timetable || '{}'); } catch (e) { timetable = {}; }
-        }
-        if (homework == null) {
-            try { homework = JSON.parse(currentData.homework || '[]'); } catch (e) { homework = []; }
-        }
-        if (lang == null) lang = currentData.lang || 'ar';
-        if (darkMode == null) darkMode = !!currentData.dark_mode;
+if (subjects == null) {
+    try { subjects = JSON.parse(currentData.subjects || '[]'); } catch (e) { subjects = []; }
+}
+if (timetable == null) {
+    try { timetable = JSON.parse(currentData.timetable || '{}'); } catch (e) { timetable = {}; }
+}
+if (homework == null) {
+    try { homework = JSON.parse(currentData.homework || '[]'); } catch (e) { homework = []; }
+}
+if (preparation == null) {
+    try { preparation = JSON.parse(currentData.preparation || '{}'); } catch (e) { preparation = {}; }
+}
+if (prepChecked == null) {
+    try { prepChecked = JSON.parse(currentData.prep_checked || '{"date":null,"checked":{}}'); } catch (e) { prepChecked = { date: null, checked: {} }; }
+}
+if (lang == null) lang = currentData.lang || 'ar';
+if (darkMode == null) darkMode = !!currentData.dark_mode;
 
-        await db.saveUserData(req.userId, {
-            subjects: subjects,
-            timetable: timetable,
-            homework: homework,
-            lang: lang,
-            darkMode: darkMode
-        });
+await db.saveUserData(req.userId, {
+    subjects: subjects,
+    timetable: timetable,
+    homework: homework,
+    preparation: preparation,
+    prepChecked: prepChecked,
+    lang: lang,
+    darkMode: darkMode
+});
 
         res.json({ ok: true, savedAt: new Date().toISOString() });
     } catch (err) {
