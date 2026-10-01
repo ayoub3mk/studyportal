@@ -1298,6 +1298,9 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 <button onclick="switchTab('results')" data-tab="results" class="tab-btn px-3 py-2 text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
     <i class="fa-solid fa-graduation-cap mr-1"></i> <span>النتائج</span>
 </button>
+<button onclick="switchTab('preparation')" data-tab="preparation" class="tab-btn px-3 py-2 text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
+    <i class="fa-solid fa-clipboard-check mr-1"></i> <span>التحضير</span>
+</button>
         </div>
 
         <!-- تبويب قائمة المراجعة -->
@@ -1684,6 +1687,59 @@ input[type="time"]::-webkit-calendar-picker-indicator {
         </div>
         
     </section>
+<!-- ============================================================
+     تبويب التحضير
+     ============================================================ -->
+<section id="tab-preparation" class="hidden">
+    
+    <!-- رأس الصفحة -->
+    <div class="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-4 mb-4 text-white shadow-lg">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center text-2xl flex-shrink-0">
+                    <i class="fa-solid fa-clipboard-check"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg sm:text-xl font-black">📅 التحضير لغدًا</h3>
+                    <p id="prepTomorrowDate" class="text-[11px] sm:text-xs text-indigo-100 mt-0.5">—</p>
+                </div>
+            </div>
+            <button onclick="openPrepManager()" class="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-sm font-bold transition-colors">
+                <i class="fa-solid fa-gear"></i>
+                <span>إدارة الأدوات</span>
+            </button>
+        </div>
+    </div>
+    
+    <!-- ملخص سريع -->
+    <div class="grid grid-cols-3 gap-3 mb-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-3">
+            <div class="flex items-center gap-2 mb-1">
+                <i class="fa-solid fa-book text-indigo-500 text-xs"></i>
+                <p class="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">مواد غدًا</p>
+            </div>
+            <p class="text-2xl font-black text-slate-900 dark:text-white" id="prepSubjectsCount">0</p>
+        </div>
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-3">
+            <div class="flex items-center gap-2 mb-1">
+                <i class="fa-solid fa-toolbox text-amber-500 text-xs"></i>
+                <p class="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">أدوات</p>
+            </div>
+            <p class="text-2xl font-black text-slate-900 dark:text-white"><span id="prepToolsReady">0</span>/<span id="prepToolsTotal">0</span></p>
+        </div>
+        <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-3">
+            <div class="flex items-center gap-2 mb-1">
+                <i class="fa-solid fa-book-bookmark text-red-500 text-xs"></i>
+                <p class="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">واجبات</p>
+            </div>
+            <p class="text-2xl font-black text-slate-900 dark:text-white" id="prepHomeworkCount">0</p>
+        </div>
+    </div>
+    
+    <!-- قائمة المواد -->
+    <div id="prepSubjectsList" class="space-y-3"></div>
+    
+</section>
 </main>
 </div>
 
@@ -7248,6 +7304,65 @@ if ('serviceWorker' in navigator) {
         </div>
     </div>
 </div>
-
+<!-- ============================================================
+     مودال إدارة أدوات التحضير
+     ============================================================ -->
+<div id="prepManagerModal" class="fixed inset-0 z-[90] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full p-5 border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto">
+        
+        <!-- رأس المودال -->
+        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 dark:border-slate-700">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white">
+                <i class="fa-solid fa-toolbox text-indigo-500 mr-2"></i>
+                إدارة أدوات المواد
+            </h3>
+            <button onclick="closePrepManager()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+        
+        <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">
+            اختر مادة، ثم أضف الأدوات التي يجب عليك حملها كل حصة لهذه المادة.
+        </p>
+        
+        <!-- اختيار المادة -->
+        <div class="mb-4">
+            <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">المادة</label>
+            <select id="prepManagerSubjectSelect" onchange="renderPrepManagerList()" class="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm font-bold">
+                <option value="">— اختر —</option>
+            </select>
+        </div>
+        
+        <!-- قائمة الأدوات -->
+        <div id="prepManagerToolsList" class="space-y-2 mb-4 min-h-[80px]">
+            <p class="text-xs text-slate-400 text-center py-6">اختر مادة لعرض أدواتها</p>
+        </div>
+        
+        <!-- إضافة أداة جديدة -->
+        <div class="bg-slate-50 dark:bg-slate-700/40 rounded-xl p-3 mb-4">
+            <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-2">
+                <i class="fa-solid fa-plus text-emerald-500 mr-1"></i> إضافة أداة جديدة
+            </label>
+            <div class="flex gap-2">
+                <input type="text" id="prepNewToolInput" placeholder="مثال: كتاب الرياضيات" class="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                <button onclick="addPrepTool()" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+            </div>
+            <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1.5">
+                <i class="fa-solid fa-lightbulb mr-0.5"></i>
+                اكتب اسم الأداة ثم اضغط Enter أو زر +
+            </p>
+        </div>
+        
+        <!-- أزرار -->
+        <div class="flex gap-2 justify-end pt-3 border-t border-slate-200 dark:border-slate-700">
+            <button onclick="closePrepManager()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold">
+                إغلاق
+            </button>
+        </div>
+        
+    </div>
+</div>
 </body>
 </html>
