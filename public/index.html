@@ -22,6 +22,7 @@ tailwind.config = {
         }
     }
 };
+    
 </script>
 
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -6765,6 +6766,121 @@ if ('serviceWorker' in navigator) {
                 console.log('✗ Service Worker registration failed:', err);
             });
     });
+}
+/* ============================================================ */
+/* القائمة المنسدلة للهاتف - المنطق */
+/* ============================================================ */
+
+function toggleMobileMenu() {
+    var menu = document.getElementById('mobileMenu');
+    if (!menu) {
+        console.error('❌ القائمة غير موجودة (mobileMenu)');
+        return;
+    }
+    
+    if (menu.classList.contains('hidden')) {
+        // فتح القائمة
+        menu.classList.remove('hidden');
+        document.body.classList.add('menu-open');
+    } else {
+        // إغلاق القائمة
+        menu.classList.add('hidden');
+        document.body.classList.remove('menu-open');
+    }
+}
+
+function closeMobileMenu() {
+    var menu = document.getElementById('mobileMenu');
+    if (menu) {
+        menu.classList.add('hidden');
+        document.body.classList.remove('menu-open');
+    }
+}
+
+/* ============================================================ */
+/* إغلاق القائمة عند النقر خارجها */
+/* ============================================================ */
+document.addEventListener('click', function(e) {
+    var menu = document.getElementById('mobileMenu');
+    var btn = document.getElementById('mobileMenuBtn');
+    
+    if (!menu || menu.classList.contains('hidden')) return;
+    if (menu.contains(e.target)) return;
+    if (btn && btn.contains(e.target)) return;
+    
+    closeMobileMenu();
+});
+
+/* إغلاق القائمة بمفتاح Escape */
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeMobileMenu();
+    }
+});
+
+/* ============================================================ */
+/* تحديث أيقونة الوضع الليلي داخل القائمة */
+/* ============================================================ */
+var _originalApplyThemeForMenu = applyTheme;
+applyTheme = function() {
+    _originalApplyThemeForMenu();
+    var mobileIcon = document.getElementById('mobileThemeIcon');
+    if (mobileIcon) {
+        if (appState.darkMode) {
+            mobileIcon.className = 'fa-solid fa-sun text-amber-500 w-5 text-center';
+        } else {
+            mobileIcon.className = 'fa-solid fa-moon text-slate-500 w-5 text-center';
+        }
+    }
+};
+
+/* ============================================================ */
+/* مزامنة اللغة في القائمة */
+/* ============================================================ */
+var _originalApplyLanguageForMenu = applyLanguage;
+applyLanguage = function() {
+    _originalApplyLanguageForMenu();
+    var langSelect = document.querySelector('#mobileMenu select');
+    if (langSelect) {
+        langSelect.value = appState.lang;
+    }
+};
+
+/* ============================================================ */
+/* تحديث زر تثبيت PWA */
+/* ============================================================ */
+var deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    var installBtn = document.getElementById('mobileInstallBtn');
+    if (installBtn) {
+        installBtn.classList.remove('hidden');
+    }
+});
+
+function installPWA() {
+    if (!deferredPrompt) {
+        alert('التطبيق مثبّت بالفعل أو غير مدعوم على هذا المتصفح');
+        return;
+    }
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(function(choiceResult) {
+        if (choiceResult.outcome === 'accepted') {
+            console.log('✓ تم تثبيت التطبيق');
+        }
+        deferredPrompt = null;
+    });
+}
+
+/* ============================================================ */
+/* تأكيد تسجيل الخروج */
+/* ============================================================ */
+function confirmLogout() {
+    if (confirm('هل تريد تسجيل الخروج من الحساب؟')) {
+        logoutAccount();
+    }
 }
 </script>
 <!-- ============================================================
