@@ -920,6 +920,49 @@ input[type="time"]::-webkit-calendar-picker-indicator {
         display: flex !important;
     }
 }
+    /* ============================================================ */
+/* إصلاح زر القائمة المنسدلة للهاتف */
+/* ============================================================ */
+
+/* إخفاء زر القائمة على الحاسوب */
+#mobileMenuBtn {
+    display: none !important;
+}
+
+/* إظهار زر القائمة على الهاتف فقط */
+@media (max-width: 640px) {
+    #mobileMenuBtn {
+        display: flex !important;
+    }
+}
+
+/* منع التمرير في الخلفية عند فتح القائمة */
+body.menu-open {
+    overflow: hidden;
+}
+
+/* حركة ظهور القائمة */
+#mobileMenu {
+    animation: slideDown 0.2s ease-out;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* في الوضع الليلي */
+.dark #mobileMenu {
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
 </style>
 </head>
 
