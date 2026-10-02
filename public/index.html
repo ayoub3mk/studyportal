@@ -3179,6 +3179,10 @@ function openEditSubject(id) {
 }
 function closeSubjectModal() {
     document.getElementById('subjectModal').classList.add('hidden');
+    /* تحقق من اكتمال الجولة */
+    if (typeof checkTutorialCompletionAfterAdd === 'function') {
+        checkTutorialCompletionAfterAdd();
+    }
 }
 function saveSubject(e) {
     e.preventDefault();
@@ -3573,6 +3577,9 @@ function openEditHw(id) {
 function closeHomeworkModal() {
     document.getElementById('homeworkModal').classList.add('hidden');
     editingHomeworkId = null;
+    if (typeof checkTutorialCompletionAfterAdd === 'function') {
+        checkTutorialCompletionAfterAdd();
+    }
 }
 function saveHomework(e) {
     e.preventDefault();
@@ -5139,6 +5146,9 @@ function openEditTutoring(id) {
 function closeTutoringModal() {
     document.getElementById('tutoringModal').classList.add('hidden');
     editingTutoringId = null;
+    if (typeof checkTutorialCompletionAfterAdd === 'function') {
+        checkTutorialCompletionAfterAdd();
+    }
 }
 
 function toggleTutoringSchedule() {
@@ -5670,8 +5680,10 @@ function populateResultSubjects() {
 function closeResultModal() {
     document.getElementById('resultModal').classList.add('hidden');
     editingResultId = null;
+    if (typeof checkTutorialCompletionAfterAdd === 'function') {
+        checkTutorialCompletionAfterAdd();
+    }
 }
-
 /* حفظ النتيجة */
 function submitResult(e) {
     e.preventDefault();
@@ -7523,6 +7535,9 @@ function openSeriesModal(id) {
 
 function closeSeriesModal() {
     document.getElementById('seriesModal').classList.add('hidden');
+    if (typeof checkTutorialCompletionAfterAdd === 'function') {
+        checkTutorialCompletionAfterAdd();
+    }
 }
 
 function saveSeries() {
@@ -7744,6 +7759,9 @@ function openNoteModal(id) {
 
 function closeNoteModal() {
     document.getElementById('noteModal').classList.add('hidden');
+    if (typeof checkTutorialCompletionAfterAdd === 'function') {
+        checkTutorialCompletionAfterAdd();
+    }
 }
 
 function saveNote() {
@@ -9412,12 +9430,17 @@ function renderTutorialActions(step) {
         html += '<button onclick="openResetTutorialDialog()" class="tutorial-btn-skip"><i class="fa-solid fa-rotate"></i> إعادة الجولة</button>';
         html += '<button onclick="finishTutorial()" class="tutorial-btn-primary"><i class="fa-solid fa-rocket"></i> ابدأ رحلتك</button>';
     }
-    else if (actions === 'default-with-na') {
-        /* زر "لا أملك" */
-        var naText = step.naText || 'لا أملك';
-        html += '<button onclick="skipTutorialAsNA()" class="tutorial-btn-na"><i class="fa-solid fa-inbox"></i> ' + naText + '</button>';
-        html += '<button onclick="nextTutorialStep()" class="tutorial-btn-primary"><i class="fa-solid fa-check"></i> فهمت، التالي</button>';
-    }
+            else if (actions === 'default-with-na') {
+            /* زر "لا أملك" */
+            var naText = step.naText || 'لا أملك';
+            /* زر "إضافة" يفتح النافذة الحقيقية */
+            var addFunction = getTutorialAddFunction(step.id);
+            if (addFunction) {
+                html += '<button onclick="openTutorialAdd(\'' + addFunction + '\')" class="tutorial-btn-primary"><i class="fa-solid fa-plus"></i> ' + (step.addText || 'إضافة') + '</button>';
+            }
+            html += '<button onclick="skipTutorialAsNA()" class="tutorial-btn-na"><i class="fa-solid fa-inbox"></i> ' + naText + '</button>';
+            html += '<button onclick="nextTutorialStep()" class="tutorial-btn-skip"><i class="fa-solid fa-forward"></i> تخطي</button>';
+        }
     else if (actions === 'simple') {
         html += '<button onclick="nextTutorialStep()" class="tutorial-btn-primary"><i class="fa-solid fa-check"></i> فهمت، التالي</button>';
     }
@@ -9459,6 +9482,80 @@ function skipTutorialAsNA() {
     }
     saveState();
     nextTutorialStep();
+}
+/* ═══════════════════════════════════════════════════════════
+   ربط أزرار "إضافة" في الجولة
+   ═══════════════════════════════════════════════════════════ */
+
+function getTutorialAddFunction(stepId) {
+    var map = {
+        'checklist': 'openAddSubjectModal',
+        'timetable': null, /* الجدول يُفتح بالنقر على خانة فارغة */
+        'homework': 'openAddHomeworkModal',
+        'tutoring': 'openAddTutoringModal',
+        'results': 'openAddResultModal',
+        'series': 'openSeriesModal',
+        'notes': 'openNoteModal'
+    };
+    return map[stepId] || null;
+}
+
+function openTutorialAdd(fnName) {
+    /* احفظ موقع الجولة */
+    tutorialState.savedIndex = tutorialState.currentIndex;
+    
+    /* أغلق الجولة مؤقتًا */
+    document.getElementById('tutorialModal').classList.add('hidden');
+    tutorialState.running = false;
+    
+    /* شغّل الدالة */
+    try {
+        if (typeof window[fnName] === 'function') {
+            window[fnName]();
+        } else {
+            console.error('دالة غير موجودة:', fnName);
+            showToast('⚠️ تعذر فتح النافذة');
+            /* أعد الجولة */
+            document.getElementById('tutorialModal').classList.remove('hidden');
+            tutorialState.running = true;
+        }
+    } catch (e) {
+        console.error('خطأ في فتح النافذة:', e);
+    }
+}
+
+/* يُستدعى بعد إضافة العنصر بنجاح */
+function checkTutorialCompletionAfterAdd() {
+    /* إذا الجولة لم تكن نشطة، لا تفعل شيئًا */
+    if (tutorialState.savedIndex == null) return;
+    
+    var step = TUTORIAL_STEPS[tutorialState.savedIndex];
+    if (!step) return;
+    
+    /* إذا كان للخطوة شرط اكتمال */
+    if (step.completionCheck && step.completionCheck()) {
+        /* علّم كمكتملة */
+        if (appState.tutorial && appState.tutorial.steps[step.id]) {
+            appState.tutorial.steps[step.id].completed = true;
+        }
+        saveState();
+    }
+    
+    /* أعد فتح الجولة في الخطوة التالية */
+    setTimeout(function() {
+        var saved = tutorialState.savedIndex;
+        tutorialState.savedIndex = null;
+        if (saved != null) {
+            tutorialState.currentIndex = saved;
+            startTutorial(saved);
+            /* انتقل للخطوة التالية تلقائيًا إذا اكتمل */
+            if (step.completionCheck && step.completionCheck()) {
+                setTimeout(function() {
+                    nextTutorialStep();
+                }, 800);
+            }
+        }
+    }, 400);
 }
 
 /* ═══════════════════════════════════════════════════════════
