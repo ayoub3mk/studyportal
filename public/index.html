@@ -3052,7 +3052,7 @@ function renderSubjects() {
             examBadge = '<span class="text-[10px] font-bold px-2 py-0.5 rounded-md ' + cls + '"><i class="fa-solid fa-calendar-check mr-1"></i>' + escapeHtml(txt) + '</span>';
         }
 
-        var itemsHtml = '';
+               var itemsHtml = '';
         if (subj.sections) {
             subj.sections.forEach(function(sec) {
                 var badgeText = sec.key === '1' ? t('sectionControl1') : t('sectionControl2');
@@ -3060,11 +3060,21 @@ function renderSubjects() {
                 sec.items.forEach(function(item, idx) {
                     itemsHtml += renderItemRow(subj.id, sec.key, item, idx, search, filter);
                 });
+                /* زر إضافة ورقة للقسم */
+                itemsHtml += '<button onclick="quickAddItem(\'' + subj.id + '\', \'' + sec.key + '\')" class="w-full mt-1 py-2 px-3 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-brand-500 hover:bg-brand-50 dark:hover:bg-brand-950/30 text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 text-[11px] font-bold transition-colors flex items-center justify-center gap-1.5">';
+                itemsHtml += '<i class="fa-solid fa-plus"></i>';
+                itemsHtml += '<span>إضافة ورقة</span>';
+                itemsHtml += '</button>';
             });
         } else if (subj.items) {
             subj.items.forEach(function(item, idx) {
                 itemsHtml += renderItemRow(subj.id, null, item, idx, search, filter);
             });
+            /* زر إضافة ورقة للمادة */
+            itemsHtml += '<button onclick="quickAddItem(\'' + subj.id + '\', null)" class="w-full mt-1 py-2 px-3 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-brand-500 hover:bg-brand-50 dark:hover:bg-brand-950/30 text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 text-[11px] font-bold transition-colors flex items-center justify-center gap-1.5">';
+            itemsHtml += '<i class="fa-solid fa-plus"></i>';
+            itemsHtml += '<span>إضافة ورقة</span>';
+            itemsHtml += '</button>';
         }
 
         var card = document.createElement('div');
