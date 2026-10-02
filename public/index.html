@@ -3634,12 +3634,16 @@ function renderItemRow(subjId, secKey, item, idx, search, filter) {
         ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
         : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50 hover:bg-amber-100 dark:hover:bg-amber-900/50';
     
-    h += '<button onclick="openExercisesModal(\'' + subjId + '\', \'' + sk + '\', ' + idx + ')" ' +
+       h += '<button onclick="openExercisesModal(\'' + subjId + '\', \'' + sk + '\', ' + idx + ')" ' +
         'title="إدارة التمارين" ' +
         'class="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold border transition-colors ' + exColor + '">';
     h += '<i class="fa-solid fa-pen-ruler"></i>';
     h += '<span>' + exBadge + '</span>';
     h += '</button>';
+    
+    h += '</div>'; /* نهاية السطر 2 (الحقول الجديدة) */
+    h += '</div>'; /* نهاية الحاوية الرئيسية */
+    
     return h;
 }
 /* ============================================================
