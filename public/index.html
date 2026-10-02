@@ -3940,7 +3940,7 @@ function migrateItemFields(item) {
                 changed = true;
             }
         });
-        /* تأكد من أن n مرتبة */
+              /* تأكد من أن n مرتبة */
         item.exercises.items.forEach(function(ex, i) {
             if (ex.n !== i + 1) {
                 ex.n = i + 1;
@@ -3948,25 +3948,9 @@ function migrateItemFields(item) {
             }
         });
     }
-        /* تحقق من كل تمرين */
-        item.exercises.items.forEach(function(ex, i) {
-            if (typeof ex.n === 'undefined') {
-                ex.n = i + 1;
-                changed = true;
-            }
-            if (typeof ex.text === 'undefined') {
-                ex.text = '';
-                changed = true;
-            }
-            if (typeof ex.checked === 'undefined') {
-                ex.checked = false;
-                changed = true;
-            }
-        });
-    }
     
     return changed;
-} 
+}
 /* ============================================================
    الجزء 10: عمليات الأوراق
    ============================================================ */
