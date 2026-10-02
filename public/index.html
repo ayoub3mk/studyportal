@@ -745,6 +745,253 @@ input[type="time"]::-webkit-calendar-picker-indicator {
         padding: 10px 12px !important;
     }
 }
+/* ============================================================
+   نافذة الجولة التعليمية (Tutorial)
+   ============================================================ */
+
+/* حركة الظهور */
+@keyframes tutorialFadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes tutorialSlideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes tutorialPulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.05); }
+}
+
+@keyframes tutorialBounce {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-8px); }
+}
+
+/* النافذة الرئيسية */
+#tutorialModal > div {
+    animation: tutorialFadeIn 0.4s ease-out;
+}
+
+/* محتوى الخطوة */
+#tutorialContent > * {
+    animation: tutorialSlideUp 0.4s ease-out;
+}
+
+/* أيقونة الرأس */
+#tutorialHeaderIcon {
+    animation: tutorialBounce 2s ease-in-out infinite;
+}
+
+/* شارة الخطوة الحالية */
+.tutorial-step-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tutorial-step-badge.current {
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+/* أيقونة كبيرة في المحتوى */
+.tutorial-hero-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    margin: 0 auto 20px;
+    color: #fff;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    animation: tutorialPulse 2s ease-in-out infinite;
+}
+
+/* زر "لا أملك" */
+.tutorial-btn-na {
+    background: transparent;
+    border: 2px dashed #94a3b8;
+    color: #64748b;
+    transition: all 0.2s;
+}
+
+.tutorial-btn-na:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    border-style: solid;
+}
+
+.dark .tutorial-btn-na {
+    border-color: #475569;
+    color: #94a3b8;
+}
+
+.dark .tutorial-btn-na:hover {
+    background: #334155;
+    border-color: #64748b;
+}
+
+/* زر التخطي */
+.tutorial-btn-skip {
+    background: transparent;
+    color: #64748b;
+    transition: all 0.2s;
+}
+
+.tutorial-btn-skip:hover {
+    background: rgba(148, 163, 184, 0.1);
+    color: #334155;
+}
+
+.dark .tutorial-btn-skip {
+    color: #94a3b8;
+}
+
+.dark .tutorial-btn-skip:hover {
+    background: rgba(148, 163, 184, 0.15);
+    color: #cbd5e1;
+}
+
+/* زر رئيسي (Primary) */
+.tutorial-btn-primary {
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    transition: all 0.2s;
+}
+
+.tutorial-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+}
+
+.tutorial-btn-primary:active {
+    transform: translateY(0);
+}
+
+/* قائمة نقطية (قائمة محتوى) */
+.tutorial-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.tutorial-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.tutorial-list li:last-child {
+    border-bottom: none;
+}
+
+.tutorial-list li i {
+    margin-top: 3px;
+    flex-shrink: 0;
+    color: #6366f1;
+}
+
+.dark .tutorial-list li i {
+    color: #a855f7;
+}
+
+/* صندوق نصيحة */
+.tutorial-tip {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(249, 115, 22, 0.1));
+    border-left: 3px solid #f59e0b;
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 1.6;
+    color: #78350f;
+    margin-top: 16px;
+}
+
+.dark .tutorial-tip {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(249, 115, 22, 0.15));
+    color: #fcd34d;
+}
+
+.tutorial-tip i {
+    color: #f59e0b;
+    margin-right: 6px;
+}
+
+/* شريط التقدم في الرأس */
+.tutorial-progress {
+    height: 3px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.tutorial-progress-bar {
+    height: 100%;
+    background: #fff;
+    border-radius: 3px;
+    transition: width 0.4s ease-out;
+}
+
+/* الأزرار في الأسفل */
+#tutorialActions button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-weight: 700;
+    font-size: 13px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+/* تحسينات للهاتف */
+@media (max-width: 640px) {
+    .tutorial-hero-icon {
+        width: 64px;
+        height: 64px;
+        font-size: 28px;
+        border-radius: 20px;
+    }
+    
+    #tutorialContent {
+        padding: 20px !important;
+    }
+    
+    #tutorialActions {
+        padding: 12px !important;
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+    
+    #tutorialActions button {
+        width: 100%;
+    }
+    
+    #tutorialActions > div {
+        flex-direction: column;
+        width: 100%;
+    }
+}
 
     /* ============================================================ */
 /* ============================================================ */
