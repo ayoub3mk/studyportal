@@ -241,7 +241,13 @@ app.post('/api/users/:userId/login', accountAuthRequired, async function(req, re
         if (user.account_id !== req.accountId) {
             return res.status(403).json({ error: 'forbidden', message: 'غير مسموح' });
         }
-
+        /* تحقق من أن المستخدم غير معطّل */
+        if (user.disabled) {
+            return res.status(403).json({ 
+                error: 'user_disabled', 
+                message: 'هذا الحساب معطّل. تواصل مع المدير.' 
+            });
+        }
         /* إذا كان للمستخدم كلمة سر، تحقق منها */
         if (user.password && user.password.length > 0) {
             var ok = bcrypt.compareSync(password, user.password);
@@ -1591,6 +1597,288 @@ app.get('/api/admin/overview', adminRequired, async function(req, res) {
         res.status(500).json({ error: 'server_error' });
     }
 });
+/* ============================================================
+   الجزء الجديد: الإعلان + المحادثات + التعطيل + النشاط
+   ============================================================ */
+
+/* ============================================================
+   1) الإعلان العام — للمستخدمين
+   ============================================================ */
+
+/* جلب الإعلان (لا يحتاج تسجيل دخول) */
+app.get('/api/announcement', async function(req, res) {
+    try {
+        var announcement = await db.getAnnouncement();
+        res.json({ ok: true, announcement: announcement });
+    } catch (err) {
+        console.error('Get announcement error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* ============================================================
+   2) المحادثات — للمستخدم
+   ============================================================ */
+
+/* جلب كل رسائل المستخدم الحالي */
+app.get('/api/messages', userAuthRequired, async function(req, res) {
+    try {
+        var messages = await db.getUserMessages(req.userId);
+        var unreadCount = await db.getUnreadCount(req.userId, 'user');
+        res.json({ 
+            ok: true, 
+            messages: messages,
+            unreadCount: unreadCount
+        });
+    } catch (err) {
+        console.error('Get messages error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* إرسال رسالة جديدة (من المستخدم) */
+app.post('/api/messages', userAuthRequired, async function(req, res) {
+    try {
+        var body = (req.body.body || '').trim();
+        if (!body) {
+            return res.status(400).json({ error: 'empty_message', message: 'الرسالة فارغة' });
+        }
+        if (body.length > 5000) {
+            return res.status(400).json({ error: 'too_long', message: 'الرسالة طويلة جدًا' });
+        }
+        
+        var result = await db.sendMessage(req.userId, 'user', body);
+        res.json({ ok: true, messageId: result.id, createdAt: result.createdAt });
+    } catch (err) {
+        console.error('Send message error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* تحديد الرسائل كمقروءة (المستخدم) */
+app.post('/api/messages/read', userAuthRequired, async function(req, res) {
+    try {
+        await db.markMessagesRead(req.userId, 'user');
+        res.json({ ok: true });
+    } catch (err) {
+        console.error('Mark read error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* ============================================================
+   3) الإدارة — التعطيل والتفعيل
+   ============================================================ */
+
+/* تعطيل مستخدم */
+app.post('/api/admin/users/:userId/disable', adminRequired, async function(req, res) {
+    try {
+        var userId = parseInt(req.params.userId, 10);
+        if (!userId) {
+            return res.status(400).json({ error: 'invalid_user_id' });
+        }
+        
+        var user = await db.findUserById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'user_not_found' });
+        }
+        
+        await db.setUserDisabled(userId, true);
+        res.json({ ok: true, message: 'تم تعطيل المستخدم' });
+    } catch (err) {
+        console.error('Disable user error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* تفعيل مستخدم */
+app.post('/api/admin/users/:userId/enable', adminRequired, async function(req, res) {
+    try {
+        var userId = parseInt(req.params.userId, 10);
+        if (!userId) {
+            return res.status(400).json({ error: 'invalid_user_id' });
+        }
+        
+        var user = await db.findUserById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'user_not_found' });
+        }
+        
+        await db.setUserDisabled(userId, false);
+        res.json({ ok: true, message: 'تم تفعيل المستخدم' });
+    } catch (err) {
+        console.error('Enable user error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* ============================================================
+   4) الإدارة — إعادة تعيين كلمة السر
+   ============================================================ */
+
+/* إعادة تعيين كلمة سر مستخدم (المدير يكتب الجديدة) */
+app.post('/api/admin/users/:userId/reset-password', adminRequired, async function(req, res) {
+    try {
+        var userId = parseInt(req.params.userId, 10);
+        var newPassword = (req.body.newPassword || '').trim();
+        
+        if (!userId) {
+            return res.status(400).json({ error: 'invalid_user_id' });
+        }
+        if (!newPassword || newPassword.length < 4) {
+            return res.status(400).json({ 
+                error: 'short_password', 
+                message: 'كلمة السر قصيرة (4 أحرف على الأقل)' 
+            });
+        }
+        
+        var user = await db.findUserById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'user_not_found' });
+        }
+        
+        var bcrypt = require('bcryptjs');
+        var hashed = bcrypt.hashSync(newPassword, 10);
+        await db.updateUserPassword(userId, hashed);
+        
+        res.json({ ok: true, message: 'تم إعادة تعيين كلمة السر' });
+    } catch (err) {
+        console.error('Reset password error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* ============================================================
+   5) الإدارة — الرسم البياني (النشاط اليومي)
+   ============================================================ */
+
+app.get('/api/admin/activity', adminRequired, async function(req, res) {
+    try {
+        var days = parseInt(req.query.days, 10) || 30;
+        var activity = await db.getAdminActivity(days);
+        res.json({ ok: true, activity: activity, days: days });
+    } catch (err) {
+        console.error('Get activity error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* ============================================================
+   6) الإدارة — المحادثات
+   ============================================================ */
+
+/* قائمة كل المحادثات */
+app.get('/api/admin/conversations', adminRequired, async function(req, res) {
+    try {
+        var conversations = await db.getConversationsList();
+        var totalUnread = await db.getTotalUnreadForAdmin();
+        res.json({ 
+            ok: true, 
+            conversations: conversations,
+            totalUnread: totalUnread
+        });
+    } catch (err) {
+        console.error('Get conversations error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* جلب محادثة معينة مع مستخدم */
+app.get('/api/admin/conversations/:userId', adminRequired, async function(req, res) {
+    try {
+        var userId = parseInt(req.params.userId, 10);
+        if (!userId) {
+            return res.status(400).json({ error: 'invalid_user_id' });
+        }
+        
+        var user = await db.findUserById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'user_not_found' });
+        }
+        
+        var messages = await db.getUserMessages(userId);
+        
+        /* حدّد رسائل المستخدم كمقروءة (لأن المدير يقرأها الآن) */
+        await db.markMessagesRead(userId, 'admin');
+        
+        res.json({ 
+            ok: true, 
+            user: { id: user.id, name: user.name, avatar: user.avatar || '' },
+            messages: messages
+        });
+    } catch (err) {
+        console.error('Get conversation error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* رد المدير على مستخدم */
+app.post('/api/admin/conversations/:userId/reply', adminRequired, async function(req, res) {
+    try {
+        var userId = parseInt(req.params.userId, 10);
+        var body = (req.body.body || '').trim();
+        
+        if (!userId) {
+            return res.status(400).json({ error: 'invalid_user_id' });
+        }
+        if (!body) {
+            return res.status(400).json({ error: 'empty_message', message: 'الرسالة فارغة' });
+        }
+        if (body.length > 5000) {
+            return res.status(400).json({ error: 'too_long', message: 'الرسالة طويلة جدًا' });
+        }
+        
+        var user = await db.findUserById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'user_not_found' });
+        }
+        
+        var result = await db.sendMessage(userId, 'admin', body);
+        res.json({ ok: true, messageId: result.id, createdAt: result.createdAt });
+    } catch (err) {
+        console.error('Admin reply error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* ============================================================
+   7) الإدارة — الإعلان العام
+   ============================================================ */
+
+/* نشر / تحديث إعلان */
+app.post('/api/admin/announcement', adminRequired, async function(req, res) {
+    try {
+        var text = (req.body.text || '').trim();
+        
+        if (!text) {
+            return res.status(400).json({ error: 'empty_text', message: 'نص الإعلان فارغ' });
+        }
+        if (text.length > 500) {
+            return res.status(400).json({ error: 'too_long', message: 'الإعلان طويل جدًا (500 حرف كحد أقصى)' });
+        }
+        
+        var announcementId = await db.setAnnouncement(text);
+        res.json({ ok: true, id: announcementId, message: 'تم نشر الإعلان' });
+    } catch (err) {
+        console.error('Set announcement error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* حذف الإعلان */
+app.delete('/api/admin/announcement', adminRequired, async function(req, res) {
+    try {
+        await db.clearAnnouncement();
+        res.json({ ok: true, message: 'تم حذف الإعلان' });
+    } catch (err) {
+        console.error('Clear announcement error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* ============================================================
+   نهاية الإضافات
+   ============================================================ */
 app.get('*', function(req, res) {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
