@@ -4001,22 +4001,358 @@ function updateItemTeacher(sid, sk, i, v) {
     saveState();
 }
 
-function updateItemExercisesLabel(sid, sk, i, v) {
-    var arr = getItemsContainer(sid, sk);
-    if (!arr || !arr[i]) return;
-    if (!arr[i].exercises) arr[i].exercises = { label: '', checked: false };
-    arr[i].exercises.label = (v || '').trim();
+
+/* ═══════════════════════════════════════════════════════════
+   نافذة إدارة التمارين
+   ═══════════════════════════════════════════════════════════ */
+
+var exercisesModalState = {
+    subjectId: null,
+    sectionKey: null,
+    itemIndex: null,
+    debounceTimer: null
+};
+
+function openExercisesModal(subjId, secKey, itemIdx) {
+    var arr = getItemsContainer(subjId, secKey);
+    if (!arr || !arr[itemIdx]) {
+        showToast('❌ لم يُعثر على الورقة');
+        return;
+    }
+    
+    var item = arr[itemIdx];
+    
+    /* ضمان البنية */
+    if (!item.exercises) item.exercises = { label: '', items: [] };
+    if (!Array.isArray(item.exercises.items)) item.exercises.items = [];
+    
+    exercisesModalState.subjectId = subjId;
+    exercisesModalState.sectionKey = secKey || null;
+    exercisesModalState.itemIndex = itemIdx;
+    
+    /* العنوان */
+    var subj = findSubjectById(subjId);
+    var subjectName = subj ? displayName(subj) : '—';
+    document.getElementById('exercisesTitle').textContent = 'ورقة ' + item.code;
+    document.getElementById('exercisesSubtitle').textContent = subjectName;
+    
+    /* حقل العنوان */
+    var labelInput = document.getElementById('exercisesLabelInput');
+    if (labelInput) labelInput.value = item.exercises.label || '';
+    
+    /* عرض القائمة */
+    renderExercisesList();
+    
+    /* افتح النافذة */
+    document.getElementById('exercisesModal').classList.remove('hidden');
+}
+
+function closeExercisesModal() {
+    /* احفظ أي تعديلات معلقة */
+    saveExercisesImmediate();
+    
+    document.getElementById('exercisesModal').classList.add('hidden');
+    
+    exercisesModalState.subjectId = null;
+    exercisesModalState.sectionKey = null;
+    exercisesModalState.itemIndex = null;
+    
+    /* حدّث العرض */
+    renderSubjects();
+}
+
+function getCurrentExerciseItem() {
+    if (exercisesModalState.subjectId == null) return null;
+    var arr = getItemsContainer(exercisesModalState.subjectId, exercisesModalState.sectionKey);
+    if (!arr || !arr[exercisesModalState.itemIndex]) return null;
+    return arr[exercisesModalState.itemIndex];
+}
+
+function renderExercisesList() {
+    var item = getCurrentExerciseItem();
+    if (!item) return;
+    
+    var list = document.getElementById('exercisesList');
+    var badge = document.getElementById('exercisesCountBadge');
+    var items = item.exercises.items || [];
+    
+    /* البادج */
+    var done = items.filter(function(ex) { return ex.checked; }).length;
+    if (badge) badge.textContent = done + '/' + items.length;
+    
+    /* إذا فارغة */
+    if (items.length === 0) {
+        list.innerHTML = 
+            '<div class="exercises-empty">' +
+                '<i class="fa-solid fa-pen-ruler"></i>' +
+                '<p class="text-sm font-bold text-slate-500 dark:text-slate-400">لا توجد تمارين بعد</p>' +
+                '<p class="text-xs text-slate-400 mt-1">اضغط "إضافة تمرين جديد" للبدء</p>' +
+            '</div>';
+        return;
+    }
+    
+    /* اكتب القائمة */
+    list.innerHTML = '';
+    items.forEach(function(ex, idx) {
+        var row = document.createElement('div');
+        row.className = 'exercise-row' + (ex.checked ? ' checked' : '');
+        row.setAttribute('draggable', 'true');
+        row.setAttribute('data-exercise-index', idx);
+        
+        var html = '';
+        
+        /* مقبض السحب (Desktop) */
+        html += '<i class="fa-solid fa-grip-vertical exercise-drag-handle"></i>';
+        
+        /* أسهم الترتيب (Mobile) */
+        html += '<div class="exercise-order-btns">';
+        html += '<button onclick="moveExercise(' + idx + ', -1)" ' + (idx === 0 ? 'disabled' : '') + ' title="أعلى">';
+        html += '<i class="fa-solid fa-chevron-up"></i></button>';
+        html += '<button onclick="moveExercise(' + idx + ', 1)" ' + (idx === items.length - 1 ? 'disabled' : '') + ' title="أسفل">';
+        html += '<i class="fa-solid fa-chevron-down"></i></button>';
+        html += '</div>';
+        
+        /* الرقم */
+        html += '<span class="exercise-number">' + (idx + 1) + '</span>';
+        
+        /* زر ✓ */
+        html += '<button class="exercise-check' + (ex.checked ? ' checked' : '') + '" ' +
+            'onclick="toggleExercise(' + idx + ')">';
+        html += '<i class="fa-solid fa-check"></i>';
+        html += '</button>';
+        
+        /* حقل النص */
+        html += '<input type="text" ' +
+            'class="exercise-text-input" ' +
+            'value="' + escapeHtml(ex.text || '') + '" ' +
+            'placeholder="وصف التمرين (اختياري)..." ' +
+            'maxlength="200" ' +
+            'oninput="onExerciseTextChange(' + idx + ', this.value)">';
+        
+        /* زر الحذف */
+        html += '<button class="exercise-btn-mini delete" onclick="deleteExercise(' + idx + ')" title="حذف">';
+        html += '<i class="fa-solid fa-trash-can"></i>';
+        html += '</button>';
+        
+        row.innerHTML = html;
+        list.appendChild(row);
+    });
+    
+    /* Drag & Drop */
+    initExerciseDragDrop();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   عمليات التمارين
+   ═══════════════════════════════════════════════════════════ */
+
+function addExerciseItem() {
+    var item = getCurrentExerciseItem();
+    if (!item) return;
+    
+    if (!item.exercises) item.exercises = { label: '', items: [] };
+    if (!Array.isArray(item.exercises.items)) item.exercises.items = [];
+    
+    item.exercises.items.push({
+        n: item.exercises.items.length + 1,
+        text: '',
+        checked: false
+    });
+    
+    renderExercisesList();
+    saveExercisesImmediate();
+    
+    /* ركّز على آخر حقل */
+    setTimeout(function() {
+        var inputs = document.querySelectorAll('.exercise-text-input');
+        if (inputs.length > 0) {
+            inputs[inputs.length - 1].focus();
+            /* مرّر للأسفل */
+            var list = document.getElementById('exercisesList');
+            if (list) list.scrollTop = list.scrollHeight;
+        }
+    }, 100);
+}
+
+function toggleExercise(idx) {
+    var item = getCurrentExerciseItem();
+    if (!item || !item.exercises.items[idx]) return;
+    
+    item.exercises.items[idx].checked = !item.exercises.items[idx].checked;
+    renderExercisesList();
+    saveExercisesImmediate();
+}
+
+function deleteExercise(idx) {
+    var item = getCurrentExerciseItem();
+    if (!item || !item.exercises.items[idx]) return;
+    
+    if (!confirm('حذف هذا التمرين؟')) return;
+    
+    item.exercises.items.splice(idx, 1);
+    /* أعد ترقيم */
+    item.exercises.items.forEach(function(ex, i) { ex.n = i + 1; });
+    
+    renderExercisesList();
+    saveExercisesImmediate();
+}
+
+function moveExercise(idx, direction) {
+    var item = getCurrentExerciseItem();
+    if (!item || !item.exercises.items[idx]) return;
+    
+    var newIdx = idx + direction;
+    if (newIdx < 0 || newIdx >= item.exercises.items.length) return;
+    
+    /* بدّل */
+    var temp = item.exercises.items[idx];
+    item.exercises.items[idx] = item.exercises.items[newIdx];
+    item.exercises.items[newIdx] = temp;
+    
+    /* أعد ترقيم */
+    item.exercises.items.forEach(function(ex, i) { ex.n = i + 1; });
+    
+    renderExercisesList();
+    saveExercisesImmediate();
+}
+
+function onExerciseTextChange(idx, value) {
+    var item = getCurrentExerciseItem();
+    if (!item || !item.exercises.items[idx]) return;
+    
+    item.exercises.items[idx].text = value;
+    /* Debounced save */
+    debouncedSaveExercises();
+}
+
+function updateExercisesLabel(value) {
+    var item = getCurrentExerciseItem();
+    if (!item) return;
+    if (!item.exercises) item.exercises = { label: '', items: [] };
+    item.exercises.label = (value || '').trim();
+    debouncedSaveExercises();
+}
+
+function markAllExercises(checked) {
+    var item = getCurrentExerciseItem();
+    if (!item || !item.exercises.items) return;
+    
+    item.exercises.items.forEach(function(ex) { ex.checked = checked; });
+    renderExercisesList();
+    saveExercisesImmediate();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   الحفظ (فوري + Debounced)
+   ═══════════════════════════════════════════════════════════ */
+
+function saveExercisesImmediate() {
+    if (exercisesModalState.debounceTimer) {
+        clearTimeout(exercisesModalState.debounceTimer);
+        exercisesModalState.debounceTimer = null;
+    }
     saveState();
 }
 
-function toggleItemExercisesChecked(sid, sk, i) {
-    var arr = getItemsContainer(sid, sk);
-    if (!arr || !arr[i]) return;
-    if (!arr[i].exercises) arr[i].exercises = { label: '', checked: false };
-    arr[i].exercises.checked = !arr[i].exercises.checked;
-    renderSubjects();
-    saveState();
+function debouncedSaveExercises() {
+    if (exercisesModalState.debounceTimer) {
+        clearTimeout(exercisesModalState.debounceTimer);
+    }
+    exercisesModalState.debounceTimer = setTimeout(function() {
+        saveState();
+        exercisesModalState.debounceTimer = null;
+    }, 600);
 }
+
+/* ═══════════════════════════════════════════════════════════
+   Drag & Drop
+   ═══════════════════════════════════════════════════════════ */
+
+var _draggedRow = null;
+
+function initExerciseDragDrop() {
+    var rows = document.querySelectorAll('.exercise-row');
+    
+    rows.forEach(function(row) {
+        row.addEventListener('dragstart', handleDragStart);
+        row.addEventListener('dragend', handleDragEnd);
+        row.addEventListener('dragover', handleDragOver);
+        row.addEventListener('dragleave', handleDragLeave);
+        row.addEventListener('drop', handleDrop);
+    });
+}
+
+function handleDragStart(e) {
+    _draggedRow = this;
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    /* متصفح Firefox يحتاج setData */
+    try { e.dataTransfer.setData('text/html', this.innerHTML); } catch (err) {}
+}
+
+function handleDragEnd(e) {
+    this.classList.remove('dragging');
+    document.querySelectorAll('.exercise-row').forEach(function(r) {
+        r.classList.remove('drag-over');
+    });
+    _draggedRow = null;
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (this !== _draggedRow) {
+        this.classList.add('drag-over');
+    }
+}
+
+function handleDragLeave(e) {
+    this.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    this.classList.remove('drag-over');
+    
+    if (_draggedRow === this) return;
+    
+    var fromIdx = parseInt(_draggedRow.getAttribute('data-exercise-index'));
+    var toIdx = parseInt(this.getAttribute('data-exercise-index'));
+    
+    if (isNaN(fromIdx) || isNaN(toIdx) || fromIdx === toIdx) return;
+    
+    var item = getCurrentExerciseItem();
+    if (!item || !item.exercises.items) return;
+    
+    /* انقل */
+    var moved = item.exercises.items.splice(fromIdx, 1)[0];
+    item.exercises.items.splice(toIdx, 0, moved);
+    
+    /* أعد ترقيم */
+    item.exercises.items.forEach(function(ex, i) { ex.n = i + 1; });
+    
+    renderExercisesList();
+    saveExercisesImmediate();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   إغلاق بمفتاح Escape
+   ═══════════════════════════════════════════════════════════ */
+
+document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Escape') return;
+    
+    var modal = document.getElementById('exercisesModal');
+    if (modal && !modal.classList.contains('hidden')) {
+        /* لا تُغلق إذا كان هناك حقل نشط */
+        if (document.activeElement && document.activeElement.classList.contains('exercise-text-input')) {
+            document.activeElement.blur();
+            return;
+        }
+        closeExercisesModal();
+    }
+});
 /* ============================================================
    الجزء 11: المادة — إضافة / تعديل / حذف
    ============================================================ */
@@ -4515,6 +4851,11 @@ function switchTab(tab) {
     /* ألغِ أي إضافة سريعة نشطة */
     if (typeof quickAddState !== 'undefined' && quickAddState.active) {
         cancelQuickAdd();
+    }
+    
+    /* أغلق نافذة التمارين إن كانت مفتوحة */
+    if (typeof exercisesModalState !== 'undefined' && exercisesModalState.subjectId != null) {
+        closeExercisesModal();
     }
     
     currentTab = tab;
