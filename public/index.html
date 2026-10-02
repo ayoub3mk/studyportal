@@ -746,6 +746,54 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     }
 }
 /* ============================================================
+   حقول الورقة الإضافية (حل / أستاذ / تمارين)
+   ============================================================ */
+
+/* الحقل النشط (حل مفعّل) */
+.item-corrige-active {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1));
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+/* حركة عند التبديل */
+.item-corrige-toggle {
+    transition: all 0.2s ease;
+}
+
+.item-corrige-toggle:active {
+    transform: scale(0.95);
+}
+
+/* تحسين الحقول الصغيرة */
+.item-small-input {
+    transition: all 0.15s ease;
+}
+
+.item-small-input:focus {
+    background: rgba(99, 102, 241, 0.05);
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+/* تحسينات للهاتف */
+@media (max-width: 640px) {
+    /* جعل الحقول أصغر على الهاتف */
+    .item-corrige-toggle,
+    .item-small-input {
+        font-size: 9px !important;
+    }
+    
+    /* السماح بالتمرير الأفقي للسطر 2 */
+    .item-row-extras {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    
+    .item-row-extras::-webkit-scrollbar {
+        display: none;
+    }
+}
+/* ============================================================
    زر "إضافة ورقة" والصف السريع
    ============================================================ */
 
@@ -3246,8 +3294,17 @@ function renderItemRow(subjId, secKey, item, idx, search, filter) {
     var linkIcon = item.link
         ? '<a href="' + escapeHtml(item.link) + '" target="_blank" class="text-brand-600 dark:text-brand-400 text-xs px-1"><i class="fa-solid fa-link"></i></a>'
         : '<button onclick="openLinkModal(\'' + subjId + '\', \'' + sk + '\', ' + idx + ')" class="text-slate-300 dark:text-slate-600 hover:text-brand-500 text-xs px-1"><i class="fa-solid fa-link"></i></button>';
+    
+    /* ضمان وجود الحقول الجديدة */
+    var corrige = item.corrige || false;
+    var teacher = item.teacher || '';
+    var exercises = item.exercises || { label: '', checked: false };
+    
     var h = '';
-    h += '<div class="flex items-center gap-1.5 py-1 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 group/item">';
+    h += '<div class="rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 group/item mb-1 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition-colors">';
+    
+    /* ══════════════ السطر 1: الكود + الملاحظة + الرابط + الحذف ══════════════ */
+    h += '<div class="flex items-center gap-1.5 py-1 px-2">';
     h += '<button onclick="toggleItem(\'' + subjId + '\', \'' + sk + '\', ' + idx + ')" class="w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs flex-shrink-0 ' +
         (item.checked ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-400 border border-slate-300 dark:border-slate-600') + '">' +
         (item.checked ? '<i class="fa-solid fa-check"></i>' : '') + '</button>';
@@ -3255,6 +3312,51 @@ function renderItemRow(subjId, secKey, item, idx, search, filter) {
     h += '<input type="text" value="' + escapeHtml(item.note || '') + '" placeholder="' + t('notePlaceholder') + '" onchange="updateItemNote(\'' + subjId + '\', \'' + sk + '\', ' + idx + ', this.value)" class="flex-1 min-w-0 text-[11px] text-slate-600 dark:text-slate-300 bg-transparent border-b border-slate-200 dark:border-slate-700 py-1 px-1">';
     h += linkIcon;
     h += '<button onclick="deleteItem(\'' + subjId + '\', \'' + sk + '\', ' + idx + ')" class="text-slate-300 dark:text-slate-600 hover:text-red-500 text-xs px-1 opacity-0 group-hover/item:opacity-100 transition-opacity"><i class="fa-solid fa-trash-can"></i></button>';
+    h += '</div>';
+    
+    /* ══════════════ السطر 2: الحقول الجديدة ══════════════ */
+    h += '<div class="flex flex-wrap items-center gap-1.5 pb-1.5 px-2">';
+    
+    /* 📄 حل (corrigé) */
+    h += '<button onclick="toggleItemCorrige(\'' + subjId + '\', \'' + sk + '\', ' + idx + ')" ' +
+        'title="' + (corrige ? 'يوجد حل ✓' : 'لا يوجد حل') + '" ' +
+        'class="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold transition-colors ' +
+        (corrige 
+            ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800' 
+            : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 hover:text-emerald-600') + '">';
+    h += '<i class="fa-solid ' + (corrige ? 'fa-check-circle' : 'fa-circle-dot') + '"></i>';
+    h += '<span>حل</span>';
+    h += '</button>';
+    
+    /* 👨‍🏫 الأستاذ */
+    h += '<div class="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600">';
+    h += '<i class="fa-solid fa-chalkboard-user text-indigo-500"></i>';
+    h += '<input type="text" value="' + escapeHtml(teacher) + '" ' +
+        'placeholder="الأستاذ..." ' +
+        'maxlength="50" ' +
+        'onchange="updateItemTeacher(\'' + subjId + '\', \'' + sk + '\', ' + idx + ', this.value)" ' +
+        'class="w-20 sm:w-28 bg-transparent text-[10px] text-slate-700 dark:text-slate-200 outline-none placeholder:text-slate-400">';
+    h += '</div>';
+    
+    /* 📝 التمارين */
+    h += '<div class="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600">';
+    h += '<i class="fa-solid fa-pen-ruler text-amber-500"></i>';
+    h += '<input type="text" value="' + escapeHtml(exercises.label || '') + '" ' +
+        'placeholder="التمارين..." ' +
+        'maxlength="80" ' +
+        'onchange="updateItemExercisesLabel(\'' + subjId + '\', \'' + sk + '\', ' + idx + ', this.value)" ' +
+        'class="w-20 sm:w-28 bg-transparent text-[10px] text-slate-700 dark:text-slate-200 outline-none placeholder:text-slate-400">';
+    h += '<button onclick="toggleItemExercisesChecked(\'' + subjId + '\', \'' + sk + '\', ' + idx + ')" ' +
+        'title="' + (exercises.checked ? 'تمارين منجزة ✓' : 'تمارين غير منجزة') + '" ' +
+        'class="w-5 h-5 rounded flex items-center justify-center text-[9px] transition-colors ' +
+        (exercises.checked 
+            ? 'bg-emerald-500 text-white' 
+            : 'bg-white dark:bg-slate-600 text-slate-300 dark:text-slate-500 border border-slate-300 dark:border-slate-500 hover:border-emerald-500') + '">';
+    h += (exercises.checked ? '<i class="fa-solid fa-check"></i>' : '');
+    h += '</button>';
+    h += '</div>';
+    
+    h += '</div>';
     h += '</div>';
     return h;
 }
@@ -3577,7 +3679,41 @@ function deleteItem(sid, sk, i) {
     renderApp();
     saveState();
 }
+/* ═══════════════════════════════════════════════════════════
+   دوال الحقول الجديدة (حل / أستاذ / تمارين)
+   ═══════════════════════════════════════════════════════════ */
 
+function toggleItemCorrige(sid, sk, i) {
+    var arr = getItemsContainer(sid, sk);
+    if (!arr || !arr[i]) return;
+    arr[i].corrige = !arr[i].corrige;
+    renderSubjects();
+    saveState();
+}
+
+function updateItemTeacher(sid, sk, i, v) {
+    var arr = getItemsContainer(sid, sk);
+    if (!arr || !arr[i]) return;
+    arr[i].teacher = (v || '').trim();
+    saveState();
+}
+
+function updateItemExercisesLabel(sid, sk, i, v) {
+    var arr = getItemsContainer(sid, sk);
+    if (!arr || !arr[i]) return;
+    if (!arr[i].exercises) arr[i].exercises = { label: '', checked: false };
+    arr[i].exercises.label = (v || '').trim();
+    saveState();
+}
+
+function toggleItemExercisesChecked(sid, sk, i) {
+    var arr = getItemsContainer(sid, sk);
+    if (!arr || !arr[i]) return;
+    if (!arr[i].exercises) arr[i].exercises = { label: '', checked: false };
+    arr[i].exercises.checked = !arr[i].exercises.checked;
+    renderSubjects();
+    saveState();
+}
 /* ============================================================
    الجزء 11: المادة — إضافة / تعديل / حذف
    ============================================================ */
