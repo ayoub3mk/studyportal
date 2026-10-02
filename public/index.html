@@ -778,6 +778,22 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
 <body class="h-full font-sans antialiased text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-900">
 
+<!-- ============================================================
+     البانر العلوي — الإعلان العام (يظهر لكل المستخدمين)
+     ============================================================ -->
+<div id="announcementBanner" class="hidden fixed top-0 left-0 right-0 z-[300] bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
+            <i class="fa-solid fa-bullhorn text-sm"></i>
+        </div>
+        <p id="announcementText" class="flex-1 text-xs sm:text-sm font-bold leading-snug"></p>
+        <button onclick="dismissAnnouncement()" 
+                title="إغلاق"
+                class="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 flex items-center justify-center flex-shrink-0 transition-colors">
+            <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+    </div>
+</div>
 
 <!-- ============================================================
      الشاشة 1: تسجيل دخول الحساب الرئيسي
@@ -8086,6 +8102,80 @@ function renderAdminUsers() {
     });
     box.innerHTML = html;
 }
+/* ============================================================
+   البانر العلوي — الإعلان العام
+   ============================================================ */
+
+var _currentAnnouncementId = null;
+
+/* جلب الإعلان من السيرفر وإظهاره */
+function loadAnnouncement() {
+    fetch('/api/announcement', { credentials: 'include', cache: 'no-store' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (!data || !data.ok) return;
+            var ann = data.announcement || {};
+            if (!ann.text || !ann.id) {
+                /* لا يوجد إعلان — أخفِ البانر */
+                hideAnnouncementBanner();
+                return;
+            }
+            
+            /* تحقق: هل أُغلق هذا الإعلان مسبقًا؟ */
+            var dismissedId = null;
+            try { dismissedId = localStorage.getItem('dismissed_announcement'); } catch(e) {}
+            
+            if (dismissedId === ann.id) {
+                /* أُغلق من قبل — أخفِ */
+                hideAnnouncementBanner();
+                return;
+            }
+            
+            /* أظهر البانر */
+            _currentAnnouncementId = ann.id;
+            showAnnouncementBanner(ann.text);
+        })
+        .catch(function(err) { console.error('Load announcement error:', err); });
+}
+
+/* إظهار البانر */
+function showAnnouncementBanner(text) {
+    var banner = document.getElementById('announcementBanner');
+    var textEl = document.getElementById('announcementText');
+    if (!banner || !textEl) return;
+    
+    textEl.textContent = text;
+    banner.classList.remove('hidden');
+    
+    /* دفع باقي الصفحة للأسفل (لتجنب التغطية) */
+    document.body.style.paddingTop = banner.offsetHeight + 'px';
+}
+
+/* إخفاء البانر */
+function hideAnnouncementBanner() {
+    var banner = document.getElementById('announcementBanner');
+    if (banner) banner.classList.add('hidden');
+    document.body.style.paddingTop = '';
+}
+
+/* إغلاق الإعلان (يُخزَّن في localStorage) */
+function dismissAnnouncement() {
+    if (_currentAnnouncementId) {
+        try {
+            localStorage.setItem('dismissed_announcement', _currentAnnouncementId);
+        } catch(e) {}
+    }
+    hideAnnouncementBanner();
+}
+
+/* جلب الإعلان عند تحميل التطبيق */
+window.addEventListener('DOMContentLoaded', function() {
+    setTimeout(loadAnnouncement, 800);
+});
+
+/* جلب الإعلان كل دقيقتين (للتحديثات الجديدة) */
+setInterval(loadAnnouncement, 120000);
+
 /* ============================================================
    الجزء 36: القائمة المنسدلة للهاتف (نسخة موحدة ومصلحة)
    ============================================================ */
