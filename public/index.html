@@ -7216,8 +7216,29 @@ function purgeOldHomework() {
     return changed;
 }
 
-/* ================== سلاسل التمارين ================== */
+/* ================== سلاسل التمارين (Checklist) ================== */
 var editingSeriesId = null;
+
+/* Migration تلقائي: إنشاء items من total/done إن لم تكن موجودة */
+function migrateSeriesItems() {
+    if (!appState.series) return;
+    var changed = false;
+    appState.series.forEach(function(s) {
+        if (!s.items) {
+            s.items = [];
+            var total = s.total || 0;
+            var done = s.done || 0;
+            for (var i = 1; i <= total; i++) {
+                s.items.push({ n: i, checked: i <= done });
+            }
+            changed = true;
+        }
+        /* تحديث done و total من items */
+        s.done = s.items.filter(function(it) { return it.checked; }).length;
+        s.total = s.items.length;
+    });
+    if (changed) saveState();
+}
 
 function openSeriesModal(id) {
     editingSeriesId = id || null;
@@ -7227,8 +7248,7 @@ function openSeriesModal(id) {
     document.getElementById('serSubject').value = s ? s.subjectId : '';
     document.getElementById('serTitle').value = s ? s.title : '';
     document.getElementById('serRef').value = s ? (s.ref || '') : '';
-    document.getElementById('serTotal').value = s ? s.total : 0;
-    document.getElementById('serDone').value = s ? s.done : 0;
+    document.getElementById('serTotal').value = s ? (s.items ? s.items.length : (s.total || 10)) : 10;
     document.getElementById('seriesModal').classList.remove('hidden');
 }
 
@@ -7240,31 +7260,82 @@ function saveSeries() {
     var subjectId = document.getElementById('serSubject').value;
     var title = document.getElementById('serTitle').value.trim();
     var ref = document.getElementById('serRef').value.trim();
-    var total = Math.max(0, parseInt(document.getElementById('serTotal').value, 10) || 0);
-    var done = Math.max(0, parseInt(document.getElementById('serDone').value, 10) || 0);
+    var total = Math.max(1, Math.min(200, parseInt(document.getElementById('serTotal').value, 10) || 10));
+    
     if (!subjectId) { alert('اختر مادة أولاً'); return; }
     if (!title) { alert('اكتب عنوان السلسلة'); return; }
-    if (total > 0 && done > total) done = total;
 
     if (!appState.series) appState.series = [];
+    
     if (editingSeriesId) {
         var s = appState.series.find(function(x) { return x.id === editingSeriesId; });
-        if (s) { s.subjectId = subjectId; s.title = title; s.ref = ref; s.total = total; s.done = done; }
+        if (s) {
+            s.subjectId = subjectId;
+            s.title = title;
+            s.ref = ref;
+            
+            /* أعِد بناء items إذا تغير العدد */
+            var oldItems = s.items || [];
+            var newItems = [];
+            for (var i = 1; i <= total; i++) {
+                if (oldItems[i - 1] && oldItems[i - 1].n === i) {
+                    newItems.push(oldItems[i - 1]);  /* احتفظ بحالة الـ checked */
+                } else {
+                    newItems.push({ n: i, checked: false });
+                }
+            }
+            s.items = newItems;
+            s.total = total;
+            s.done = s.items.filter(function(it) { return it.checked; }).length;
+        }
     } else {
-        appState.series.push({ id: 'ser_' + Date.now(), subjectId: subjectId, title: title, ref: ref, total: total, done: done, createdAt: Date.now() });
+        var items = [];
+        for (var j = 1; j <= total; j++) {
+            items.push({ n: j, checked: false });
+        }
+        appState.series.push({
+            id: 'ser_' + Date.now(),
+            subjectId: subjectId,
+            title: title,
+            ref: ref,
+            total: total,
+            done: 0,
+            items: items,
+            createdAt: Date.now()
+        });
     }
     closeSeriesModal();
     renderSeries();
     saveState();
 }
 
-function bumpSeries(id, delta) {
-    var s = (appState.series || []).find(function(x) { return x.id === id; });
-    if (!s) return;
-    var next = s.done + delta;
-    if (next < 0) next = 0;
-    if (s.total > 0 && next > s.total) next = s.total;
-    s.done = next;
+/* تبديل حالة تمرين */
+function toggleSeriesItem(seriesId, itemIndex) {
+    var s = (appState.series || []).find(function(x) { return x.id === seriesId; });
+    if (!s || !s.items || !s.items[itemIndex]) return;
+    s.items[itemIndex].checked = !s.items[itemIndex].checked;
+    s.done = s.items.filter(function(it) { return it.checked; }).length;
+    renderSeries();
+    saveState();
+}
+
+/* إعادة ضبط كل التمارين */
+function resetSeriesItems(seriesId) {
+    var s = (appState.series || []).find(function(x) { return x.id === seriesId; });
+    if (!s || !s.items) return;
+    if (!confirm('إلغاء تحديد كل التمارين؟')) return;
+    s.items.forEach(function(it) { it.checked = false; });
+    s.done = 0;
+    renderSeries();
+    saveState();
+}
+
+/* تحديد الكل كمُنجز */
+function completeAllSeriesItems(seriesId) {
+    var s = (appState.series || []).find(function(x) { return x.id === seriesId; });
+    if (!s || !s.items) return;
+    s.items.forEach(function(it) { it.checked = true; });
+    s.done = s.items.length;
     renderSeries();
     saveState();
 }
@@ -7278,6 +7349,10 @@ function deleteSeries(id) {
 
 function renderSeries() {
     fillSubjectSelect('seriesFilter', 'كل المواد', true);
+    
+    /* Migration تلقائي قبل العرض */
+    migrateSeriesItems();
+    
     var list = document.getElementById('seriesList');
     if (!list) return;
     var filter = document.getElementById('seriesFilter').value;
@@ -7304,35 +7379,73 @@ function renderSeries() {
         html += '<div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 overflow-hidden">';
         html += '<div class="px-4 py-2.5 bg-slate-50 dark:bg-slate-700/40 border-b border-slate-200 dark:border-slate-700 font-bold text-sm text-slate-900 dark:text-white">' +
             '<i class="fa-solid fa-book text-emerald-500 mr-1.5"></i>' + escapeHtml(subjectNameById(sid)) + '</div>';
-        html += '<div class="p-3 space-y-2">';
+        html += '<div class="p-3 space-y-3">';
+        
         groups[sid].forEach(function(s) {
-            var pct = s.total > 0 ? Math.round((s.done / s.total) * 100) : 0;
-            var finished = s.total > 0 && s.done >= s.total;
+            var itemsArr = s.items || [];
+            var doneCount = itemsArr.filter(function(it) { return it.checked; }).length;
+            var totalCount = itemsArr.length;
+            var pct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+            var finished = totalCount > 0 && doneCount >= totalCount;
+            
             var badge = finished
                 ? '<span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500 text-white">مكتملة ✓</span>'
-                : (s.done > 0
-                    ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">قيد الإنجاز</span>'
+                : (doneCount > 0
+                    ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">' + doneCount + '/' + totalCount + '</span>'
                     : '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300">لم تبدأ</span>');
 
             html += '<div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600">';
+            
+            /* رأس السلسلة */
             html += '<div class="flex items-start justify-between gap-2 mb-2">';
             html += '<div class="min-w-0 flex-1"><p class="text-sm font-bold text-slate-900 dark:text-white">' + escapeHtml(s.title) + '</p>';
             if (s.ref) html += '<p class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">' + escapeHtml(s.ref) + '</p>';
             html += '</div>' + badge + '</div>';
 
-            html += '<div class="h-2 rounded-full bg-slate-200 dark:bg-slate-600 overflow-hidden mb-2">' +
-                '<div class="h-full bg-emerald-500" style="width:' + pct + '%"></div></div>';
+            /* شريط التقدم */
+            html += '<div class="h-2 rounded-full bg-slate-200 dark:bg-slate-600 overflow-hidden mb-3">' +
+                '<div class="h-full bg-emerald-500 transition-all duration-300" style="width:' + pct + '%"></div></div>';
 
-            html += '<div class="flex items-center justify-between">';
-            html += '<div class="flex items-center gap-2">' +
-                '<button onclick="bumpSeries(\'' + s.id + '\', -1)" class="w-8 h-8 rounded-lg bg-white dark:bg-slate-600 border border-slate-300 dark:border-slate-500 text-slate-700 dark:text-slate-100 font-black">−</button>' +
-                '<span class="text-xs font-bold text-slate-700 dark:text-slate-200 min-w-[56px] text-center">' + s.done + (s.total > 0 ? ' / ' + s.total : '') + '</span>' +
-                '<button onclick="bumpSeries(\'' + s.id + '\', 1)" class="w-8 h-8 rounded-lg bg-emerald-600 text-white font-black">+</button></div>';
-            html += '<div class="flex items-center gap-1">' +
-                '<button onclick="openSeriesModal(\'' + s.id + '\')" class="w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600"><i class="fa-solid fa-pen text-xs"></i></button>' +
-                '<button onclick="deleteSeries(\'' + s.id + '\')" class="w-8 h-8 rounded-lg text-slate-400 hover:bg-red-100 hover:text-red-600"><i class="fa-solid fa-trash-can text-xs"></i></button></div>';
-            html += '</div></div>';
+            /* شبكة الأرقام (Checklist) */
+            html += '<div class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-1.5 mb-3">';
+            itemsArr.forEach(function(item, idx) {
+                var checkedClass = item.checked
+                    ? 'bg-emerald-500 text-white border-emerald-500 shadow-sm'
+                    : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-600 hover:border-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30';
+                
+                html += '<button onclick="toggleSeriesItem(\'' + s.id + '\', ' + idx + ')" ' +
+                    'class="aspect-square rounded-lg border-2 font-bold text-xs flex items-center justify-center transition-all ' + checkedClass + '" ' +
+                    'title="تمرين ' + item.n + '">';
+                html += item.checked ? '<i class="fa-solid fa-check text-[10px]"></i>' : item.n;
+                html += '</button>';
+            });
+            html += '</div>';
+
+            /* أزرار التحكم */
+            html += '<div class="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-600">';
+            
+            html += '<div class="flex items-center gap-1">';
+            html += '<button onclick="completeAllSeriesItems(\'' + s.id + '\')" title="إنجاز الكل" ' +
+                'class="px-2 py-1 rounded-md bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors">' +
+                '<i class="fa-solid fa-check-double"></i> الكل</button>';
+            html += '<button onclick="resetSeriesItems(\'' + s.id + '\')" title="إلغاء الكل" ' +
+                'class="px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-bold hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">' +
+                '<i class="fa-solid fa-rotate-left"></i> صفر</button>';
+            html += '</div>';
+
+            html += '<div class="flex items-center gap-1">';
+            html += '<button onclick="openSeriesModal(\'' + s.id + '\')" title="تعديل" ' +
+                'class="w-7 h-7 rounded-md text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600 hover:text-slate-700 dark:hover:text-slate-200 flex items-center justify-center transition-colors">' +
+                '<i class="fa-solid fa-pen text-xs"></i></button>';
+            html += '<button onclick="deleteSeries(\'' + s.id + '\')" title="حذف" ' +
+                'class="w-7 h-7 rounded-md text-slate-400 hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-600 flex items-center justify-center transition-colors">' +
+                '<i class="fa-solid fa-trash-can text-xs"></i></button>';
+            html += '</div>';
+
+            html += '</div>'; /* نهاية أزرار التحكم */
+            html += '</div>'; /* نهاية كارد السلسلة */
         });
+        
         html += '</div></div>';
     });
     list.innerHTML = html;
@@ -9253,15 +9366,13 @@ if ('serviceWorker' in navigator) {
             <select id="serSubject" class="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm font-bold"></select>
             <input id="serTitle" type="text" placeholder="عنوان السلسلة (مثال: سلسلة 3 — الدوال)" class="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
             <input id="serRef" type="text" placeholder="المصدر / الصفحة (اختياري)" class="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
-            <div class="grid grid-cols-2 gap-2">
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-500 mb-1">عدد التمارين</label>
-                    <input id="serTotal" type="number" min="0" value="0" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
-                </div>
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-500 mb-1">المنجز</label>
-                    <input id="serDone" type="number" min="0" value="0" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
-                </div>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-500 mb-1">عدد التمارين</label>
+                <input id="serTotal" type="number" min="1" max="200" value="10" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1">
+                    <i class="fa-solid fa-lightbulb mr-0.5"></i>
+                    ستُنشأ تلقائيًا قائمة بأرقام التمارين من 1 إلى N
+                </p>
             </div>
         </div>
         <div class="flex gap-2 justify-end pt-4 mt-4 border-t border-slate-200 dark:border-slate-700">
@@ -9269,6 +9380,7 @@ if ('serviceWorker' in navigator) {
             <button onclick="saveSeries()" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">حفظ</button>
         </div>
     </div>
+</div>
 </div>
 
 <!-- ===== نافذة ملاحظة ===== -->
