@@ -7444,6 +7444,18 @@ enterAccountPanel = function() {
 function loadAdminOverview() {
     switchAdminTab(_currentAdminTab || 'overview');
 }
+/* ============================================================
+   فتح لوحة المدير
+   ============================================================ */
+function openAdminPanel() {
+    var modal = document.getElementById('adminModal');
+    if (!modal) {
+        console.error('❌ adminModal غير موجود');
+        return;
+    }
+    modal.classList.remove('hidden');
+    switchAdminTab('overview');
+}
 
 function closeAdminPanel() {
     document.getElementById('adminModal').classList.add('hidden');
