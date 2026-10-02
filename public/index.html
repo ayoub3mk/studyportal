@@ -9342,9 +9342,13 @@ function getDefaultTutorial() {
 
 function shouldShowTutorial() {
     if (!CURRENT_USER) return false;
-    if (!appState.tutorial) return true; /* لم تُشغَّل بعد */
-    if (!appState.tutorial.completed) return true;
-    return false;
+    if (!appState.tutorial) return true;         /* لم تُشغَّل بعد */
+    if (appState.tutorial.completed) return false; /* أكملها */
+    
+    /* إذا بدأها ولم يُكملها → اعرضها من حيث توقف */
+    if (appState.tutorial.started) return true;
+    
+    return true;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -9355,7 +9359,13 @@ function startTutorial(fromIndex) {
     if (!appState.tutorial) {
         appState.tutorial = getDefaultTutorial();
     }
-    tutorialState.currentIndex = fromIndex || 0;
+    
+    /* إذا لم يُحدَّد index، ابدأ من آخر خطوة وصل إليها */
+    if (fromIndex == null) {
+        fromIndex = appState.tutorial.currentStep || 0;
+    }
+    
+    tutorialState.currentIndex = fromIndex;
     tutorialState.running = true;
     
     appState.tutorial.started = true;
@@ -9625,6 +9635,32 @@ function cancelSkipTutorial() {
 
 function openResetTutorialDialog() {
     document.getElementById('tutorialResetDialog').classList.remove('hidden');
+    /* حدّث حالة العرض */
+    setTimeout(function() {
+        /* اختر الزر المناسب حسب الحالة */
+        var incompleteBtn = document.querySelector('#tutorialResetDialog button[onclick*="incomplete"]');
+        if (incompleteBtn) {
+            var steps = (appState.tutorial && appState.tutorial.steps) || {};
+            var hasIncomplete = false;
+            TUTORIAL_STEPS.forEach(function(step) {
+                var s = steps[step.id] || {};
+                if (!s.completed && !s.na) {
+                    hasIncomplete = true;
+                }
+            });
+            
+            /* إذا لا يوجد غير مكتمل، اجعل الزر باهتًا */
+            if (!hasIncomplete) {
+                incompleteBtn.disabled = true;
+                incompleteBtn.style.opacity = '0.5';
+                incompleteBtn.style.cursor = 'not-allowed';
+            } else {
+                incompleteBtn.disabled = false;
+                incompleteBtn.style.opacity = '1';
+                incompleteBtn.style.cursor = 'pointer';
+            }
+        }
+    }, 100);
 }
 
 function closeResetTutorialDialog() {
@@ -9730,7 +9766,12 @@ enterUserApp = function() {
         
         /* 2. اعرض الجولة إذا لزم */
         if (shouldShowTutorial()) {
-            startTutorial(0);
+            /* استئناف من آخر خطوة (إن كانت بدأت) */
+            var startFrom = 0;
+            if (appState.tutorial && appState.tutorial.started && appState.tutorial.currentStep) {
+                startFrom = appState.tutorial.currentStep;
+            }
+            startTutorial(startFrom);
         }
     }, 1500);
 };
