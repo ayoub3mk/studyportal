@@ -3900,7 +3900,7 @@ function migrateItemFields(item) {
         changed = true;
     }
     
-       /* exercises (ورقة التمارين - النسخة الجديدة) */
+      /* exercises (ورقة التمارين - النسخة الجديدة) */
     if (typeof item.exercises === 'undefined' || item.exercises === null || typeof item.exercises !== 'object') {
         item.exercises = { label: '', items: [] };
         changed = true;
@@ -3920,6 +3920,34 @@ function migrateItemFields(item) {
             delete item.exercises.checked;
             changed = true;
         }
+        /* تحقق من كل تمرين */
+        item.exercises.items.forEach(function(ex, i) {
+            if (!ex || typeof ex !== 'object') {
+                item.exercises.items[i] = { n: i + 1, text: '', checked: false };
+                changed = true;
+                return;
+            }
+            if (typeof ex.n === 'undefined') {
+                ex.n = i + 1;
+                changed = true;
+            }
+            if (typeof ex.text === 'undefined') {
+                ex.text = '';
+                changed = true;
+            }
+            if (typeof ex.checked === 'undefined') {
+                ex.checked = false;
+                changed = true;
+            }
+        });
+        /* تأكد من أن n مرتبة */
+        item.exercises.items.forEach(function(ex, i) {
+            if (ex.n !== i + 1) {
+                ex.n = i + 1;
+                changed = true;
+            }
+        });
+    }
         /* تحقق من كل تمرين */
         item.exercises.items.forEach(function(ex, i) {
             if (typeof ex.n === 'undefined') {
