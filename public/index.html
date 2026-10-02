@@ -777,209 +777,9 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 </head>
 
 <body class="h-full font-sans antialiased text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-900">
-/* ============================================================
-   محادثة المستخدم مع المدير
-   ============================================================ */
-
-var _userChatInterval = null;
-
-/* فتح نافذة المحادثة */
-function openUserChat() {
-    var modal = document.getElementById('userChatModal');
-    if (!modal) return;
-    
-    modal.classList.remove('hidden');
-    document.getElementById('userChatInput').value = '';
-    document.getElementById('userChatInput').focus();
-    
-    /* حمّل الرسائل */
-    loadUserMessages();
-    
-    /* حدّد كمقروءة */
-    markUserMessagesRead();
-    
-    /* تحديث كل 10 ثوان */
-    if (_userChatInterval) clearInterval(_userChatInterval);
-    _userChatInterval = setInterval(loadUserMessages, 10000);
-}
-
-/* إغلاق نافذة المحادثة */
-function closeUserChat() {
-    var modal = document.getElementById('userChatModal');
-    if (modal) modal.classList.add('hidden');
-    
-    if (_userChatInterval) {
-        clearInterval(_userChatInterval);
-        _userChatInterval = null;
-    }
-}
-
-/* جلب رسائل المستخدم */
-function loadUserMessages() {
-    fetch('/api/messages', { credentials: 'include', cache: 'no-store' })
-        .then(function(r) { return r.ok ? r.json() : null; })
-        .then(function(data) {
-            if (!data || !data.ok) return;
-            renderUserMessages(data.messages || []);
-            updateUserChatBadge(data.unreadCount || 0);
-        })
-        .catch(function(err) { console.error('Load messages error:', err); });
-}
-
-/* عرض الرسائل */
-function renderUserMessages(messages) {
-    var container = document.getElementById('userChatMessages');
-    if (!container) return;
-    
-    if (messages.length === 0) {
-        container.innerHTML = '<div class="text-center py-10">' +
-            '<i class="fa-solid fa-comments text-4xl text-slate-300 dark:text-slate-600 mb-3"></i>' +
-            '<p class="font-bold text-slate-700 dark:text-slate-300">لا رسائل بعد</p>' +
-            '<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">اكتب رسالتك للمدير في الأسفل 👇</p>' +
-            '</div>';
-        return;
-    }
-    
-    container.innerHTML = '';
-    messages.forEach(function(m) {
-        var isAdmin = m.sender === 'admin';
-        var bubble = document.createElement('div');
-        bubble.className = 'flex ' + (isAdmin ? 'justify-start' : 'justify-end');
-        bubble.innerHTML = `
-            <div class="max-w-[80%] rounded-2xl px-3 py-2 ${isAdmin ? 'bg-indigo-100 dark:bg-indigo-950/60' : 'bg-slate-100 dark:bg-slate-700'}">
-                ${isAdmin ? '<p class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 mb-1"><i class="fa-solid fa-user-shield mr-1"></i> المدير</p>' : ''}
-                <p class="text-sm text-slate-900 dark:text-slate-100 whitespace-pre-wrap break-words">${escapeHtml(m.body)}</p>
-                <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1">${formatChatTime(m.created_at)}</p>
-            </div>
-        `;
-        container.appendChild(bubble);
-    });
-    
-    /* تمرير للأسفل */
-    container.scrollTop = container.scrollHeight;
-}
-
-/* تنسيق الوقت للرسالة */
-function formatChatTime(iso) {
-    if (!iso) return '—';
-    var d = new Date(iso);
-    var now = new Date();
-    var diffMs = now - d;
-    var diffMins = Math.floor(diffMs / 60000);
-    
-    if (diffMins < 1) return 'الآن';
-    if (diffMins < 60) return 'منذ ' + diffMins + ' دقيقة';
-    if (diffMins < 1440) return 'منذ ' + Math.floor(diffMins / 60) + ' ساعة';
-    
-    return d.toLocaleDateString(localeTag(), { day: 'numeric', month: 'short' }) + ' ' +
-           d.toLocaleTimeString(localeTag(), { hour: '2-digit', minute: '2-digit' });
-}
-
-/* إرسال رسالة */
-function submitUserMessage(e) {
-    e.preventDefault();
-    var input = document.getElementById('userChatInput');
-    var btn = document.getElementById('userChatSendBtn');
-    var body = input.value.trim();
-    
-    if (!body) return;
-    
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
-    
-    fetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ body: body })
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span class="hidden sm:inline">إرسال</span>';
-        
-        if (!data.ok) {
-            showToast('❌ ' + (data.message || 'فشل الإرسال'));
-            return;
-        }
-        
-        input.value = '';
-        loadUserMessages();
-    })
-    .catch(function(err) {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span class="hidden sm:inline">إرسال</span>';
-        showToast('❌ خطأ في الاتصال');
-        console.error(err);
-    });
-}
-
-/* تحديد الرسائل كمقروءة */
-function markUserMessagesRead() {
-    fetch('/api/messages/read', {
-        method: 'POST',
-        credentials: 'include'
-    })
-    .then(function() {
-        updateUserChatBadge(0);
-    })
-    .catch(function(err) { console.error(err); });
-}
-
-/* تحديث Badge */
-function updateUserChatBadge(count) {
-    var badge = document.getElementById('userChatBadge');
-    var badgeMobile = document.getElementById('userChatBadgeMobile');
-    
-    if (count > 0) {
-        if (badge) {
-            badge.textContent = count > 99 ? '99+' : count;
-            badge.classList.remove('hidden');
-        }
-        if (badgeMobile) {
-            badgeMobile.textContent = count;
-            badgeMobile.classList.remove('hidden');
-        }
-    } else {
-        if (badge) badge.classList.add('hidden');
-        if (badgeMobile) badgeMobile.classList.add('hidden');
-    }
-}
-
-/* تحديث Badge دوريًا */
-function refreshUserChatBadge() {
-    if (!CURRENT_USER) return;
-    fetch('/api/messages', { credentials: 'include', cache: 'no-store' })
-        .then(function(r) { return r.ok ? r.json() : null; })
-        .then(function(data) {
-            if (data && data.ok) {
-                updateUserChatBadge(data.unreadCount || 0);
-            }
-        })
-        .catch(function() {});
-}
-
-/* عند دخول المستخدم للتطبيق — فعّل التحديث الدوري */
-var _originalEnterUserAppForChat = enterUserApp;
-enterUserApp = function() {
-    _originalEnterUserAppForChat();
-    setTimeout(refreshUserChatBadge, 1000);
-    /* كل 30 ثانية، حدّث Badge */
-    setInterval(refreshUserChatBadge, 30000);
-};
-
-/* إغلاق المحادثة بمفتاح Escape */
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        var modal = document.getElementById('userChatModal');
-        if (modal && !modal.classList.contains('hidden')) {
-            closeUserChat();
-        }
-    }
-});
 
 <!-- ============================================================
-     البانر العلوي — الإعلان العام (يظهر لكل المستخدمين)
+     ا— الإعلان العام (يظهر لكل المستخدمين)
      ============================================================ -->
 <div id="announcementBanner" class="hidden fixed top-0 left-0 right-0 z-[300] bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white shadow-lg">
     <div class="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 flex items-center gap-3">
@@ -8315,6 +8115,207 @@ function renderAdminUsers() {
     });
     box.innerHTML = html;
 }
+/* ============================================================
+   محادثة المستخدم مع المدير
+   ============================================================ */
+
+var _userChatInterval = null;
+
+/* فتح نافذة المحادثة */
+function openUserChat() {
+    var modal = document.getElementById('userChatModal');
+    if (!modal) return;
+    
+    modal.classList.remove('hidden');
+    document.getElementById('userChatInput').value = '';
+    document.getElementById('userChatInput').focus();
+    
+    /* حمّل الرسائل */
+    loadUserMessages();
+    
+    /* حدّد كمقروءة */
+    markUserMessagesRead();
+    
+    /* تحديث كل 10 ثوان */
+    if (_userChatInterval) clearInterval(_userChatInterval);
+    _userChatInterval = setInterval(loadUserMessages, 10000);
+}
+
+/* إغلاق نافذة المحادثة */
+function closeUserChat() {
+    var modal = document.getElementById('userChatModal');
+    if (modal) modal.classList.add('hidden');
+    
+    if (_userChatInterval) {
+        clearInterval(_userChatInterval);
+        _userChatInterval = null;
+    }
+}
+
+/* جلب رسائل المستخدم */
+function loadUserMessages() {
+    fetch('/api/messages', { credentials: 'include', cache: 'no-store' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (!data || !data.ok) return;
+            renderUserMessages(data.messages || []);
+            updateUserChatBadge(data.unreadCount || 0);
+        })
+        .catch(function(err) { console.error('Load messages error:', err); });
+}
+
+/* عرض الرسائل */
+function renderUserMessages(messages) {
+    var container = document.getElementById('userChatMessages');
+    if (!container) return;
+    
+    if (messages.length === 0) {
+        container.innerHTML = '<div class="text-center py-10">' +
+            '<i class="fa-solid fa-comments text-4xl text-slate-300 dark:text-slate-600 mb-3"></i>' +
+            '<p class="font-bold text-slate-700 dark:text-slate-300">لا رسائل بعد</p>' +
+            '<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">اكتب رسالتك للمدير في الأسفل 👇</p>' +
+            '</div>';
+        return;
+    }
+    
+    container.innerHTML = '';
+    messages.forEach(function(m) {
+        var isAdmin = m.sender === 'admin';
+        var bubble = document.createElement('div');
+        bubble.className = 'flex ' + (isAdmin ? 'justify-start' : 'justify-end');
+        bubble.innerHTML = `
+            <div class="max-w-[80%] rounded-2xl px-3 py-2 ${isAdmin ? 'bg-indigo-100 dark:bg-indigo-950/60' : 'bg-slate-100 dark:bg-slate-700'}">
+                ${isAdmin ? '<p class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 mb-1"><i class="fa-solid fa-user-shield mr-1"></i> المدير</p>' : ''}
+                <p class="text-sm text-slate-900 dark:text-slate-100 whitespace-pre-wrap break-words">${escapeHtml(m.body)}</p>
+                <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1">${formatChatTime(m.created_at)}</p>
+            </div>
+        `;
+        container.appendChild(bubble);
+    });
+    
+    /* تمرير للأسفل */
+    container.scrollTop = container.scrollHeight;
+}
+
+/* تنسيق الوقت للرسالة */
+function formatChatTime(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    var now = new Date();
+    var diffMs = now - d;
+    var diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return 'الآن';
+    if (diffMins < 60) return 'منذ ' + diffMins + ' دقيقة';
+    if (diffMins < 1440) return 'منذ ' + Math.floor(diffMins / 60) + ' ساعة';
+    
+    return d.toLocaleDateString(localeTag(), { day: 'numeric', month: 'short' }) + ' ' +
+           d.toLocaleTimeString(localeTag(), { hour: '2-digit', minute: '2-digit' });
+}
+
+/* إرسال رسالة */
+function submitUserMessage(e) {
+    e.preventDefault();
+    var input = document.getElementById('userChatInput');
+    var btn = document.getElementById('userChatSendBtn');
+    var body = input.value.trim();
+    
+    if (!body) return;
+    
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    
+    fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ body: body })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span class="hidden sm:inline">إرسال</span>';
+        
+        if (!data.ok) {
+            showToast('❌ ' + (data.message || 'فشل الإرسال'));
+            return;
+        }
+        
+        input.value = '';
+        loadUserMessages();
+    })
+    .catch(function(err) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> <span class="hidden sm:inline">إرسال</span>';
+        showToast('❌ خطأ في الاتصال');
+        console.error(err);
+    });
+}
+
+/* تحديد الرسائل كمقروءة */
+function markUserMessagesRead() {
+    fetch('/api/messages/read', {
+        method: 'POST',
+        credentials: 'include'
+    })
+    .then(function() {
+        updateUserChatBadge(0);
+    })
+    .catch(function(err) { console.error(err); });
+}
+
+/* تحديث Badge */
+function updateUserChatBadge(count) {
+    var badge = document.getElementById('userChatBadge');
+    var badgeMobile = document.getElementById('userChatBadgeMobile');
+    
+    if (count > 0) {
+        if (badge) {
+            badge.textContent = count > 99 ? '99+' : count;
+            badge.classList.remove('hidden');
+        }
+        if (badgeMobile) {
+            badgeMobile.textContent = count;
+            badgeMobile.classList.remove('hidden');
+        }
+    } else {
+        if (badge) badge.classList.add('hidden');
+        if (badgeMobile) badgeMobile.classList.add('hidden');
+    }
+}
+
+/* تحديث Badge دوريًا */
+function refreshUserChatBadge() {
+    if (!CURRENT_USER) return;
+    fetch('/api/messages', { credentials: 'include', cache: 'no-store' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (data && data.ok) {
+                updateUserChatBadge(data.unreadCount || 0);
+            }
+        })
+        .catch(function() {});
+}
+
+/* عند دخول المستخدم للتطبيق — فعّل التحديث الدوري */
+var _originalEnterUserAppForChat = enterUserApp;
+enterUserApp = function() {
+    _originalEnterUserAppForChat();
+    setTimeout(refreshUserChatBadge, 1000);
+    /* كل 30 ثانية، حدّث Badge */
+    setInterval(refreshUserChatBadge, 30000);
+};
+
+/* إغلاق المحادثة بمفتاح Escape */
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        var modal = document.getElementById('userChatModal');
+        if (modal && !modal.classList.contains('hidden')) {
+            closeUserChat();
+        }
+    }
+});
+
 /* ============================================================
    البانر العلوي — الإعلان العام
    ============================================================ */
