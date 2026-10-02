@@ -169,7 +169,7 @@ async function saveUserData(userId, data) {
             timetable = $2,
             homework = $3,
             preparation = $4,
-                        prep_checked = $5,
+            prep_checked = $5,
             extras = $6,
             lang = $7,
             dark_mode = $8,
