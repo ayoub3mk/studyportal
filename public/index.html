@@ -1144,7 +1144,14 @@ input[type="time"]::-webkit-calendar-picker-indicator {
                                 <i class="fa-solid fa-gear text-slate-500 w-5 text-center"></i>
                                 <span>إعدادات المستخدم</span>
                             </button>
+                            <!-- إعادة الجولة التعليمية -->
+                            <button onclick="openResetTutorialDialog(); toggleMobileMenu();" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                <i class="fa-solid fa-graduation-cap text-indigo-500 w-5 text-center"></i>
+                                <span>الجولة التعليمية</span>
+                            </button>
                             
+                            <!-- أولياء الأمور -->
+                            <button onclick="openMyParentsModal(); toggleMobileMenu();"
                             <!-- أولياء الأمور -->
                             <button onclick="openMyParentsModal(); toggleMobileMenu();" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
                                 <i class="fa-solid fa-user-shield text-emerald-500 w-5 text-center"></i>
@@ -1840,7 +1847,15 @@ input[type="time"]::-webkit-calendar-picker-indicator {
                 <button type="button" onclick="document.getElementById('avatarFileInput').click()" class="text-xs font-semibold text-brand-600 dark:text-brand-400 mt-2 hover:underline">تغيير الصورة</button>
             </div>
             <div><label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">الاسم</label><input type="text" id="settingUsername" required class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></div>
+<div class="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900/50 rounded-xl p-3 mt-2">
+    <button type="button" onclick="openResetTutorialDialog()" class="flex items-center gap-2 text-xs font-bold text-indigo-700 dark:text-indigo-300">
+        <i class="fa-solid fa-graduation-cap"></i> إعادة الجولة التعليمية
+    </button>
+    <p class="text-[10px] text-indigo-600 dark:text-indigo-400 mt-1 mr-6">أعد مشاهدة الإرشادات من البداية</p>
+</div>
 
+<div class="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl p-3 mt-2">
+    <button type="button" onclick="openChangePasswordModal()"
 <div class="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl p-3 mt-2">
     <button type="button" onclick="openChangePasswordModal()" class="flex items-center gap-2 text-xs font-bold text-amber-700 dark:text-amber-300">
         <i class="fa-solid fa-key"></i> تغيير كلمة السر
@@ -9127,7 +9142,112 @@ if ('serviceWorker' in navigator) {
         </form>
     </div>
 </div>
+<!-- ============================================================
+     نافذة الجولة التعليمية (Tutorial)
+     ============================================================ -->
+<div id="tutorialModal" class="fixed inset-0 z-[150] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-200 dark:border-slate-700 overflow-hidden relative" style="max-height: 92vh;">
+        
+        <!-- شريط علوي -->
+        <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                    <i id="tutorialHeaderIcon" class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <div>
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-indigo-100">جولة تعليمية</p>
+                    <h3 id="tutorialStepLabel" class="text-base font-black">مرحبًا بك</h3>
+                </div>
+            </div>
+            <button onclick="closeTutorial()" title="إغلاق" class="w-9 h-9 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
 
+        <!-- محتوى الخطوة -->
+        <div class="p-6 sm:p-8 overflow-y-auto" style="max-height: calc(92vh - 180px);">
+            <div id="tutorialContent">
+                <!-- سيتم تعبئته بـ JavaScript -->
+                <div class="text-center py-8">
+                    <i class="fa-solid fa-spinner fa-spin text-3xl text-brand-500 mb-3"></i>
+                    <p class="text-slate-500 dark:text-slate-400">جارٍ التحميل...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- أزرار التحكم -->
+        <div id="tutorialActions" class="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/40 flex flex-wrap items-center justify-between gap-2">
+            <!-- سيتم تعبئتها بـ JavaScript -->
+        </div>
+
+    </div>
+</div>
+
+<!-- ============================================================
+     نافذة تأكيد التخطي الكامل
+     ============================================================ -->
+<div id="tutorialSkipConfirm" class="fixed inset-0 z-[160] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-700">
+        <div class="text-center mb-4">
+            <div class="w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 mx-auto flex items-center justify-center text-2xl mb-3">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 class="text-lg font-black text-slate-900 dark:text-white mb-2">⚠️ تنبيه هام</h3>
+            <p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                لن تفهم شيئًا في التطبيق بدون هذه الجولة!<br>
+                هل أنت متأكد أنك تريد تخطيها؟
+            </p>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="confirmSkipTutorial()" class="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-colors">
+                <i class="fa-solid fa-xmark mr-1"></i> نعم، تخطَّ
+            </button>
+            <button onclick="cancelSkipTutorial()" class="flex-1 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                <i class="fa-solid fa-arrow-right mr-1"></i> لا، أرجع
+            </button>
+        </div>
+    </div>
+</div>
+    <!-- ============================================================
+     نافذة إعادة الجولة (خياران)
+     ============================================================ -->
+<div id="tutorialResetDialog" class="fixed inset-0 z-[160] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-700">
+        <div class="text-center mb-5">
+            <div class="w-16 h-16 rounded-full bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 mx-auto flex items-center justify-center text-2xl mb-3">
+                <i class="fa-solid fa-graduation-cap"></i>
+            </div>
+            <h3 class="text-lg font-black text-slate-900 dark:text-white mb-1">🔄 إعادة الجولة التعليمية</h3>
+            <p class="text-xs text-slate-500 dark:text-slate-400">اختر نوع الإعادة:</p>
+        </div>
+        
+        <div class="space-y-2 mb-4">
+            <button onclick="resetTutorial('full')" class="w-full p-4 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border-2 border-indigo-200 dark:border-indigo-900/50 text-right transition-colors">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-rotate-right text-indigo-600 dark:text-indigo-400 text-lg"></i>
+                    <div class="flex-1">
+                        <p class="font-bold text-sm text-indigo-700 dark:text-indigo-300">إعادة كاملة</p>
+                        <p class="text-[11px] text-indigo-600 dark:text-indigo-400 mt-0.5">تظهر كل الإرشادات من جديد</p>
+                    </div>
+                </div>
+            </button>
+            
+            <button onclick="resetTutorial('incomplete')" class="w-full p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border-2 border-emerald-200 dark:border-emerald-900/50 text-right transition-colors">
+                <div class="flex items-center gap-3">
+                    <i class="fa-solid fa-check-double text-emerald-600 dark:text-emerald-400 text-lg"></i>
+                    <div class="flex-1">
+                        <p class="font-bold text-sm text-emerald-700 dark:text-emerald-300">إكمال غير المكتمل فقط</p>
+                        <p class="text-[11px] text-emerald-600 dark:text-emerald-400 mt-0.5">تظهر فقط الإرشادات التي لم تُعمَّر</p>
+                    </div>
+                </div>
+            </button>
+        </div>
+        
+        <button onclick="closeResetTutorialDialog()" class="w-full py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm font-semibold hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+            إلغاء
+        </button>
+    </div>
+</div>
 <!-- ============================================================
      نافذة إدارة أولياء الأمور (من جهة الابن)
      ============================================================ -->
