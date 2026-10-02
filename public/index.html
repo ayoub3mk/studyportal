@@ -746,6 +746,145 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     }
 }
 /* ============================================================
+   زر "إضافة ورقة" والصف السريع
+   ============================================================ */
+
+/* زر "إضافة ورقة" */
+.quick-add-item-btn {
+    background: transparent;
+    border: 2px dashed #cbd5e1;
+    color: #64748b;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.quick-add-item-btn:hover {
+    border-color: #f97316;
+    background: rgba(249, 115, 22, 0.05);
+    color: #ea580c;
+    border-style: solid;
+}
+
+.quick-add-item-btn:active {
+    transform: scale(0.98);
+}
+
+.dark .quick-add-item-btn {
+    border-color: #475569;
+    color: #94a3b8;
+}
+
+.dark .quick-add-item-btn:hover {
+    border-color: #fb923c;
+    background: rgba(251, 146, 60, 0.1);
+    color: #fb923c;
+}
+
+.quick-add-item-btn i {
+    transition: transform 0.2s;
+}
+
+.quick-add-item-btn:hover i {
+    transform: rotate(90deg);
+}
+
+/* الصف السريع (يظهر عند الإضافة) */
+.quick-add-row {
+    animation: quickAddSlideIn 0.25s ease-out;
+    background: linear-gradient(90deg, rgba(249, 115, 22, 0.08), transparent);
+    border-radius: 10px;
+    padding: 4px 6px;
+    margin: 2px 0;
+    border-left: 3px solid #f97316;
+}
+
+.dark .quick-add-row {
+    background: linear-gradient(90deg, rgba(251, 146, 60, 0.12), transparent);
+}
+
+@keyframes quickAddSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-10px);
+        max-height: 0;
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+        max-height: 60px;
+    }
+}
+
+/* حقل الكود في الصف السريع */
+.quick-add-row input.quick-code-input {
+    background: #fff;
+    border: 2px solid #f97316;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+}
+
+.dark .quick-add-row input.quick-code-input {
+    background: #1e293b;
+}
+
+/* نبض خفيف على الحقل */
+@keyframes quickAddPulse {
+    0%, 100% {
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(249, 115, 22, 0.08);
+    }
+}
+
+.quick-add-row input.quick-code-input:focus {
+    animation: quickAddPulse 1.5s ease-in-out infinite;
+}
+
+/* زر إغلاق الصف السريع */
+.quick-add-close {
+    color: #94a3b8;
+    transition: all 0.15s;
+}
+
+.quick-add-close:hover {
+    color: #ef4444;
+    transform: scale(1.1);
+}
+
+/* الشارة المؤقتة "جاري الإضافة..." */
+.quick-add-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: rgba(249, 115, 22, 0.15);
+    color: #ea580c;
+    border-radius: 6px;
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    animation: quickAddPulse 1.5s ease-in-out infinite;
+}
+
+.dark .quick-add-hint {
+    background: rgba(251, 146, 60, 0.2);
+    color: #fb923c;
+}
+
+/* تحسينات للهاتف */
+@media (max-width: 640px) {
+    .quick-add-item-btn {
+        padding: 10px !important;
+        font-size: 12px !important;
+    }
+    
+    .quick-add-row {
+        padding: 6px;
+    }
+}
+/* ============================================================
    نافذة الجولة التعليمية (Tutorial)
    ============================================================ */
 
