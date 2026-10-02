@@ -306,6 +306,7 @@ try { timetable = JSON.parse(data.timetable || '{}'); } catch (e) { timetable = 
 try { homework = JSON.parse(data.homework || '[]'); } catch (e) { homework = []; }
 preparation = parseJsonField(data.preparation, {});
 prepChecked = parseJsonField(data.prep_checked, { date: null, checked: {} });
+var extras = parseJsonField(data.extras, {});       
 res.json({
     user: {
         id: user.id,
@@ -320,6 +321,7 @@ res.json({
         homework: homework,
         preparation: preparation,
         prepChecked: prepChecked,
+        extras: extras,
         lang: data.lang || 'ar',
         darkMode: !!data.dark_mode
     }
@@ -353,6 +355,7 @@ var timetable = body.timetable != null ? body.timetable : null;
 var homework = body.homework != null ? body.homework : null;
 var preparation = body.preparation != null ? body.preparation : null;
 var prepChecked = body.prepChecked != null ? body.prepChecked : null;
+var extras = body.extras != null ? body.extras : null;       
 var lang = body.lang != null ? body.lang : null;
 var darkMode = body.darkMode != null ? body.darkMode : null;
 
@@ -367,6 +370,7 @@ if (homework == null) {
 }
 if (preparation == null) preparation = parseJsonField(currentData.preparation, {});
 if (prepChecked == null) prepChecked = parseJsonField(currentData.prep_checked, { date: null, checked: {} });
+if (extras == null) extras = parseJsonField(currentData.extras, {});
 if (lang == null) lang = currentData.lang || 'ar';
 if (darkMode == null) darkMode = !!currentData.dark_mode;
 
@@ -376,6 +380,7 @@ await db.saveUserData(req.userId, {
     homework: homework,
     preparation: preparation,
     prepChecked: prepChecked,
+    extras: extras,
     lang: lang,
     darkMode: darkMode
 });
@@ -1564,7 +1569,28 @@ app.get('/api/parent/children/:userId/focus', parentAuthRequired, async function
         res.status(500).json({ error: 'server_error' });
     }
 });
+/* ============================================================
+   لوحة المدير (للحساب ayoub_jawedi فقط)
+   ============================================================ */
+var ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'ayoub_jawedi';
 
+function adminRequired(req, res, next) {
+    accountAuthRequired(req, res, function() {
+        if (req.accountUsername !== ADMIN_USERNAME) {
+            return res.status(403).json({ error: 'forbidden' });
+        }
+        next();
+    });
+}
+
+app.get('/api/admin/overview', adminRequired, async function(req, res) {
+    try {
+        res.json(await db.getAdminOverview());
+    } catch (err) {
+        console.error('Admin overview error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
 app.get('*', function(req, res) {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
