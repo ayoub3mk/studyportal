@@ -108,7 +108,51 @@ async function updateUserProfile(userId, profile) {
 async function deleteUser(userId) {
     await pool.query('DELETE FROM users WHERE id = $1', [userId]);
 }
+/* ============================================================
+   لوحة المدير: نظرة عامة على الموقع
+   ============================================================ */
+async function getAdminOverview() {
+    var out = { totals: {}, users: [] };
 
+    async function count(sql) {
+        try {
+            var r = await pool.query(sql);
+            return (r.rows[0] && r.rows[0].n) || 0;
+        } catch (e) {
+            console.error('admin count error:', e.message);
+            return 0;
+        }
+    }
+
+    out.totals = {
+        accounts:  await count('SELECT COUNT(*)::int AS n FROM accounts'),
+        users:     await count('SELECT COUNT(*)::int AS n FROM users'),
+        parents:   await count('SELECT COUNT(*)::int AS n FROM parent_accounts'),
+        newWeek:   await count("SELECT COUNT(*)::int AS n FROM users WHERE created_at > NOW() - INTERVAL '7 days'"),
+        activeDay: await count("SELECT COUNT(*)::int AS n FROM user_data WHERE updated_at > NOW() - INTERVAL '1 day'"),
+        activeWeek: await count("SELECT COUNT(*)::int AS n FROM user_data WHERE updated_at > NOW() - INTERVAL '7 days'")
+    };
+
+    try {
+        var r = await pool.query(`
+            SELECT u.id, u.name, u.grade, u.created_at,
+                   a.username AS account,
+                   d.updated_at AS last_active,
+                   COALESCE(s.points, 0) AS points,
+                   COALESCE(s.current_streak, 0) AS streak
+            FROM users u
+            JOIN accounts a ON a.id = u.account_id
+            LEFT JOIN user_data d ON d.user_id = u.id
+            LEFT JOIN user_stats s ON s.user_id = u.id
+            ORDER BY d.updated_at DESC NULLS LAST
+            LIMIT 500
+        `);
+        out.users = r.rows;
+    } catch (e) {
+        console.error('admin users error:', e.message);
+    }
+    return out;
+}
 /* ============================================================
    دوال بيانات المستخدم (User Data)
    ============================================================ */
@@ -125,17 +169,19 @@ async function saveUserData(userId, data) {
             timetable = $2,
             homework = $3,
             preparation = $4,
-            prep_checked = $5,
-            lang = $6,
-            dark_mode = $7,
+                        prep_checked = $5,
+            extras = $6,
+            lang = $7,
+            dark_mode = $8,
             updated_at = NOW()
-        WHERE user_id = $8
+        WHERE user_id = $9
     `, [
         JSON.stringify(data.subjects || []),
         JSON.stringify(data.timetable || {}),
         JSON.stringify(data.homework || []),
         JSON.stringify(data.preparation || {}),
         JSON.stringify(data.prepChecked || { date: null, checked: {} }),
+        JSON.stringify(data.extras || {}),
         data.lang || 'ar',
         data.darkMode ? 1 : 0,
         userId
@@ -886,6 +932,7 @@ module.exports = {
     createAccount: createAccount,
     findAccountByUsername: findAccountByUsername,
     findAccountById: findAccountById,
+    getAdminOverview: getAdminOverview,
     /* المستخدمون */
     createUser: createUser,
     getUsersByAccount: getUsersByAccount,
