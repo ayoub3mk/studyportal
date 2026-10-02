@@ -2691,8 +2691,8 @@ function loadUserData() {
         var u = data.user;
         appState.lang = u.lang || 'ar';
         appState.darkMode = !!u.darkMode;
-        appState.subjects = u.subjects && u.subjects.length > 0 ? u.subjects : getDefaultSubjects();
-        appState.timetable = u.timetable && Object.keys(u.timetable).length > 0 ? u.timetable : getDefaultTimetable();
+        appState.subjects = u.subjects || [];
+        appState.timetable = u.timetable || {};
         appState.homework = u.homework || [];
         appState.preparation = u.preparation || {};
         appState.prepChecked = u.prepChecked || { date: null, checked: {} };
