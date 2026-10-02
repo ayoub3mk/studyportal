@@ -3533,7 +3533,7 @@ function saveQuickAdd() {
         link: '',
         corrige: false,
         teacher: '',
-        exercises: { label: '', checked: false }
+        exercises: { label: '', items: [] }
     });
     
     /* احفظ على السيرفر */
@@ -3622,12 +3622,9 @@ function migrateItemFields(item) {
         changed = true;
     }
     
-    /* exercises (ورقة التمارين) */
-    if (typeof item.exercises === 'undefined') {
-        item.exercises = { label: '', checked: false };
-        changed = true;
-    } else if (typeof item.exercises !== 'object' || item.exercises === null) {
-        item.exercises = { label: '', checked: false };
+       /* exercises (ورقة التمارين - النسخة الجديدة) */
+    if (typeof item.exercises === 'undefined' || item.exercises === null || typeof item.exercises !== 'object') {
+        item.exercises = { label: '', items: [] };
         changed = true;
     } else {
         /* تحقق من الحقول الداخلية */
@@ -3635,10 +3632,31 @@ function migrateItemFields(item) {
             item.exercises.label = '';
             changed = true;
         }
-        if (typeof item.exercises.checked === 'undefined') {
-            item.exercises.checked = false;
+        if (!Array.isArray(item.exercises.items)) {
+            /* دعم النسخة القديمة: checked → items */
+            item.exercises.items = [];
+            if (item.exercises.checked) {
+                item.exercises.items.push({ n: 1, text: '', checked: true });
+            }
+            /* احذف الحقل القديم */
+            delete item.exercises.checked;
             changed = true;
         }
+        /* تحقق من كل تمرين */
+        item.exercises.items.forEach(function(ex, i) {
+            if (typeof ex.n === 'undefined') {
+                ex.n = i + 1;
+                changed = true;
+            }
+            if (typeof ex.text === 'undefined') {
+                ex.text = '';
+                changed = true;
+            }
+            if (typeof ex.checked === 'undefined') {
+                ex.checked = false;
+                changed = true;
+            }
+        });
     }
     
     return changed;
