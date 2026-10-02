@@ -2296,10 +2296,11 @@ var appState = {
     timetable: {},
     homework: [],
     preparation: {},        /* أدوات كل مادة (ثابتة) */
-    prepChecked: {          /* حالة الـ checkbox اليومية */
+     prepChecked: {          /* حالة الـ checkbox اليومية */
         date: null,
         checked: {}
-    }
+    },
+    tutorial: null          /* حالة الإرشادات */
 };
 
 var AUTH_TOKEN = null;
@@ -2698,6 +2699,7 @@ function loadUserData() {
         appState.prepChecked = u.prepChecked || { date: null, checked: {} };
         appState.series = (u.extras && u.extras.series) || [];
         appState.notes = (u.extras && u.extras.notes) || [];
+        appState.tutorial = (u.extras && u.extras.tutorial) || null;
         CURRENT_USER = u;
         purgeOldHomework();
         applyTheme();
@@ -3847,7 +3849,11 @@ function saveState() {
         homework: appState.homework,
         preparation: appState.preparation,
         prepChecked: appState.prepChecked,
-        extras: { series: appState.series || [], notes: appState.notes || [] },
+        extras: { 
+            series: appState.series || [], 
+            notes: appState.notes || [],
+            tutorial: appState.tutorial || null
+        },
         lang: appState.lang,
         darkMode: appState.darkMode
     };
