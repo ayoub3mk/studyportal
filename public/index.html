@@ -3256,7 +3256,187 @@ function renderItemRow(subjId, secKey, item, idx, search, filter) {
     h += '</div>';
     return h;
 }
+/* ============================================================
+   الإضافة السريعة للأوراق (Quick Add)
+   ============================================================ */
 
+var quickAddState = {
+    active: false,
+    subjectId: null,
+    sectionKey: null,
+    currentRow: null
+};
+
+function quickAddItem(subjectId, sectionKey) {
+    /* إذا كانت هناك إضافة نشطة بالفعل، ألغِها */
+    if (quickAddState.active) {
+        cancelQuickAdd();
+    }
+    
+    quickAddState.active = true;
+    quickAddState.subjectId = subjectId;
+    quickAddState.sectionKey = sectionKey || null;
+    
+    /* ابحث عن زر الإضافة المناسب */
+    var selector = sectionKey 
+        ? 'button[onclick*="quickAddItem(\'' + subjectId + '\', \'' + sectionKey + '\')"]'
+        : 'button[onclick*="quickAddItem(\'' + subjectId + '\', null)"]';
+    var addBtn = document.querySelector(selector);
+    
+    if (!addBtn) {
+        console.warn('لم يُعثر على الزر');
+        quickAddState.active = false;
+        return;
+    }
+    
+    /* ابحث عن حاوية العناصر (items) في نفس البطاقة */
+    var card = addBtn.closest('.bg-white, .dark\\:bg-slate-800');
+    if (!card) {
+        console.warn('لم يُعثر على البطاقة');
+        quickAddState.active = false;
+        return;
+    }
+    
+    var itemsContainer = card.querySelector('.space-y-1.custom-scrollbar');
+    if (!itemsContainer) {
+        console.warn('لم يُعثر على حاوية العناصر');
+        quickAddState.active = false;
+        return;
+    }
+    
+    /* أنشئ الصف السريع */
+    var row = document.createElement('div');
+    row.className = 'quick-add-row flex items-center gap-1.5 py-1 px-2';
+    row.setAttribute('data-quick-add', 'true');
+    
+    row.innerHTML = 
+        '<span class="quick-add-hint">' +
+            '<i class="fa-solid fa-spinner fa-spin"></i>' +
+            '<span>جديد</span>' +
+        '</span>' +
+        '<input type="text" placeholder="2024" maxlength="20" ' +
+            'class="quick-code-input w-16 sm:w-24 text-center text-xs font-extrabold text-slate-800 dark:text-slate-100 rounded-lg py-1 px-1 font-mono" ' +
+            'id="quickAddCodeInput">' +
+        '<input type="text" placeholder="ملاحظة..." maxlength="100" ' +
+            'class="flex-1 min-w-0 text-[11px] text-slate-600 dark:text-slate-300 bg-transparent border-b border-slate-200 dark:border-slate-700 py-1 px-1" ' +
+            'id="quickAddNoteInput">' +
+        '<button onclick="saveQuickAdd()" title="حفظ (Enter)" ' +
+            'class="w-7 h-7 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center flex-shrink-0 transition-colors">' +
+            '<i class="fa-solid fa-check text-xs"></i>' +
+        '</button>' +
+        '<button onclick="cancelQuickAdd()" title="إلغاء (Esc)" ' +
+            'class="quick-add-close w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0">' +
+            '<i class="fa-solid fa-xmark text-xs"></i>' +
+        '</button>';
+    
+    /* أضف الصف في نهاية الحاوية */
+    itemsContainer.appendChild(row);
+    
+    quickAddState.currentRow = row;
+    
+    /* احفظ مرجع في الزر */
+    addBtn.style.display = 'none';
+    
+    /* اذهب للحقل تلقائيًا */
+    setTimeout(function() {
+        var codeInput = document.getElementById('quickAddCodeInput');
+        if (codeInput) {
+            codeInput.focus();
+            /* التمرير للصف */
+            row.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }, 100);
+    
+    /* أضف مستمع Enter/Escape */
+    addQuickAddListeners();
+}
+
+function addQuickAddListeners() {
+    var codeInput = document.getElementById('quickAddCodeInput');
+    var noteInput = document.getElementById('quickAddNoteInput');
+    
+    function handleKey(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            saveQuickAdd();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelQuickAdd();
+        }
+    }
+    
+    if (codeInput) codeInput.addEventListener('keydown', handleKey);
+    if (noteInput) noteInput.addEventListener('keydown', handleKey);
+}
+
+function saveQuickAdd() {
+    if (!quickAddState.active) return;
+    
+    var codeInput = document.getElementById('quickAddCodeInput');
+    var noteInput = document.getElementById('quickAddNoteInput');
+    
+    if (!codeInput) return;
+    
+    var code = codeInput.value.trim();
+    var note = noteInput ? noteInput.value.trim() : '';
+    
+    if (!code) {
+        /* الصف الفارغ → ألغِ */
+        cancelQuickAdd();
+        return;
+    }
+    
+    /* احصل على الحاوية */
+    var arr = getItemsContainer(quickAddState.subjectId, quickAddState.sectionKey);
+    if (!arr) {
+        showToast('❌ خطأ في الحفظ');
+        cancelQuickAdd();
+        return;
+    }
+    
+    /* أضف العنصر */
+    arr.push({
+        code: code,
+        checked: false,
+        note: note,
+        link: ''
+    });
+    
+    /* احفظ على السيرفر */
+    saveState();
+    
+    /* أعد عرض المواد */
+    var sId = quickAddState.subjectId;
+    var sKey = quickAddState.sectionKey;
+    renderSubjects();
+    
+    /* أعد فتح الإضافة للصف التالي */
+    setTimeout(function() {
+        quickAddItem(sId, sKey);
+    }, 150);
+}
+
+function cancelQuickAdd() {
+    if (!quickAddState.active) return;
+    
+    /* احذف الصف */
+    if (quickAddState.currentRow && quickAddState.currentRow.parentNode) {
+        quickAddState.currentRow.parentNode.removeChild(quickAddState.currentRow);
+    }
+    
+    /* أعد إظهار الزر */
+    var selector = quickAddState.sectionKey 
+        ? 'button[onclick*="quickAddItem(\'' + quickAddState.subjectId + '\', \'' + quickAddState.sectionKey + '\')"]'
+        : 'button[onclick*="quickAddItem(\'' + quickAddState.subjectId + '\', null)"]';
+    var addBtn = document.querySelector(selector);
+    if (addBtn) addBtn.style.display = '';
+    
+    /* أعد تعيين الحالة */
+    quickAddState.active = false;
+    quickAddState.subjectId = null;
+    quickAddState.sectionKey = null;
+    quickAddState.currentRow = null;
+}
 /* ============================================================
    الجزء 10: عمليات الأوراق
    ============================================================ */
@@ -3796,6 +3976,11 @@ function renderStats() {
    الجزء 17: التبويبات
    ============================================================ */
 function switchTab(tab) {
+    /* ألغِ أي إضافة سريعة نشطة */
+    if (typeof quickAddState !== 'undefined' && quickAddState.active) {
+        cancelQuickAdd();
+    }
+    
     currentTab = tab;
     ['checklist','timetable','homework','stats','tutoring','progress','results','preparation','series','notes'].forEach(function(x){
         var el = document.getElementById('tab-'+x);
