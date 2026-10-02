@@ -3287,7 +3287,11 @@ function renderSubjects() {
 }
 
 function renderItemRow(subjId, secKey, item, idx, search, filter) {
-    var mS = !search || item.code.toLowerCase().indexOf(search) !== -1 || (item.note || '').toLowerCase().indexOf(search) !== -1;
+        var mS = !search || 
+        item.code.toLowerCase().indexOf(search) !== -1 || 
+        (item.note || '').toLowerCase().indexOf(search) !== -1 ||
+        (item.teacher || '').toLowerCase().indexOf(search) !== -1 ||
+        (item.exercises && item.exercises.label && item.exercises.label.toLowerCase().indexOf(search) !== -1);
     var mF = filter === 'all' || (filter === 'completed' && item.checked) || (filter === 'pending' && !item.checked);
     if (!mS || !mF) return '';
     var sk = secKey || '';
@@ -3521,12 +3525,15 @@ function saveQuickAdd() {
         return;
     }
     
-    /* أضف العنصر */
+    /* أضف العنصر (مع الحقول الجديدة) */
     arr.push({
         code: code,
         checked: false,
         note: note,
-        link: ''
+        link: '',
+        corrige: false,
+        teacher: '',
+        exercises: { label: '', checked: false }
     });
     
     /* احفظ على السيرفر */
@@ -4733,10 +4740,17 @@ function manualSave() {
    ============================================================ */
 function exportJSON() {
     var data = {
+        version: 2,
+        exportedAt: new Date().toISOString(),
         name: CURRENT_USER ? CURRENT_USER.name : 'User',
         subjects: appState.subjects,
         timetable: appState.timetable,
         homework: appState.homework,
+        preparation: appState.preparation,
+        extras: {
+            series: appState.series || [],
+            notes: appState.notes || []
+        },
         lang: appState.lang,
         darkMode: appState.darkMode
     };
@@ -4764,18 +4778,32 @@ function importJSON() {
                 if (parsed.subjects) appState.subjects = parsed.subjects;
                 if (parsed.timetable) appState.timetable = parsed.timetable;
                 if (parsed.homework) appState.homework = parsed.homework;
+                if (parsed.preparation) appState.preparation = parsed.preparation;
+                if (parsed.extras) {
+                    if (parsed.extras.series) appState.series = parsed.extras.series;
+                    if (parsed.extras.notes) appState.notes = parsed.extras.notes;
+                }
                 if (parsed.lang) appState.lang = parsed.lang;
                 if (typeof parsed.darkMode !== 'undefined') appState.darkMode = parsed.darkMode;
+                
+                /* Migration بعد الاستيراد */
+                try { migrateSubjectItems(); } catch (e) {}
+                
                 renderApp();
                 saveState();
-                alert('تم الاستيراد!');
-            } catch (err) { alert('ملف غير صالح'); }
+                alert('✅ تم الاستيراد بنجاح!\n\n' + 
+                      'المواد: ' + (appState.subjects?.length || 0) + '\n' +
+                      'الحصص: ' + Object.keys(appState.timetable || {}).length + '\n' +
+                      'الواجبات: ' + (appState.homework?.length || 0));
+            } catch (err) { 
+                console.error(err);
+                alert('❌ ملف غير صالح: ' + err.message); 
+            }
         };
         r.readAsText(f);
     };
     inp.click();
 }
-
 /* ============================================================
    الجزء 25: ترجمة تلقائية
    ============================================================ */
