@@ -8773,7 +8773,791 @@ window.addEventListener('DOMContentLoaded', function() {
 
 /* جلب الإعلان كل دقيقتين (للتحديثات الجديدة) */
 setInterval(loadAnnouncement, 120000);
+/* ============================================================
+   الجزء 36: الجولة التعليمية (Tutorial)
+   ============================================================ */
 
+var TUTORIAL_STEPS = [
+    {
+        id: 'welcome',
+        icon: 'fa-hand-sparkles',
+        color: 'linear-gradient(135deg, #6366f1, #a855f7)',
+        title: 'مرحبًا بك',
+        subtitle: 'بوابة المساعد الدراسي',
+        content: function() {
+            var name = CURRENT_USER ? CURRENT_USER.name : '';
+            return `
+                <div class="tutorial-hero-icon" style="background: linear-gradient(135deg, #6366f1, #a855f7);">
+                    <i class="fa-solid fa-hand-sparkles"></i>
+                </div>
+                <h2 class="text-2xl font-black text-center text-slate-900 dark:text-white mb-3">أهلاً ${escapeHtml(name)}! 🎓</h2>
+                <p class="text-center text-sm text-slate-600 dark:text-slate-300 leading-relaxed mb-4">
+                    هذه بوابتك الدراسية الشخصية — <strong>فارغة تمامًا</strong>، جاهزة لتبنيها كما تحب.
+                </p>
+                <p class="text-center text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                    سنأخذك في <strong>جولة سريعة</strong> (3 دقائق) لتتعلم كيف تستعمل التطبيق.
+                </p>
+                <div class="tutorial-tip">
+                    <i class="fa-solid fa-lightbulb"></i>
+                    يمكنك تخطي أي خطوة، والعودة للجولة من الإعدادات.
+                </div>
+                <p class="text-center font-bold text-slate-900 dark:text-white mt-5">هل أنت مستعد؟ 🚀</p>
+            `;
+        },
+        actions: 'welcome'
+    },
+    {
+        id: 'checklist',
+        icon: 'fa-list-check',
+        color: 'linear-gradient(135deg, #f97316, #ea580c)',
+        title: 'قائمة المراجعة',
+        subtitle: 'القسم الأساسي',
+        tab: 'checklist',
+        content: function() {
+            return `
+                <div class="tutorial-hero-icon" style="background: linear-gradient(135deg, #f97316, #ea580c);">
+                    <i class="fa-solid fa-list-check"></i>
+                </div>
+                <h2 class="text-xl font-black text-center text-slate-900 dark:text-white mb-3">📋 قائمة المراجعة</h2>
+                <p class="text-center text-sm text-slate-600 dark:text-slate-300 mb-4">
+                    <strong>هنا تضع الامتحانات القديمة التي تملكها.</strong>
+                </p>
+                <ul class="tutorial-list">
+                    <li><i class="fa-solid fa-1"></i><span><strong>أضف مادة</strong> → اسم عربي + فرنسي + إنجليزي</span></li>
+                    <li><i class="fa-solid fa-2"></i><span><strong>أضف الامتحانات</strong> → سطر لكل امتحان (2024, 2023...)</span></li>
+                    <li><i class="fa-solid fa-3"></i><span><strong>علّم ✓</strong> عند إنجاز كل امتحان</span></li>
+                    <li><i class="fa-solid fa-4"></i><span><strong>أضف ملاحظات</strong> و<strong>روابط</strong> لكل امتحان</span></li>
+                </ul>
+                <div class="tutorial-tip">
+                    <i class="fa-solid fa-lightbulb"></i>
+                    ابدأ بموادك الأساسية (رياضيات، فيزياء...).
+                </div>
+            `;
+        },
+        actions: 'default-with-na',
+        naText: 'لا أملك امتحانات قديمة',
+        completionCheck: function() {
+            return appState.subjects && appState.subjects.length > 0;
+        }
+    },
+    {
+        id: 'timetable',
+        icon: 'fa-table-cells',
+        color: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+        title: 'جدول الأوقات',
+        subtitle: 'أسبوعك بصريًا',
+        tab: 'timetable',
+        content: function() {
+            return `
+                <div class="tutorial-hero-icon" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">
+                    <i class="fa-solid fa-table-cells"></i>
+                </div>
+                <h2 class="text-xl font-black text-center text-slate-900 dark:text-white mb-3">📅 جدول الأوقات الأسبوعي</h2>
+                <p class="text-center text-sm text-slate-600 dark:text-slate-300 mb-4">
+                    <strong>جدولك الأسبوعي بشكل بصري</strong> — 6 أيام × 10 ساعات.
+                </p>
+                <ul class="tutorial-list">
+                    <li><i class="fa-solid fa-hand-pointer"></i><span><strong>انقر على أي خانة فارغة</strong> → لإضافة حصة</span></li>
+                    <li><i class="fa-solid fa-pen"></i><span><strong>انقر على أي حصة</strong> → لتعديلها أو حذفها</span></li>
+                    <li><i class="fa-solid fa-shuffle"></i><span><strong>بدّل بين A و B</strong> → للأسبوعين المتناوبين</span></li>
+                    <li><i class="fa-solid fa-wand-magic-sparkles"></i><span><strong>زر "تلقائي"</strong> → يحسب الأسبوع الحالي تلقائيًا</span></li>
+                </ul>
+                <div class="tutorial-tip">
+                    <i class="fa-solid fa-lightbulb"></i>
+                    املأ الجدول أولًا، سيساعدك في التحضير اليومي.
+                </div>
+            `;
+        },
+        actions: 'default',
+        completionCheck: function() {
+            return appState.timetable && Object.keys(appState.timetable).length > 0;
+        }
+    },
+    {
+        id: 'homework',
+        icon: 'fa-book-bookmark',
+        color: 'linear-gradient(135deg, #10b981, #059669)',
+        title: 'الواجبات',
+        subtitle: 'لا تنسى شيئًا',
+        tab: 'homework',
+        content: function() {
+            return `
+                <div class="tutorial-hero-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+                    <i class="fa-solid fa-book-bookmark"></i>
+                </div>
+                <h2 class="text-xl font-black text-center text-slate-900 dark:text-white mb-3">📚 الواجبات المنزلية</h2>
+                <p class="text-center text-sm text-slate-600 dark:text-slate-300 mb-4">
+                    <strong>تابع كل واجباتك في مكان واحد</strong> — لا تنسى شيئًا.
+                </p>
+                <ul class="tutorial-list">
+                    <li><i class="fa-solid fa-plus"></i><span><strong>أضف واجبًا</strong> → المادة، العنوان، الموعد، الأولوية</span></li>
+                    <li><i class="fa-solid fa-circle text-red-500"></i><span><strong>عاجل</strong> → للموعد القريب</span></li>
+                    <li><i class="fa-solid fa-circle text-amber-500"></i><span><strong>متوسط</strong> → خلال الأسبوع</span></li>
+                    <li><i class="fa-solid fa-circle text-emerald-500"></i><span><strong>عادي</strong> → لا يوجد ضغط</span></li>
+                    <li><i class="fa-solid fa-trash-can"></i><span>الواجبات المنجزة <strong>تُحذف تلقائيًا</strong> بعد 3 أيام</span></li>
+                </ul>
+                <div class="tutorial-tip">
+                    <i class="fa-solid fa-lightbulb"></i>
+                    راجع واجباتك كل مساء قبل النوم.
+                </div>
+            `;
+        },
+        actions: 'default-with-na',
+        naText: 'لا أملك واجبات حاليًا',
+        completionCheck: function() {
+            return appState.homework && appState.homework.length > 0;
+        }
+    },
+    {
+        id: 'stats',
+        icon: 'fa-chart-line',
+        color: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
+        title: 'الإحصائيات',
+        subtitle: 'تقدمك بالأرقام',
+        tab: 'stats',
+        content: function() {
+            return `
+                <div class="tutorial-hero-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+                    <i class="fa-solid fa-chart-line"></i>
+                </div>
+                <h2 class="text-xl font-black text-center text-slate-900 dark:text-white mb-3">📊 الإحصائيات</h2>
+                <p class="text-center text-sm text-slate-600 dark:text-slate-300 mb-4">
+                    <strong>شاهد تقدمك بالأرقام والنسب.</strong>
+                </p>
+                <ul class="tutorial-list">
+                    <li><i class="fa-solid fa-list-check"></i><span><strong>إجمالي</strong> الأوراق التي راجعتها</span></li>
+                    <li><i class="fa-solid fa-chart-simple"></i><span><strong>نسبة الإنجاز</strong> لكل مادة</span></li>
+                    <li><i class="fa-solid fa-book-bookmark"></i><span><strong>الواجبات النشطة</strong> حاليًا</span></li>
+                </ul>
+                <div class="tutorial-tip">
+                    <i class="fa-solid fa-lightbulb"></i>
+                    الإحصائيات تُحدَّث <strong>تلقائيًا</strong> عند إنجاز أي مهمة.
+                </div>
+            `;
+        },
+        actions: 'simple'
+    },
+    {
+        id: 'tutoring',
+        icon: 'fa-chalkboard-user',
+        color: 'linear-gradient(135deg, #ec4899, #db2777)',
+        title: 'دروس خصوصية',
+        subtitle: 'التدارك',
+        tab: 'tutoring',
+        content: function() {
+            return `
+                <div class="tutorial-hero-icon" style="background: linear-gradient(135deg, #ec4899, #db2777);">
+                    <i class="fa-solid fa-chalkboard-user"></i>
+                </div>
+                <h2 class="text-xl font-black text-center text-slate-900 dark:text-white mb-3">🎓 دروس خصوصية (تدارك)</h2>
+                <p class="text-center text-sm text-slate-600 dark:text-slate-300 mb-4">
+                    <strong>نظّم دروسك الخصوصية وحصص التدارك.</strong>
+                </p>
+                <ul class="tutorial-list">
+                    <li><i class="fa-solid fa-plus"></i><span><strong>أضف درسًا</strong> → المادة، الاسم، تاريخ البداية والنهاية</span></li>
+                    <li><i class="fa-solid fa-calendar-week"></i><span><strong>أسبوعي</strong> → كل يوم محدد (كل سبت مثلاً)</span></li>
+                    <li><i class="fa-solid fa-clock"></i><span><strong>كل X أيام</strong> → كل 5 أيام، 10 أيام...</span></li>
+                    <li><i class="fa-solid fa-list-check"></i><span><strong>أضف تمارين</strong> لكل حصة</span></li>
+                </ul>
+                <div class="tutorial-tip">
+                    <i class="fa-solid fa-lightbulb"></i>
+                    استعملها للدروس خارج المدرسة فقط.
+                </div>
+            `;
+        },
+        actions: 'default-with-na',
+        naText: 'لا أدرس دروسًا خصوصية',
+        completionCheck: function() {
+            return CURRENT_TUTORING && CURRENT_TUTORING.length > 0;
+        }
+    },
+    {
+        id: 'progress',
+        icon: 'fa-trophy',
+        color: 'linear-gradient(135deg, #f59e0b, #d97706)',
+        title: 'التقدم والنقاط',
+        subtitle: 'Streak',
+        tab: 'progress',
+        content: function() {
+            return `
+                <div class="tutorial-hero-icon" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                    <i class="fa-solid fa-trophy"></i>
+                </div>
+                <h2 class="text-xl font-black text-center text-slate-900 dark:text-white mb-3">🏆 التقدم والنقاط</h2>
+                <p class="text-center text-sm text-slate-600 dark:text-slate-300 mb-4">
+                    <strong>اجعل الدراسة عادة يومية ممتعة!</strong> 🔥
+                </p>
+                <ul class="tutorial-list">
+                    <li><i class="fa-solid fa-bullseye"></i><span><strong>هدف يومي</strong> → حدده (5 أوراق، 10 مهام...)</span></li>
+                    <li><i class="fa-solid fa-plus"></i><span><strong>+15 نقطة</strong> → لكل ورقة/مهمة منجزة</span></li>
+                    <li><i class="fa-solid fa-gift"></i><span><strong>+20 نقطة</strong> → عند تحقيق الهدف اليومي</span></li>
+                    <li><i class="fa-solid fa-fire"></i><span><strong>+50 نقطة</strong> → لكل 7 أيام متتالية</span></li>
+                </ul>
+                <div class="tutorial-tip">
+                    <i class="fa-solid fa-fire"></i>
+                    حتى 5 دقائق يوميًا تحافظ على الـ Streak.
+                </div>
+            `;
+        },
+        actions: 'default-with-na',
+        naText: 'سأضع هدفًا لاحقًا',
+        completionCheck: function() {
+            return CURRENT_STATS && CURRENT_STATS.todayProgress != null;
+        }
+    },
+    {
+        id: 'results',
+        icon: 'fa-graduation-cap',
+        color: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+        title: 'النتائج',
+        subtitle: 'المعدلات',
+        tab: 'results',
+        content: function() {
+            return `
+                <div class="tutorial-hero-icon" style="background: linear-gradient(135deg, #06b6d4, #0891b2);">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <h2 class="text-xl font-black text-center text-slate-900 dark:text-white mb-3">📝 النتائج والمعدلات</h2>
+                <p class="text-center text-sm text-slate-600 dark:text-slate-300 mb-4">
+                    <strong>سجّل كل امتحان واحسب معدلك تلقائيًا.</strong>
+                </p>
+                <ul class="tutorial-list">
+                    <li><i class="fa-solid fa-plus"></i><span><strong>أضف نتيجة</strong> → المادة، النوع، التاريخ، النقطة</span></li>
+                    <li><i class="fa-solid fa-list"></i><span><strong>الأنواع:</strong> المراقبة 1، المراقبة 2، التأليفي، أخرى</span></li>
+                    <li><i class="fa-solid fa-sliders"></i><span><strong>المعامل</strong> → يمثل أهمية المادة في المعدل</span></li>
+                    <li><i class="fa-solid fa-calculator"></i><span><strong>المعدل العام</strong> يُحسب موزونًا تلقائيًا</span></li>
+                </ul>
+                <div class="tutorial-tip">
+                    <i class="fa-solid fa-lightbulb"></i>
+                    سجّل النتائج فورًا — لا تنتظر نهاية الثلاثي.
+                </div>
+            `;
+        },
+        actions: 'default-with-na',
+        naText: 'لم أحصل على نتائج بعد',
+        completionCheck: function() {
+            return CURRENT_RESULTS && CURRENT_RESULTS.length > 0;
+        }
+    },
+    {
+        id: 'preparation',
+        icon: 'fa-clipboard-check',
+        color: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+        title: 'التحضير',
+        subtitle: 'لغدًا',
+        tab: 'preparation',
+        content: function() {
+            return `
+                <div class="tutorial-hero-icon" style="background: linear-gradient(135deg, #6366f1, #4f46e5);">
+                    <i class="fa-solid fa-clipboard-check"></i>
+                </div>
+                <h2 class="text-xl font-black text-center text-slate-900 dark:text-white mb-3">🎒 التحضير لغدًا</h2>
+                <p class="text-center text-sm text-slate-600 dark:text-slate-300 mb-4">
+                    <strong>لا تنسى أدواتك مرة أخرى!</strong> 🎒
+                </p>
+                <ul class="tutorial-list">
+                    <li><i class="fa-solid fa-toolbox"></i><span><strong>حدد الأدوات</strong> لكل مادة (كتاب، آلة حاسبة...)</span></li>
+                    <li><i class="fa-solid fa-calendar-day"></i><span><strong>كل مساء يعرض:</strong> المواد المقررة غدًا + الأدوات</span></li>
+                    <li><i class="fa-solid fa-list-check"></i><span><strong>علّم ✓</strong> على كل أداة جهزتها</span></li>
+                    <li><i class="fa-solid fa-rotate"></i><span><strong>يتصفّر تلقائيًا</strong> كل يوم</span></li>
+                </ul>
+            `;
+        },
+        actions: 'default'
+    },
+    {
+        id: 'series',
+        icon: 'fa-pen-ruler',
+        color: 'linear-gradient(135deg, #10b981, #14b8a6)',
+        title: 'السلاسل',
+        subtitle: 'تمارين',
+        tab: 'series',
+        content: function() {
+            return `
+                <div class="tutorial-hero-icon" style="background: linear-gradient(135deg, #10b981, #14b8a6);">
+                    <i class="fa-solid fa-pen-ruler"></i>
+                </div>
+                <h2 class="text-xl font-black text-center text-slate-900 dark:text-white mb-3">✏️ سلاسل التمارين</h2>
+                <p class="text-center text-sm text-slate-600 dark:text-slate-300 mb-4">
+                    <strong>تابع سلاسل تمارينك بسهولة.</strong>
+                </p>
+                <ul class="tutorial-list">
+                    <li><i class="fa-solid fa-plus"></i><span><strong>أضف سلسلة</strong> → المادة، العنوان، عدد التمارين</span></li>
+                    <li><i class="fa-solid fa-table-cells"></i><span><strong>ستُنشأ شبكة أرقام</strong> تلقائيًا (1, 2, 3...)</span></li>
+                    <li><i class="fa-solid fa-check"></i><span><strong>انقر على رقم</strong> → يتحول إلى ✓ عند الإنجاز</span></li>
+                    <li><i class="fa-solid fa-check-double"></i><span><strong>أزرار سريعة:</strong> "الكل" و"صفر"</span></li>
+                </ul>
+                <div class="tutorial-tip">
+                    <i class="fa-solid fa-lightbulb"></i>
+                    اعمل سلسلة كل أسبوع لتحسين مستواك.
+                </div>
+            `;
+        },
+        actions: 'default-with-na',
+        naText: 'لا أملك سلاسل حاليًا',
+        completionCheck: function() {
+            return appState.series && appState.series.length > 0;
+        }
+    },
+    {
+        id: 'notes',
+        icon: 'fa-note-sticky',
+        color: 'linear-gradient(135deg, #f59e0b, #ea580c)',
+        title: 'Notes',
+        subtitle: 'ملاحظاتك',
+        tab: 'notes',
+        content: function() {
+            return `
+                <div class="tutorial-hero-icon" style="background: linear-gradient(135deg, #f59e0b, #ea580c);">
+                    <i class="fa-solid fa-note-sticky"></i>
+                </div>
+                <h2 class="text-xl font-black text-center text-slate-900 dark:text-white mb-3">📒 Notes — ملاحظاتك</h2>
+                <p class="text-center text-sm text-slate-600 dark:text-slate-300 mb-4">
+                    <strong>ملاحظات سريعة لكل مادة أو عامة.</strong>
+                </p>
+                <ul class="tutorial-list">
+                    <li><i class="fa-solid fa-plus"></i><span><strong>أضف ملاحظة</strong> → اختر المادة، اكتب العنوان والنص</span></li>
+                    <li><i class="fa-solid fa-palette"></i><span><strong>الألوان:</strong> 🟨 أصفر · 🟦 أزرق · 🟩 أخضر · 🟥 وردي</span></li>
+                    <li><i class="fa-solid fa-thumbtack"></i><span><strong>ثبّت المهمة</strong> → تظهر أولًا</span></li>
+                    <li><i class="fa-solid fa-search"></i><span><strong>ابحث</strong> في كل ملاحظاتك</span></li>
+                </ul>
+                <div class="tutorial-tip">
+                    <i class="fa-solid fa-lightbulb"></i>
+                    استعملها لحفظ الصيغ، القواعد، أو الأسئلة.
+                </div>
+            `;
+        },
+        actions: 'default-with-na',
+        naText: 'لا أملك ملاحظات حاليًا',
+        completionCheck: function() {
+            return appState.notes && appState.notes.length > 0;
+        }
+    },
+    {
+        id: 'focus',
+        icon: 'fa-hourglass-half',
+        color: 'linear-gradient(135deg, #f97316, #ea580c)',
+        title: 'جلسات التركيز',
+        subtitle: 'Pomodoro',
+        content: function() {
+            return `
+                <div class="tutorial-hero-icon" style="background: linear-gradient(135deg, #f97316, #ea580c);">
+                    <i class="fa-solid fa-hourglass-half"></i>
+                </div>
+                <h2 class="text-xl font-black text-center text-slate-900 dark:text-white mb-3">🕐 جلسات التركيز (Pomodoro)</h2>
+                <p class="text-center text-sm text-slate-600 dark:text-slate-300 mb-4">
+                    <strong>تقنية Pomodoro للتركيز العميق.</strong>
+                </p>
+                <ul class="tutorial-list">
+                    <li><i class="fa-solid fa-play"></i><span><strong>ابدأ جلسة</strong> → 25 دقيقة تركيز + 5 استراحة</span></li>
+                    <li><i class="fa-solid fa-clock"></i><span><strong>اختر المدة</strong> → 15، 25، 30، 45، 60 دقيقة أو مخصصة</span></li>
+                    <li><i class="fa-solid fa-book"></i><span><strong>حدد المادة والهدف</strong> → لتتبع جلساتك</span></li>
+                    <li><i class="fa-solid fa-window-minimize"></i><span><strong>صغّر النافذة</strong> → تصبح شريطًا عائمًا</span></li>
+                    <li><i class="fa-solid fa-plus"></i><span><strong>+15 نقطة</strong> → لكل جلسة 30+ دقيقة</span></li>
+                </ul>
+                <div class="tutorial-tip">
+                    <i class="fa-solid fa-lightbulb"></i>
+                    أغلق كل التطبيقات أثناء الجلسة.
+                </div>
+            `;
+        },
+        actions: 'simple'
+    },
+    {
+        id: 'settings',
+        icon: 'fa-gear',
+        color: 'linear-gradient(135deg, #64748b, #475569)',
+        title: 'الإعدادات',
+        subtitle: 'خصّص التطبيق',
+        content: function() {
+            return `
+                <div class="tutorial-hero-icon" style="background: linear-gradient(135deg, #64748b, #475569);">
+                    <i class="fa-solid fa-gear"></i>
+                </div>
+                <h2 class="text-xl font-black text-center text-slate-900 dark:text-white mb-3">⚙️ الإعدادات</h2>
+                <p class="text-center text-sm text-slate-600 dark:text-slate-300 mb-4">
+                    <strong>خصّص تجربتك:</strong>
+                </p>
+                <ul class="tutorial-list">
+                    <li><i class="fa-solid fa-camera"></i><span><strong>الصورة الشخصية</strong> → ارفع صورتك</span></li>
+                    <li><i class="fa-solid fa-user"></i><span><strong>الاسم، المستوى، الثلاثي، السنة</strong></span></li>
+                    <li><i class="fa-solid fa-key"></i><span><strong>تغيير كلمة السر</strong></span></li>
+                    <li><i class="fa-solid fa-globe"></i><span><strong>اللغة</strong> → عربي / فرنسي / إنجليزي</span></li>
+                    <li><i class="fa-solid fa-moon"></i><span><strong>الوضع الليلي</strong> → مريح للعين ليلًا</span></li>
+                    <li><i class="fa-solid fa-download"></i><span><strong>تصدير/استيراد</strong> نسخة احتياطية</span></li>
+                </ul>
+            `;
+        },
+        actions: 'simple'
+    },
+    {
+        id: 'chat',
+        icon: 'fa-comments',
+        color: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+        title: 'التواصل',
+        subtitle: 'مع المدير',
+        content: function() {
+            return `
+                <div class="tutorial-hero-icon" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">
+                    <i class="fa-solid fa-comments"></i>
+                </div>
+                <h2 class="text-xl font-black text-center text-slate-900 dark:text-white mb-3">💬 التواصل مع المدير</h2>
+                <p class="text-center text-sm text-slate-600 dark:text-slate-300 mb-4">
+                    <strong>عندك سؤال أو مشكلة؟ راسل المدير مباشرة.</strong>
+                </p>
+                <ul class="tutorial-list">
+                    <li><i class="fa-solid fa-comments"></i><span><strong>انقر زر "تواصل مع المدير"</strong> (في الأعلى)</span></li>
+                    <li><i class="fa-solid fa-paper-plane"></i><span><strong>اكتب رسالتك</strong> → ستصلك إشعارات عند الرد</span></li>
+                    <li><i class="fa-solid fa-bell"></i><span><strong>Badge أحمر</strong> → يظهر عند وجود رسائل جديدة</span></li>
+                </ul>
+                <div class="tutorial-tip">
+                    <i class="fa-solid fa-lightbulb"></i>
+                    اقترح ميزات جديدة أو أبلغ عن مشاكل.
+                </div>
+            `;
+        },
+        actions: 'simple'
+    },
+    {
+        id: 'parent',
+        icon: 'fa-user-shield',
+        color: 'linear-gradient(135deg, #10b981, #059669)',
+        title: 'ولي الأمر',
+        subtitle: 'بوابة العائلة',
+        content: function() {
+            return `
+                <div class="tutorial-hero-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+                    <i class="fa-solid fa-user-shield"></i>
+                </div>
+                <h2 class="text-xl font-black text-center text-slate-900 dark:text-white mb-3">👨‍👩‍👧 بوابة ولي الأمر</h2>
+                <p class="text-center text-sm text-slate-600 dark:text-slate-300 mb-4">
+                    <strong>هل تريد أن يتابع والدك/والدتك تقدمك؟</strong> 👀
+                </p>
+                <ul class="tutorial-list">
+                    <li><i class="fa-solid fa-gear"></i><span><strong>افتح "إدارة أولياء الأمور"</strong> → من القائمة ⋮</span></li>
+                    <li><i class="fa-solid fa-key"></i><span><strong>ولّد كودًا من 6 أرقام</strong> → صالح لمدة 24 ساعة</span></li>
+                    <li><i class="fa-solid fa-share"></i><span><strong>أعط الكود لوالدك</strong> → يسجّل في "بوابة ولي الأمر"</span></li>
+                    <li><i class="fa-solid fa-bell"></i><span><strong>ستصلك طلبات</strong> للقبول أو الرفض</span></li>
+                </ul>
+                <div class="tutorial-tip">
+                    <i class="fa-solid fa-lightbulb"></i>
+                    هذا يزيد من دعم عائلتك لك.
+                </div>
+            `;
+        },
+        actions: 'simple'
+    },
+    {
+        id: 'final',
+        icon: 'fa-rocket',
+        color: 'linear-gradient(135deg, #10b981, #059669)',
+        title: 'مبروك!',
+        subtitle: 'أنت جاهز',
+        content: function() {
+            return `
+                <div class="tutorial-hero-icon" style="background: linear-gradient(135deg, #10b981, #059669);">
+                    <i class="fa-solid fa-rocket"></i>
+                </div>
+                <h2 class="text-2xl font-black text-center text-slate-900 dark:text-white mb-3">🎉 مبروك! أنت جاهز</h2>
+                <p class="text-center text-sm text-slate-600 dark:text-slate-300 mb-5">
+                    <strong>أنهيت الجولة بنجاح!</strong> 🎓
+                </p>
+                <div class="bg-slate-50 dark:bg-slate-700/40 rounded-2xl p-4 mb-4">
+                    <p class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase mb-3 text-center">خلاصة سريعة</p>
+                    <ul class="tutorial-list">
+                        <li><i class="fa-solid fa-list-check text-orange-500"></i><span><strong>رتّب مراجعتك</strong> في قائمة المراجعة</span></li>
+                        <li><i class="fa-solid fa-book-bookmark text-emerald-500"></i><span><strong>تابع واجباتك</strong> بلا نسيان</span></li>
+                        <li><i class="fa-solid fa-graduation-cap text-cyan-500"></i><span><strong>سجّل نتائجك</strong> واعرف مستواك</span></li>
+                        <li><i class="fa-solid fa-fire text-amber-500"></i><span><strong>حافظ على Streak</strong> لتتحفّز يوميًا</span></li>
+                        <li><i class="fa-solid fa-clipboard-check text-indigo-500"></i><span><strong>جهّز أدواتك</strong> كل ليلة</span></li>
+                        <li><i class="fa-solid fa-trophy text-yellow-500"></i><span><strong>تابع تقدمك</strong> أسبوعيًا</span></li>
+                    </ul>
+                </div>
+                <div class="tutorial-tip">
+                    <i class="fa-solid fa-lightbulb"></i>
+                    يمكنك <strong>إعادة الجولة</strong> من: الإعدادات → 🔄 إعادة الجولة التعليمية
+                </div>
+                <p class="text-center font-bold text-lg text-slate-900 dark:text-white mt-5">بالتوفيق! 💪</p>
+            `;
+        },
+        actions: 'final'
+    }
+];
+
+/* ═══════════════════════════════════════════════════════════
+   حالة الجولة
+   ═══════════════════════════════════════════════════════════ */
+
+var TUTORIAL_NA_STEPS = ['checklist', 'homework', 'tutoring', 'results', 'progress', 'series', 'notes'];
+
+var tutorialState = {
+    currentIndex: 0,
+    running: false
+};
+
+/* ═══════════════════════════════════════════════════════════
+   الحصول على الحالة الافتراضية
+   ═══════════════════════════════════════════════════════════ */
+
+function getDefaultTutorial() {
+    var steps = {};
+    TUTORIAL_STEPS.forEach(function(s) {
+        steps[s.id] = {
+            seen: false,
+            skipped: false,
+            na: false,
+            completed: false
+        };
+    });
+    return {
+        completed: false,
+        started: false,
+        currentStep: 0,
+        steps: steps,
+        lastUpdated: null
+    };
+}
+
+/* ═══════════════════════════════════════════════════════════
+   هل يجب عرض الجولة؟
+   ═══════════════════════════════════════════════════════════ */
+
+function shouldShowTutorial() {
+    if (!CURRENT_USER) return false;
+    if (!appState.tutorial) return true; /* لم تُشغَّل بعد */
+    if (!appState.tutorial.completed) return true;
+    return false;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   بدء الجولة
+   ═══════════════════════════════════════════════════════════ */
+
+function startTutorial(fromIndex) {
+    if (!appState.tutorial) {
+        appState.tutorial = getDefaultTutorial();
+    }
+    tutorialState.currentIndex = fromIndex || 0;
+    tutorialState.running = true;
+    
+    appState.tutorial.started = true;
+    
+    document.getElementById('tutorialModal').classList.remove('hidden');
+    renderTutorialStep();
+    saveState();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   عرض خطوة
+   ═══════════════════════════════════════════════════════════ */
+
+function renderTutorialStep() {
+    var step = TUTORIAL_STEPS[tutorialState.currentIndex];
+    if (!step) return;
+    
+    /* انتقل للتبويب إذا كان محددًا */
+    if (step.tab) {
+        try {
+            switchTab(step.tab);
+        } catch (e) {
+            console.warn('switchTab error:', e);
+        }
+    }
+    
+    /* شريط علوي */
+    document.getElementById('tutorialHeaderIcon').className = 'fa-solid ' + step.icon;
+    document.getElementById('tutorialStepLabel').textContent = step.title;
+    
+    /* المحتوى */
+    document.getElementById('tutorialContent').innerHTML = step.content();
+    
+    /* الأزرار */
+    renderTutorialActions(step);
+    
+    /* علّم كـ "شوهدت" */
+    if (appState.tutorial && appState.tutorial.steps[step.id]) {
+        appState.tutorial.steps[step.id].seen = true;
+        appState.tutorial.currentStep = tutorialState.currentIndex;
+        saveState();
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   عرض الأزرار
+   ═══════════════════════════════════════════════════════════ */
+
+function renderTutorialActions(step) {
+    var container = document.getElementById('tutorialActions');
+    var isFirst = tutorialState.currentIndex === 0;
+    var isLast = tutorialState.currentIndex === TUTORIAL_STEPS.length - 1;
+    var actions = step.actions || 'default';
+    
+    var html = '';
+    
+    /* زر التخطي (في المنتصف) */
+    if (!isFirst && !isLast) {
+        html += '<button onclick="skipTutorialStep()" class="tutorial-btn-skip"><i class="fa-solid fa-forward"></i> تخطي</button>';
+    } else {
+        html += '<div></div>';
+    }
+    
+    /* الأزرار اليمنى */
+    html += '<div class="flex flex-wrap gap-2">';
+    
+    if (actions === 'welcome') {
+        html += '<button onclick="skipTutorialFull()" class="tutorial-btn-skip"><i class="fa-solid fa-xmark"></i> تخطي الجولة كاملة</button>';
+        html += '<button onclick="nextTutorialStep()" class="tutorial-btn-primary"><i class="fa-solid fa-play"></i> ابدأ الجولة</button>';
+    }
+    else if (actions === 'final') {
+        html += '<button onclick="openResetTutorialDialog()" class="tutorial-btn-skip"><i class="fa-solid fa-rotate"></i> إعادة الجولة</button>';
+        html += '<button onclick="finishTutorial()" class="tutorial-btn-primary"><i class="fa-solid fa-rocket"></i> ابدأ رحلتك</button>';
+    }
+    else if (actions === 'default-with-na') {
+        /* زر "لا أملك" */
+        var naText = step.naText || 'لا أملك';
+        html += '<button onclick="skipTutorialAsNA()" class="tutorial-btn-na"><i class="fa-solid fa-inbox"></i> ' + naText + '</button>';
+        html += '<button onclick="nextTutorialStep()" class="tutorial-btn-primary"><i class="fa-solid fa-check"></i> فهمت، التالي</button>';
+    }
+    else if (actions === 'simple') {
+        html += '<button onclick="nextTutorialStep()" class="tutorial-btn-primary"><i class="fa-solid fa-check"></i> فهمت، التالي</button>';
+    }
+    else {
+        html += '<button onclick="nextTutorialStep()" class="tutorial-btn-primary"><i class="fa-solid fa-check"></i> فهمت، التالي</button>';
+    }
+    
+    html += '</div>';
+    
+    container.innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   التنقل
+   ═══════════════════════════════════════════════════════════ */
+
+function nextTutorialStep() {
+    if (tutorialState.currentIndex < TUTORIAL_STEPS.length - 1) {
+        tutorialState.currentIndex++;
+        renderTutorialStep();
+    } else {
+        finishTutorial();
+    }
+}
+
+function skipTutorialStep() {
+    var step = TUTORIAL_STEPS[tutorialState.currentIndex];
+    if (appState.tutorial && appState.tutorial.steps[step.id]) {
+        appState.tutorial.steps[step.id].skipped = true;
+    }
+    nextTutorialStep();
+}
+
+function skipTutorialAsNA() {
+    var step = TUTORIAL_STEPS[tutorialState.currentIndex];
+    if (appState.tutorial && appState.tutorial.steps[step.id]) {
+        appState.tutorial.steps[step.id].na = true;
+        appState.tutorial.steps[step.id].completed = true;
+    }
+    saveState();
+    nextTutorialStep();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   إنهاء الجولة
+   ═══════════════════════════════════════════════════════════ */
+
+function finishTutorial() {
+    if (appState.tutorial) {
+        appState.tutorial.completed = true;
+        appState.tutorial.lastUpdated = new Date().toISOString();
+    }
+    closeTutorial();
+    showToast('🎉 مبروك! أنت جاهز لاستعمال التطبيق');
+    saveState();
+}
+
+function closeTutorial() {
+    document.getElementById('tutorialModal').classList.add('hidden');
+    tutorialState.running = false;
+    saveState();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   تأكيد التخطي الكامل
+   ═══════════════════════════════════════════════════════════ */
+
+function skipTutorialFull() {
+    document.getElementById('tutorialSkipConfirm').classList.remove('hidden');
+}
+
+function confirmSkipTutorial() {
+    document.getElementById('tutorialSkipConfirm').classList.add('hidden');
+    if (appState.tutorial) {
+        appState.tutorial.completed = true;
+        appState.tutorial.lastUpdated = new Date().toISOString();
+    }
+    closeTutorial();
+    showToast('⚠️ تم تخطي الجولة — يمكنك إعادتها من الإعدادات');
+    saveState();
+}
+
+function cancelSkipTutorial() {
+    document.getElementById('tutorialSkipConfirm').classList.add('hidden');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   إعادة الجولة
+   ═══════════════════════════════════════════════════════════ */
+
+function openResetTutorialDialog() {
+    document.getElementById('tutorialResetDialog').classList.remove('hidden');
+}
+
+function closeResetTutorialDialog() {
+    document.getElementById('tutorialResetDialog').classList.add('hidden');
+}
+
+function resetTutorial(mode) {
+    closeResetTutorialDialog();
+    
+    if (!appState.tutorial) {
+        appState.tutorial = getDefaultTutorial();
+    }
+    
+    if (mode === 'full') {
+        /* إعادة كاملة */
+        appState.tutorial = getDefaultTutorial();
+        startTutorial(0);
+    } else if (mode === 'incomplete') {
+        /* فقط غير المكتمل */
+        var steps = appState.tutorial.steps || {};
+        var firstIncomplete = 0;
+        for (var i = 0; i < TUTORIAL_STEPS.length; i++) {
+            var s = steps[TUTORIAL_STEPS[i].id];
+            if (!s || (!s.completed && !s.na && !s.seen)) {
+                firstIncomplete = i;
+                break;
+            }
+        }
+        startTutorial(firstIncomplete);
+    }
+    
+    saveState();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   دمج: عرض الجولة عند الدخول
+   ═══════════════════════════════════════════════════════════ */
+
+var _origEnterUserAppForTutorial = enterUserApp;
+enterUserApp = function() {
+    _origEnterUserAppForTutorial();
+    /* انتظر قليلًا حتى تُحمَّل البيانات ثم اعرض الجولة */
+    setTimeout(function() {
+        if (shouldShowTutorial()) {
+            startTutorial(0);
+        }
+    }, 1500);
+};
 /* ============================================================
    الجزء 36: القائمة المنسدلة للهاتف (نسخة موحدة ومصلحة)
    ============================================================ */
@@ -8819,6 +9603,19 @@ document.addEventListener('click', function(e) {
 /* إغلاق القائمة بمفتاح Escape */
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeMobileMenu();
+});
+/* إغلاق نوافذ الجولة بمفتاح Escape */
+document.addEventListener('keydown', function(e) {
+    if (e.key !== 'Escape') return;
+    
+    var skipConfirm = document.getElementById('tutorialSkipConfirm');
+    var resetDialog = document.getElementById('tutorialResetDialog');
+    
+    if (skipConfirm && !skipConfirm.classList.contains('hidden')) {
+        cancelSkipTutorial();
+    } else if (resetDialog && !resetDialog.classList.contains('hidden')) {
+        closeResetTutorialDialog();
+    }
 });
 /* ============================================================
    ربط زر القائمة (احتياطي)
