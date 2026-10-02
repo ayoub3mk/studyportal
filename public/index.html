@@ -9458,6 +9458,24 @@ function renderTutorialActions(step) {
    ═══════════════════════════════════════════════════════════ */
 
 function nextTutorialStep() {
+    /* قبل الانتقال، تحقق إذا الخطوة الحالية اكتملت */
+    var currentStep = TUTORIAL_STEPS[tutorialState.currentIndex];
+    
+    if (currentStep && currentStep.completionCheck) {
+        var isCompleted = false;
+        try {
+            isCompleted = currentStep.completionCheck();
+        } catch (e) {
+            console.warn('completionCheck error:', e);
+        }
+        
+        if (isCompleted && appState.tutorial && appState.tutorial.steps[currentStep.id]) {
+            appState.tutorial.steps[currentStep.id].completed = true;
+            saveState();
+        }
+    }
+    
+    /* انتقل للخطوة التالية */
     if (tutorialState.currentIndex < TUTORIAL_STEPS.length - 1) {
         tutorialState.currentIndex++;
         renderTutorialStep();
@@ -9625,20 +9643,76 @@ function resetTutorial(mode) {
         appState.tutorial = getDefaultTutorial();
         startTutorial(0);
     } else if (mode === 'incomplete') {
-        /* فقط غير المكتمل */
+        /* 
+           ابحث عن أول خطوة لم تُعمَّر (ليس لها completed أو na)
+           تخطّى الخطوات:
+           - التي اكتملت (completed: true)
+           - التي قال "لا أملك" فيها (na: true)
+           - التي شرحتها فقط (simple / بدون completionCheck) إذا شوهدت
+        */
         var steps = appState.tutorial.steps || {};
-        var firstIncomplete = 0;
+        var firstIncomplete = -1;
+        
         for (var i = 0; i < TUTORIAL_STEPS.length; i++) {
-            var s = steps[TUTORIAL_STEPS[i].id];
-            if (!s || (!s.completed && !s.na && !s.seen)) {
-                firstIncomplete = i;
-                break;
-            }
+            var stepId = TUTORIAL_STEPS[i].id;
+            var stepDef = TUTORIAL_STEPS[i];
+            var s = steps[stepId] || {};
+            
+            /* تخطّى إذا: لا أملك أو اكتمل */
+            if (s.na || s.completed) continue;
+            
+            /* تخطّى الخطوات البسيطة إذا شوهدت */
+            if (!stepDef.completionCheck && s.seen) continue;
+            
+            /* وجدنا أول خطوة غير مكتملة */
+            firstIncomplete = i;
+            break;
         }
+        
+        /* إذا لم يجد شيئًا، ابدأ من الأول */
+        if (firstIncomplete === -1) {
+            firstIncomplete = 0;
+        }
+        
         startTutorial(firstIncomplete);
     }
     
     saveState();
+}
+/* ═══════════════════════════════════════════════════════════
+   دمج: عرض الجولة عند الدخول
+   ═══════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════
+   فحص شامل: هل كل شيء مُعمَّر؟
+   ═══════════════════════════════════════════════════════════ */
+
+function checkAllTutorialCompletions() {
+    if (!appState.tutorial) return;
+    
+    var updated = false;
+    TUTORIAL_STEPS.forEach(function(step) {
+        if (!step.completionCheck) return;
+        var state = appState.tutorial.steps[step.id];
+        if (!state) return;
+        
+        /* إذا كانت الخطوة لم تكتمل بعد */
+        if (!state.completed && !state.na) {
+            var isNowComplete = false;
+            try {
+                isNowComplete = step.completionCheck();
+            } catch (e) {}
+            
+            if (isNowComplete) {
+                state.completed = true;
+                updated = true;
+            }
+        }
+    });
+    
+    if (updated) {
+        saveState();
+    }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -9648,8 +9722,13 @@ function resetTutorial(mode) {
 var _origEnterUserAppForTutorial = enterUserApp;
 enterUserApp = function() {
     _origEnterUserAppForTutorial();
-    /* انتظر قليلًا حتى تُحمَّل البيانات ثم اعرض الجولة */
+    
+    /* انتظر قليلًا حتى تُحمَّل البيانات */
     setTimeout(function() {
+        /* 1. حدّث حالة التعمير */
+        checkAllTutorialCompletions();
+        
+        /* 2. اعرض الجولة إذا لزم */
         if (shouldShowTutorial()) {
             startTutorial(0);
         }
