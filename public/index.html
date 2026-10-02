@@ -918,6 +918,10 @@ input[type="time"]::-webkit-calendar-picker-indicator {
                 </div>
             </div>
             <div class="flex items-center gap-2">
+                <button id="adminBtn" onclick="openAdminPanel()" class="hidden flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors">
+                    <i class="fa-solid fa-user-shield"></i>
+                    <span class="hidden sm:inline">لوحة المدير</span>
+                </button>
                 <button onclick="openAddUserModal()" class="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold bg-brand-600 hover:bg-brand-700 text-white transition-colors">
                     <i class="fa-solid fa-user-plus"></i>
                     <span class="hidden sm:inline">إضافة مستخدم</span>
@@ -1300,6 +1304,12 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 </button>
 <button onclick="switchTab('preparation')" data-tab="preparation" class="tab-btn px-3 py-2 text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
     <i class="fa-solid fa-clipboard-check mr-1"></i> <span>التحضير</span>
+</button>
+    <button onclick="switchTab('series')" data-tab="series" class="tab-btn px-3 py-2 text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
+    <i class="fa-solid fa-pen-ruler mr-1"></i> <span>السلاسل</span>
+</button>
+<button onclick="switchTab('notes')" data-tab="notes" class="tab-btn px-3 py-2 text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
+    <i class="fa-solid fa-note-sticky mr-1"></i> <span>Notes</span>
 </button>
         </div>
 
@@ -1739,6 +1749,46 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     <!-- قائمة المواد -->
     <div id="prepSubjectsList" class="space-y-3"></div>
     
+</section>
+<!-- ===== تبويب سلاسل التمارين ===== -->
+<section id="tab-series" class="hidden">
+    <div class="bg-gradient-to-r from-emerald-500 to-teal-600 rounded-2xl p-4 mb-4 text-white shadow-lg">
+        <div class="flex items-center justify-between gap-3">
+            <div>
+                <h3 class="text-lg font-black">📚 سلاسل التمارين</h3>
+                <p class="text-[11px] text-emerald-100 mt-0.5">تابع تقدّمك في تمارين كل مادة</p>
+            </div>
+            <button onclick="openSeriesModal()" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-sm font-bold">
+                <i class="fa-solid fa-plus"></i><span>سلسلة</span>
+            </button>
+        </div>
+    </div>
+    <select id="seriesFilter" onchange="renderSeries()" class="w-full mb-4 px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm font-bold">
+        <option value="">كل المواد</option>
+    </select>
+    <div id="seriesList" class="space-y-3"></div>
+</section>
+
+<!-- ===== تبويب الملاحظات ===== -->
+<section id="tab-notes" class="hidden">
+    <div class="bg-gradient-to-r from-amber-500 to-orange-600 rounded-2xl p-4 mb-4 text-white shadow-lg">
+        <div class="flex items-center justify-between gap-3">
+            <div>
+                <h3 class="text-lg font-black">📝 Notes</h3>
+                <p class="text-[11px] text-amber-100 mt-0.5">ملاحظاتك لكل مادة</p>
+            </div>
+            <button onclick="openNoteModal()" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-sm font-bold">
+                <i class="fa-solid fa-plus"></i><span>ملاحظة</span>
+            </button>
+        </div>
+    </div>
+    <div class="flex gap-2 mb-4">
+        <input id="notesSearch" oninput="renderNotes()" type="text" placeholder="بحث..." class="flex-1 px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+        <select id="notesFilter" onchange="renderNotes()" class="px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm font-bold">
+            <option value="">كل المواد</option>
+        </select>
+    </div>
+    <div id="notesList" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
 </section>
 </main>
 </div>
@@ -2616,7 +2666,10 @@ function loadUserData() {
         appState.homework = u.homework || [];
         appState.preparation = u.preparation || {};
         appState.prepChecked = u.prepChecked || { date: null, checked: {} };
+        appState.series = (u.extras && u.extras.series) || [];
+        appState.notes = (u.extras && u.extras.notes) || [];
         CURRENT_USER = u;
+        purgeOldHomework();
         applyTheme();
         applyLanguage();
         renderApp();
@@ -3250,6 +3303,7 @@ function toggleHw(id) {
     var h = appState.homework.find(function(x){return x.id === id;});
     if (!h) return;
     h.completed = !h.completed;
+    h.completedAt = h.completed ? Date.now() : null;
     renderHomework();
     renderSmartAssistant();
     saveState();
@@ -3293,7 +3347,7 @@ function renderStats() {
    ============================================================ */
 function switchTab(tab) {
     currentTab = tab;
-    ['checklist','timetable','homework','stats','tutoring','progress','results','preparation'].forEach(function(x){
+    ['checklist','timetable','homework','stats','tutoring','progress','results','preparation','series','notes'].forEach(function(x){
         var el = document.getElementById('tab-'+x);
         if (el) el.classList.toggle('hidden', x !== tab);
     });
@@ -3763,6 +3817,7 @@ function saveState() {
         homework: appState.homework,
         preparation: appState.preparation,
         prepChecked: appState.prepChecked,
+        extras: { series: appState.series || [], notes: appState.notes || [] },
         lang: appState.lang,
         darkMode: appState.darkMode
     };
@@ -7079,6 +7134,397 @@ document.addEventListener('click', function(e) {
     }
 });
 /* ============================================================
+   الجزء 36-ب: السلاسل + Notes + حذف الواجبات القديمة + لوحة المدير
+   ============================================================ */
+
+/* -------- أدوات مشتركة -------- */
+function fillSubjectSelect(selId, firstLabel, keepValue) {
+    var sel = document.getElementById(selId);
+    if (!sel) return;
+    var cur = keepValue ? sel.value : '';
+    sel.innerHTML = '';
+    var first = document.createElement('option');
+    first.value = '';
+    first.textContent = firstLabel;
+    sel.appendChild(first);
+    (appState.subjects || []).forEach(function(s) {
+        var o = document.createElement('option');
+        o.value = s.id;
+        o.textContent = displayName(s);
+        sel.appendChild(o);
+    });
+    sel.value = cur;
+}
+
+function subjectNameById(id) {
+    var s = (appState.subjects || []).find(function(x) { return x.id === id; });
+    return s ? displayName(s) : 'عام';
+}
+
+/* -------- حذف الواجب بعد 3 أيام من إنجازه -------- */
+function purgeOldHomework() {
+    var LIMIT = 3 * 24 * 60 * 60 * 1000;
+    var now = Date.now();
+    var changed = false;
+    var kept = [];
+    (appState.homework || []).forEach(function(h) {
+        if (h.completed) {
+            if (!h.completedAt) {
+                h.completedAt = now;      /* واجب منجز قديم: يبدأ العد من الآن */
+                changed = true;
+            } else if (now - h.completedAt >= LIMIT) {
+                changed = true;
+                return;                   /* لا تحتفظ به */
+            }
+        }
+        kept.push(h);
+    });
+    if (changed) {
+        appState.homework = kept;
+        saveState();
+    }
+    return changed;
+}
+
+/* ================== سلاسل التمارين ================== */
+var editingSeriesId = null;
+
+function openSeriesModal(id) {
+    editingSeriesId = id || null;
+    var s = id ? (appState.series || []).find(function(x) { return x.id === id; }) : null;
+    fillSubjectSelect('serSubject', '— اختر المادة —', false);
+    document.getElementById('seriesModalTitle').textContent = s ? 'تعديل السلسلة' : 'سلسلة جديدة';
+    document.getElementById('serSubject').value = s ? s.subjectId : '';
+    document.getElementById('serTitle').value = s ? s.title : '';
+    document.getElementById('serRef').value = s ? (s.ref || '') : '';
+    document.getElementById('serTotal').value = s ? s.total : 0;
+    document.getElementById('serDone').value = s ? s.done : 0;
+    document.getElementById('seriesModal').classList.remove('hidden');
+}
+
+function closeSeriesModal() {
+    document.getElementById('seriesModal').classList.add('hidden');
+}
+
+function saveSeries() {
+    var subjectId = document.getElementById('serSubject').value;
+    var title = document.getElementById('serTitle').value.trim();
+    var ref = document.getElementById('serRef').value.trim();
+    var total = Math.max(0, parseInt(document.getElementById('serTotal').value, 10) || 0);
+    var done = Math.max(0, parseInt(document.getElementById('serDone').value, 10) || 0);
+    if (!subjectId) { alert('اختر مادة أولاً'); return; }
+    if (!title) { alert('اكتب عنوان السلسلة'); return; }
+    if (total > 0 && done > total) done = total;
+
+    if (!appState.series) appState.series = [];
+    if (editingSeriesId) {
+        var s = appState.series.find(function(x) { return x.id === editingSeriesId; });
+        if (s) { s.subjectId = subjectId; s.title = title; s.ref = ref; s.total = total; s.done = done; }
+    } else {
+        appState.series.push({ id: 'ser_' + Date.now(), subjectId: subjectId, title: title, ref: ref, total: total, done: done, createdAt: Date.now() });
+    }
+    closeSeriesModal();
+    renderSeries();
+    saveState();
+}
+
+function bumpSeries(id, delta) {
+    var s = (appState.series || []).find(function(x) { return x.id === id; });
+    if (!s) return;
+    var next = s.done + delta;
+    if (next < 0) next = 0;
+    if (s.total > 0 && next > s.total) next = s.total;
+    s.done = next;
+    renderSeries();
+    saveState();
+}
+
+function deleteSeries(id) {
+    if (!confirm('حذف هذه السلسلة؟')) return;
+    appState.series = (appState.series || []).filter(function(x) { return x.id !== id; });
+    renderSeries();
+    saveState();
+}
+
+function renderSeries() {
+    fillSubjectSelect('seriesFilter', 'كل المواد', true);
+    var list = document.getElementById('seriesList');
+    if (!list) return;
+    var filter = document.getElementById('seriesFilter').value;
+    var items = (appState.series || []).filter(function(s) { return !filter || s.subjectId === filter; });
+
+    if (items.length === 0) {
+        list.innerHTML = '<div class="text-center py-10 bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700">' +
+            '<i class="fa-solid fa-pen-ruler text-4xl text-slate-300 dark:text-slate-600 mb-3"></i>' +
+            '<p class="font-bold text-slate-700 dark:text-slate-300">لا توجد سلاسل بعد</p>' +
+            '<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">اضغط "+ سلسلة" للبدء</p></div>';
+        return;
+    }
+
+    /* جمع حسب المادة */
+    var groups = {};
+    var order = [];
+    items.forEach(function(s) {
+        if (!groups[s.subjectId]) { groups[s.subjectId] = []; order.push(s.subjectId); }
+        groups[s.subjectId].push(s);
+    });
+
+    var html = '';
+    order.forEach(function(sid) {
+        html += '<div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 overflow-hidden">';
+        html += '<div class="px-4 py-2.5 bg-slate-50 dark:bg-slate-700/40 border-b border-slate-200 dark:border-slate-700 font-bold text-sm text-slate-900 dark:text-white">' +
+            '<i class="fa-solid fa-book text-emerald-500 mr-1.5"></i>' + escapeHtml(subjectNameById(sid)) + '</div>';
+        html += '<div class="p-3 space-y-2">';
+        groups[sid].forEach(function(s) {
+            var pct = s.total > 0 ? Math.round((s.done / s.total) * 100) : 0;
+            var finished = s.total > 0 && s.done >= s.total;
+            var badge = finished
+                ? '<span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500 text-white">مكتملة ✓</span>'
+                : (s.done > 0
+                    ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">قيد الإنجاز</span>'
+                    : '<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300">لم تبدأ</span>');
+
+            html += '<div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600">';
+            html += '<div class="flex items-start justify-between gap-2 mb-2">';
+            html += '<div class="min-w-0 flex-1"><p class="text-sm font-bold text-slate-900 dark:text-white">' + escapeHtml(s.title) + '</p>';
+            if (s.ref) html += '<p class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">' + escapeHtml(s.ref) + '</p>';
+            html += '</div>' + badge + '</div>';
+
+            html += '<div class="h-2 rounded-full bg-slate-200 dark:bg-slate-600 overflow-hidden mb-2">' +
+                '<div class="h-full bg-emerald-500" style="width:' + pct + '%"></div></div>';
+
+            html += '<div class="flex items-center justify-between">';
+            html += '<div class="flex items-center gap-2">' +
+                '<button onclick="bumpSeries(\'' + s.id + '\', -1)" class="w-8 h-8 rounded-lg bg-white dark:bg-slate-600 border border-slate-300 dark:border-slate-500 text-slate-700 dark:text-slate-100 font-black">−</button>' +
+                '<span class="text-xs font-bold text-slate-700 dark:text-slate-200 min-w-[56px] text-center">' + s.done + (s.total > 0 ? ' / ' + s.total : '') + '</span>' +
+                '<button onclick="bumpSeries(\'' + s.id + '\', 1)" class="w-8 h-8 rounded-lg bg-emerald-600 text-white font-black">+</button></div>';
+            html += '<div class="flex items-center gap-1">' +
+                '<button onclick="openSeriesModal(\'' + s.id + '\')" class="w-8 h-8 rounded-lg text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-600"><i class="fa-solid fa-pen text-xs"></i></button>' +
+                '<button onclick="deleteSeries(\'' + s.id + '\')" class="w-8 h-8 rounded-lg text-slate-400 hover:bg-red-100 hover:text-red-600"><i class="fa-solid fa-trash-can text-xs"></i></button></div>';
+            html += '</div></div>';
+        });
+        html += '</div></div>';
+    });
+    list.innerHTML = html;
+}
+
+/* ================== Notes ================== */
+var editingNoteId = null;
+var NOTE_COLORS = {
+    amber: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800',
+    sky: 'bg-sky-50 dark:bg-sky-950/30 border-sky-200 dark:border-sky-800',
+    emerald: 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800',
+    rose: 'bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800'
+};
+
+function openNoteModal(id) {
+    editingNoteId = id || null;
+    var n = id ? (appState.notes || []).find(function(x) { return x.id === id; }) : null;
+    fillSubjectSelect('noteSubject', 'عام (بدون مادة)', false);
+    document.getElementById('noteModalTitle').textContent = n ? 'تعديل الملاحظة' : 'ملاحظة جديدة';
+    document.getElementById('noteSubject').value = n ? (n.subjectId || '') : '';
+    document.getElementById('noteTitle').value = n ? n.title : '';
+    document.getElementById('noteContent').value = n ? n.content : '';
+    document.getElementById('noteColor').value = n ? (n.color || 'amber') : 'amber';
+    document.getElementById('notePin').checked = n ? !!n.pinned : false;
+    document.getElementById('noteModal').classList.remove('hidden');
+}
+
+function closeNoteModal() {
+    document.getElementById('noteModal').classList.add('hidden');
+}
+
+function saveNote() {
+    var title = document.getElementById('noteTitle').value.trim();
+    var content = document.getElementById('noteContent').value.trim();
+    if (!title && !content) { alert('اكتب عنوانًا أو نصًا'); return; }
+    var data = {
+        subjectId: document.getElementById('noteSubject').value,
+        title: title,
+        content: content,
+        color: document.getElementById('noteColor').value,
+        pinned: document.getElementById('notePin').checked,
+        updatedAt: Date.now()
+    };
+    if (!appState.notes) appState.notes = [];
+    if (editingNoteId) {
+        var n = appState.notes.find(function(x) { return x.id === editingNoteId; });
+        if (n) { Object.keys(data).forEach(function(k) { n[k] = data[k]; }); }
+    } else {
+        data.id = 'note_' + Date.now();
+        appState.notes.push(data);
+    }
+    closeNoteModal();
+    renderNotes();
+    saveState();
+}
+
+function toggleNotePin(id) {
+    var n = (appState.notes || []).find(function(x) { return x.id === id; });
+    if (!n) return;
+    n.pinned = !n.pinned;
+    renderNotes();
+    saveState();
+}
+
+function deleteNote(id) {
+    if (!confirm('حذف هذه الملاحظة؟')) return;
+    appState.notes = (appState.notes || []).filter(function(x) { return x.id !== id; });
+    renderNotes();
+    saveState();
+}
+
+function renderNotes() {
+    fillSubjectSelect('notesFilter', 'كل المواد', true);
+    var list = document.getElementById('notesList');
+    if (!list) return;
+    var q = (document.getElementById('notesSearch').value || '').trim().toLowerCase();
+    var filter = document.getElementById('notesFilter').value;
+
+    var items = (appState.notes || []).filter(function(n) {
+        if (filter && n.subjectId !== filter) return false;
+        if (q && (n.title + ' ' + n.content).toLowerCase().indexOf(q) === -1) return false;
+        return true;
+    });
+    items.sort(function(a, b) {
+        if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+        return (b.updatedAt || 0) - (a.updatedAt || 0);
+    });
+
+    if (items.length === 0) {
+        list.innerHTML = '<div class="sm:col-span-2 text-center py-10 bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700">' +
+            '<i class="fa-solid fa-note-sticky text-4xl text-slate-300 dark:text-slate-600 mb-3"></i>' +
+            '<p class="font-bold text-slate-700 dark:text-slate-300">لا توجد ملاحظات</p></div>';
+        return;
+    }
+
+    var html = '';
+    items.forEach(function(n) {
+        var cls = NOTE_COLORS[n.color] || NOTE_COLORS.amber;
+        html += '<div class="rounded-2xl border p-3 shadow-sm ' + cls + '">';
+        html += '<div class="flex items-start justify-between gap-2 mb-1">';
+        html += '<p class="text-sm font-black text-slate-900 dark:text-white">' + (n.pinned ? '📌 ' : '') + escapeHtml(n.title || 'بدون عنوان') + '</p>';
+        html += '<div class="flex items-center gap-1 flex-shrink-0">' +
+            '<button onclick="toggleNotePin(\'' + n.id + '\')" class="w-7 h-7 rounded-lg text-slate-500 hover:bg-white/60 dark:hover:bg-slate-700"><i class="fa-solid fa-thumbtack text-xs"></i></button>' +
+            '<button onclick="openNoteModal(\'' + n.id + '\')" class="w-7 h-7 rounded-lg text-slate-500 hover:bg-white/60 dark:hover:bg-slate-700"><i class="fa-solid fa-pen text-xs"></i></button>' +
+            '<button onclick="deleteNote(\'' + n.id + '\')" class="w-7 h-7 rounded-lg text-slate-500 hover:bg-red-100 hover:text-red-600"><i class="fa-solid fa-trash-can text-xs"></i></button></div>';
+        html += '</div>';
+        html += '<p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1.5">' + escapeHtml(subjectNameById(n.subjectId)) + '</p>';
+        html += '<p class="text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap break-words">' + escapeHtml(n.content) + '</p>';
+        html += '</div>';
+    });
+    list.innerHTML = html;
+}
+
+/* -------- ربط التبويبات الجديدة -------- */
+var _origSwitchTabExtras = switchTab;
+switchTab = function(tab) {
+    _origSwitchTabExtras(tab);
+    if (tab === 'series') renderSeries();
+    if (tab === 'notes') renderNotes();
+    if (tab === 'homework' && purgeOldHomework()) renderHomework();
+};
+
+/* ================== لوحة المدير ================== */
+var ADMIN_USERNAME_CLIENT = 'ayoub_jawedi';
+var _adminUsers = [];
+
+/* إظهار زر المدير عند دخول شاشة الحساب (للمدير فقط) */
+var _origEnterAccountPanel = enterAccountPanel;
+enterAccountPanel = function() {
+    _origEnterAccountPanel();
+    var b = document.getElementById('adminBtn');
+    if (b) {
+        var isAdmin = !!CURRENT_ACCOUNT && CURRENT_ACCOUNT.username === ADMIN_USERNAME_CLIENT;
+        b.classList.toggle('hidden', !isAdmin);
+    }
+};
+
+function openAdminPanel() {
+    document.getElementById('adminModal').classList.remove('hidden');
+    loadAdminOverview();
+}
+
+function closeAdminPanel() {
+    document.getElementById('adminModal').classList.add('hidden');
+}
+
+function adminAgo(v) {
+    if (!v) return '—';
+    var m = Math.floor((Date.now() - new Date(v).getTime()) / 60000);
+    if (m < 1) return 'الآن';
+    if (m < 60) return 'منذ ' + m + ' د';
+    var h = Math.floor(m / 60);
+    if (h < 24) return 'منذ ' + h + ' س';
+    return 'منذ ' + Math.floor(h / 24) + ' يوم';
+}
+
+function loadAdminOverview() {
+    var box = document.getElementById('adminContent');
+    box.innerHTML = '<p class="text-center py-8 text-slate-400 text-sm">جارٍ التحميل...</p>';
+    fetch('/api/admin/overview', {
+        credentials: 'include',
+        cache: 'no-store',
+        headers: AUTH_TOKEN ? { 'Authorization': 'Bearer ' + AUTH_TOKEN } : {}
+    })
+    .then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+    })
+    .then(function(d) {
+        _adminUsers = d.users || [];
+        renderAdmin(d.totals || {});
+    })
+    .catch(function(e) {
+        box.innerHTML = '<p class="text-center py-8 text-red-500 text-sm">تعذّر التحميل: ' + escapeHtml(e.message) + '</p>';
+    });
+}
+
+function renderAdmin(t) {
+    function card(label, val, color) {
+        return '<div class="rounded-xl p-3 bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600">' +
+            '<p class="text-[10px] font-bold text-slate-500 dark:text-slate-400">' + label + '</p>' +
+            '<p class="text-2xl font-black text-' + color + '-600 dark:text-' + color + '-400">' + (val || 0) + '</p></div>';
+    }
+    var html = '<div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">' +
+        card('الحسابات', t.accounts, 'indigo') +
+        card('المستخدمون', t.users, 'emerald') +
+        card('أولياء الأمور', t.parents, 'amber') +
+        card('جدد هذا الأسبوع', t.newWeek, 'sky') +
+        card('نشطون اليوم', t.activeDay, 'rose') +
+        card('نشطون هذا الأسبوع', t.activeWeek, 'teal') +
+        '</div>';
+    html += '<input id="adminSearch" oninput="renderAdminUsers()" type="text" placeholder="بحث باسم المستخدم أو الحساب..." class="w-full mb-3 px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm">';
+    html += '<div id="adminUsersList" class="space-y-2"></div>';
+    document.getElementById('adminContent').innerHTML = html;
+    renderAdminUsers();
+}
+
+function renderAdminUsers() {
+    var q = ((document.getElementById('adminSearch') || {}).value || '').trim().toLowerCase();
+    var box = document.getElementById('adminUsersList');
+    if (!box) return;
+    var rows = _adminUsers.filter(function(u) {
+        return !q || ((u.name || '') + ' ' + (u.account || '')).toLowerCase().indexOf(q) !== -1;
+    });
+    if (rows.length === 0) {
+        box.innerHTML = '<p class="text-center py-6 text-slate-400 text-sm">لا نتائج</p>';
+        return;
+    }
+    var html = '';
+    rows.forEach(function(u) {
+        html += '<div class="flex items-center justify-between gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-700/40 border border-slate-200 dark:border-slate-600">' +
+            '<div class="min-w-0 flex-1">' +
+            '<p class="text-sm font-bold text-slate-900 dark:text-white truncate">' + escapeHtml(u.name || '—') + '</p>' +
+            '<p class="text-[10px] text-slate-500 dark:text-slate-400">الحساب: ' + escapeHtml(u.account || '—') +
+            (u.grade ? ' · ' + escapeHtml(u.grade) : '') + '</p></div>' +
+            '<div class="text-left flex-shrink-0">' +
+            '<p class="text-[10px] font-bold text-slate-600 dark:text-slate-300">⭐ ' + (u.points || 0) + ' · 🔥 ' + (u.streak || 0) + '</p>' +
+            '<p class="text-[10px] text-slate-400">' + adminAgo(u.last_active) + '</p></div></div>';
+    });
+    box.innerHTML = html;
+}
+/* ============================================================
    الجزء 36: القائمة المنسدلة للهاتف (نسخة موحدة ومصلحة)
    ============================================================ */
 
@@ -7929,6 +8375,72 @@ if ('serviceWorker' in navigator) {
 </button>
         </div>
         
+    </div>
+</div>
+<!-- ===== نافذة سلسلة ===== -->
+<div id="seriesModal" class="fixed inset-0 z-[110] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-5 border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto">
+        <h3 id="seriesModalTitle" class="text-base font-bold text-slate-900 dark:text-white mb-4">سلسلة جديدة</h3>
+        <div class="space-y-3">
+            <select id="serSubject" class="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm font-bold"></select>
+            <input id="serTitle" type="text" placeholder="عنوان السلسلة (مثال: سلسلة 3 — الدوال)" class="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+            <input id="serRef" type="text" placeholder="المصدر / الصفحة (اختياري)" class="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 mb-1">عدد التمارين</label>
+                    <input id="serTotal" type="number" min="0" value="0" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold text-slate-500 mb-1">المنجز</label>
+                    <input id="serDone" type="number" min="0" value="0" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                </div>
+            </div>
+        </div>
+        <div class="flex gap-2 justify-end pt-4 mt-4 border-t border-slate-200 dark:border-slate-700">
+            <button onclick="closeSeriesModal()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold">إلغاء</button>
+            <button onclick="saveSeries()" class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">حفظ</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== نافذة ملاحظة ===== -->
+<div id="noteModal" class="fixed inset-0 z-[110] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-5 border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto">
+        <h3 id="noteModalTitle" class="text-base font-bold text-slate-900 dark:text-white mb-4">ملاحظة جديدة</h3>
+        <div class="space-y-3">
+            <select id="noteSubject" class="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm font-bold"></select>
+            <input id="noteTitle" type="text" placeholder="العنوان" class="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+            <textarea id="noteContent" rows="6" placeholder="اكتب ملاحظتك..." class="w-full px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></textarea>
+            <div class="flex items-center gap-2">
+                <select id="noteColor" class="flex-1 px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                    <option value="amber">🟨 أصفر</option>
+                    <option value="sky">🟦 أزرق</option>
+                    <option value="emerald">🟩 أخضر</option>
+                    <option value="rose">🟥 وردي</option>
+                </select>
+                <label class="flex items-center gap-1.5 text-xs font-bold text-slate-700 dark:text-slate-200">
+                    <input id="notePin" type="checkbox"> تثبيت 📌
+                </label>
+            </div>
+        </div>
+        <div class="flex gap-2 justify-end pt-4 mt-4 border-t border-slate-200 dark:border-slate-700">
+            <button onclick="closeNoteModal()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold">إلغاء</button>
+            <button onclick="saveNote()" class="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold">حفظ</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== نافذة المدير ===== -->
+<div id="adminModal" class="fixed inset-0 z-[120] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full p-5 border border-slate-200 dark:border-slate-700 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 dark:border-slate-700">
+            <h3 class="text-base font-bold text-slate-900 dark:text-white"><i class="fa-solid fa-user-shield text-indigo-500 mr-2"></i> لوحة المدير</h3>
+            <div class="flex items-center gap-3">
+                <button onclick="loadAdminOverview()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" title="تحديث"><i class="fa-solid fa-rotate"></i></button>
+                <button onclick="closeAdminPanel()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+        </div>
+        <div id="adminContent"></div>
     </div>
 </div>
 </body>
