@@ -1044,28 +1044,32 @@ async function getConversationsList() {
             u.avatar,
             u.disabled,
             a.username AS account_username,
-            last_msg.body AS last_message,
-            last_msg.sender AS last_sender,
-            last_msg.created_at AS last_at,
-            COALESCE(unread.n, 0) AS unread_count
+            m.body AS last_message,
+            m.sender AS last_sender,
+            m.created_at AS last_at,
+            COALESCE((
+                SELECT COUNT(*)::int FROM messages 
+                WHERE user_id = u.id 
+                  AND sender = 'user' 
+                  AND is_read = FALSE
+            ), 0) AS unread_count
         FROM users u
         JOIN accounts a ON a.id = u.account_id
-        LEFT JOIN LATERAL (
+        JOIN LATERAL (
             SELECT body, sender, created_at
             FROM messages
             WHERE user_id = u.id
             ORDER BY created_at DESC
             LIMIT 1
-        ) last_msg ON TRUE
-        LEFT JOIN LATERAL (
-            SELECT COUNT(*)::int AS n
-            FROM messages
-            WHERE user_id = u.id AND sender = 'user' AND is_read = FALSE
-        ) unread ON TRUE
-        WHERE last_msg.id IS NOT NULL
+        ) m ON TRUE
         ORDER BY 
-            COALESCE(unread.n, 0) DESC,
-            last_msg.created_at DESC NULLS LAST
+            COALESCE((
+                SELECT COUNT(*)::int FROM messages 
+                WHERE user_id = u.id 
+                  AND sender = 'user' 
+                  AND is_read = FALSE
+            ), 0) DESC,
+            m.created_at DESC
         LIMIT 200
     `);
     return result.rows;
