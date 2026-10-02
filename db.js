@@ -925,7 +925,212 @@ async function cleanupStaleSessions(userId) {
             AND started_at < NOW() - INTERVAL '6 hours'
     `, [userId]);
 }
+/* ============================================================
+   الجزء الجديد: التعطيل + الإعلان + المحادثات + النشاط
+   ============================================================ */
 
+/* -------- 1) تعطيل / تفعيل مستخدم -------- */
+
+async function setUserDisabled(userId, disabled) {
+    var result = await pool.query(
+        'UPDATE users SET disabled = $1 WHERE id = $2 RETURNING id',
+        [disabled ? true : false, userId]
+    );
+    return result.rowCount > 0;
+}
+
+/* -------- 2) الإعلان العام -------- */
+
+async function setAnnouncement(text) {
+    var announcementId = 'ann_' + Date.now();
+    var value = {
+        text: text || '',
+        id: announcementId,
+        updatedAt: new Date().toISOString()
+    };
+    await pool.query(`
+        INSERT INTO app_settings (key, value, updated_at)
+        VALUES ('announcement', $1::jsonb, NOW())
+        ON CONFLICT (key) DO UPDATE
+        SET value = $1::jsonb, updated_at = NOW()
+    `, [JSON.stringify(value)]);
+    return announcementId;
+}
+
+async function getAnnouncement() {
+    try {
+        var result = await pool.query(
+            "SELECT value FROM app_settings WHERE key = 'announcement'"
+        );
+        if (result.rows.length === 0) return { text: '', id: null };
+        return result.rows[0].value || { text: '', id: null };
+    } catch (e) {
+        return { text: '', id: null };
+    }
+}
+
+async function clearAnnouncement() {
+    await pool.query(`
+        INSERT INTO app_settings (key, value, updated_at)
+        VALUES ('announcement', '{"text":"","id":null}'::jsonb, NOW())
+        ON CONFLICT (key) DO UPDATE
+        SET value = '{"text":"","id":null}'::jsonb, updated_at = NOW()
+    `);
+    return true;
+}
+
+/* -------- 3) المحادثات (المستخدم ↔ المدير) -------- */
+
+/* إرسال رسالة (من المستخدم أو المدير) */
+async function sendMessage(userId, sender, body) {
+    if (sender !== 'user' && sender !== 'admin') {
+        throw new Error('invalid_sender');
+    }
+    var result = await pool.query(`
+        INSERT INTO messages (user_id, sender, body, is_read, created_at)
+        VALUES ($1, $2, $3, FALSE, NOW())
+        RETURNING id, created_at
+    `, [userId, sender, body]);
+    return {
+        id: result.rows[0].id,
+        createdAt: result.rows[0].created_at
+    };
+}
+
+/* جلب كل رسائل مستخدم (محادثة كاملة) */
+async function getUserMessages(userId) {
+    var result = await pool.query(`
+        SELECT id, user_id, sender, body, is_read, created_at
+        FROM messages
+        WHERE user_id = $1
+        ORDER BY created_at ASC
+    `, [userId]);
+    return result.rows;
+}
+
+/* تحديد رسائل كمقروءة */
+async function markMessagesRead(userId, as) {
+    /* as = 'user' أو 'admin' — من الذي يقرأ؟ */
+    /* نحدّث الرسائل المُرسَلة من الطرف الآخر */
+    var otherSender = as === 'user' ? 'admin' : 'user';
+    await pool.query(`
+        UPDATE messages
+        SET is_read = TRUE
+        WHERE user_id = $1 AND sender = $2 AND is_read = FALSE
+    `, [userId, otherSender]);
+    return true;
+}
+
+/* عدد الرسائل غير المقروءة */
+async function getUnreadCount(userId, as) {
+    /* as = من الذي يريد العدّ؟ */
+    /* إذا user → يعدّ رسائل المدير غير المقروءة */
+    /* إذا admin → يعدّ رسائل المستخدم غير المقروءة */
+    var otherSender = as === 'user' ? 'admin' : 'user';
+    var result = await pool.query(`
+        SELECT COUNT(*)::int AS n
+        FROM messages
+        WHERE user_id = $1 AND sender = $2 AND is_read = FALSE
+    `, [userId, otherSender]);
+    return result.rows[0].n || 0;
+}
+
+/* قائمة المحادثات للمدير (مجموعة حسب المستخدم) */
+async function getConversationsList() {
+    var result = await pool.query(`
+        SELECT 
+            u.id AS user_id,
+            u.name AS user_name,
+            u.avatar,
+            u.disabled,
+            a.username AS account_username,
+            last_msg.body AS last_message,
+            last_msg.sender AS last_sender,
+            last_msg.created_at AS last_at,
+            COALESCE(unread.n, 0) AS unread_count
+        FROM users u
+        JOIN accounts a ON a.id = u.account_id
+        LEFT JOIN LATERAL (
+            SELECT body, sender, created_at
+            FROM messages
+            WHERE user_id = u.id
+            ORDER BY created_at DESC
+            LIMIT 1
+        ) last_msg ON TRUE
+        LEFT JOIN LATERAL (
+            SELECT COUNT(*)::int AS n
+            FROM messages
+            WHERE user_id = u.id AND sender = 'user' AND is_read = FALSE
+        ) unread ON TRUE
+        WHERE last_msg.id IS NOT NULL
+        ORDER BY 
+            COALESCE(unread.n, 0) DESC,
+            last_msg.created_at DESC NULLS LAST
+        LIMIT 200
+    `);
+    return result.rows;
+}
+
+/* -------- 4) النشاط اليومي (للرسم البياني) -------- */
+
+async function getAdminActivity(days) {
+    days = parseInt(days, 10) || 30;
+    if (days < 1) days = 1;
+    if (days > 90) days = 90;
+
+    var result = await pool.query(`
+        SELECT 
+            TO_CHAR(d.day, 'YYYY-MM-DD') AS date,
+            COALESCE((
+                SELECT COUNT(DISTINCT ud.user_id)::int
+                FROM user_data ud
+                WHERE DATE(ud.updated_at) = d.day
+            ), 0) AS active_users
+        FROM generate_series(
+            CURRENT_DATE - ($1::int - 1) * INTERVAL '1 day',
+            CURRENT_DATE,
+            INTERVAL '1 day'
+        ) AS d(day)
+        ORDER BY d.day ASC
+    `, [days]);
+
+    return result.rows;
+}
+
+/* -------- 5) إحصائيات إضافية للمدير -------- */
+
+/* مستخدمون جدد خلال آخر N يوم */
+async function getNewUsersCount(days) {
+    days = parseInt(days, 10) || 7;
+    var result = await pool.query(`
+        SELECT COUNT(*)::int AS n
+        FROM users
+        WHERE created_at > NOW() - ($1 || ' days')::interval
+    `, [days]);
+    return result.rows[0].n || 0;
+}
+
+/* مستخدمون معطّلون */
+async function getDisabledCount() {
+    var result = await pool.query(
+        'SELECT COUNT(*)::int AS n FROM users WHERE disabled = TRUE'
+    );
+    return result.rows[0].n || 0;
+}
+
+/* عدد الرسائل غير المقروءة للمدير (كل المستخدمين) */
+async function getTotalUnreadForAdmin() {
+    var result = await pool.query(`
+        SELECT COUNT(*)::int AS n
+        FROM messages
+        WHERE sender = 'user' AND is_read = FALSE
+    `);
+    return result.rows[0].n || 0;
+}
+
+/* ============================================================
+   نهاية الإضافات
+   ============================================================ */
 module.exports = {
     pool: pool,
     /* الحسابات */
@@ -944,6 +1149,21 @@ module.exports = {
     updateUserName: updateUserName,
     updateUserPassword: updateUserPassword,
     getUserWithPassword: getUserWithPassword,
+       /* الميزات الجديدة */
+    setUserDisabled: setUserDisabled,
+    setAnnouncement: setAnnouncement,
+    getAnnouncement: getAnnouncement,
+    clearAnnouncement: clearAnnouncement,
+    sendMessage: sendMessage,
+    getUserMessages: getUserMessages,
+    markMessagesRead: markMessagesRead,
+    getUnreadCount: getUnreadCount,
+    getConversationsList: getConversationsList,
+    getAdminActivity: getAdminActivity,
+    getNewUsersCount: getNewUsersCount,
+    getDisabledCount: getDisabledCount,
+    getTotalUnreadForAdmin: getTotalUnreadForAdmin,
+    getAdminOverview: getAdminOverview,
     /* البيانات */
     getUserData: getUserData,
     saveUserData: saveUserData,
