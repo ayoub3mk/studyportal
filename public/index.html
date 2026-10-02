@@ -745,6 +745,289 @@ input[type="time"]::-webkit-calendar-picker-indicator {
         padding: 10px 12px !important;
     }
 }
+    /* ============================================================
+   نافذة التمارين (Exercises Modal)
+   ============================================================ */
+
+/* صف التمرين */
+.exercise-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    cursor: grab;
+}
+
+.dark .exercise-row {
+    background: rgba(51, 65, 85, 0.4);
+    border-color: #475569;
+}
+
+.exercise-row:hover {
+    border-color: #f59e0b;
+    background: #fffbeb;
+}
+
+.dark .exercise-row:hover {
+    background: rgba(245, 158, 11, 0.1);
+    border-color: #f59e0b;
+}
+
+.exercise-row.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+    transform: scale(1.02);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+}
+
+.exercise-row.drag-over {
+    border-color: #f59e0b;
+    border-style: dashed;
+    background: rgba(245, 158, 11, 0.1);
+}
+
+/* مقبض السحب */
+.exercise-drag-handle {
+    color: #94a3b8;
+    cursor: grab;
+    padding: 2px;
+    transition: color 0.15s;
+}
+
+.exercise-drag-handle:hover {
+    color: #f59e0b;
+}
+
+.exercise-drag-handle:active {
+    cursor: grabbing;
+}
+
+/* رقم التمرين */
+.exercise-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #f59e0b, #ea580c);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 900;
+    flex-shrink: 0;
+}
+
+/* زر ✓ */
+.exercise-check {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+    transition: all 0.15s;
+    cursor: pointer;
+    border: 2px solid #cbd5e1;
+    background: #fff;
+    color: #cbd5e1;
+}
+
+.dark .exercise-check {
+    background: #1e293b;
+    border-color: #475569;
+    color: #475569;
+}
+
+.exercise-check:hover {
+    border-color: #10b981;
+    color: #10b981;
+}
+
+.exercise-check.checked {
+    background: #10b981;
+    border-color: #10b981;
+    color: #fff;
+}
+
+.exercise-check:active {
+    transform: scale(0.9);
+}
+
+/* حقل النص */
+.exercise-text-input {
+    flex: 1;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 4px 6px;
+    font-size: 13px;
+    color: #334155;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.dark .exercise-text-input {
+    color: #cbd5e1;
+}
+
+.exercise-text-input:focus {
+    border-bottom-color: #f59e0b;
+}
+
+.exercise-text-input::placeholder {
+    color: #94a3b8;
+}
+
+.exercise-row.checked .exercise-text-input {
+    text-decoration: line-through;
+    opacity: 0.6;
+}
+
+/* أزرار صغيرة (فوق/تحت/حذف) */
+.exercise-btn-mini {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: #94a3b8;
+    transition: all 0.15s;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.exercise-btn-mini:hover {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.dark .exercise-btn-mini:hover {
+    background: #334155;
+    color: #e2e8f0;
+}
+
+.exercise-btn-mini.delete:hover {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.dark .exercise-btn-mini.delete:hover {
+    background: rgba(153, 27, 27, 0.4);
+    color: #fca5a5;
+}
+
+/* أسهم الترتيب (للهاتف) */
+.exercise-order-btns {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.exercise-order-btns button {
+    width: 20px;
+    height: 14px;
+    font-size: 8px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+}
+
+.exercise-order-btns button:hover:not(:disabled) {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.exercise-order-btns button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.dark .exercise-order-btns button:hover:not(:disabled) {
+    background: #334155;
+    color: #e2e8f0;
+}
+
+/* حالة فارغة */
+.exercises-empty {
+    text-align: center;
+    padding: 30px 20px;
+    color: #94a3b8;
+}
+
+.exercises-empty i {
+    font-size: 40px;
+    opacity: 0.3;
+    margin-bottom: 10px;
+}
+
+/* حركة ظهور التمرين */
+@keyframes exerciseSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.exercise-row {
+    animation: exerciseSlideIn 0.2s ease-out;
+}
+
+/* تحسينات للهاتف */
+@media (max-width: 640px) {
+    .exercise-row {
+        padding: 6px 8px;
+        gap: 6px;
+    }
+    
+    .exercise-number {
+        width: 20px;
+        height: 20px;
+        font-size: 9px;
+    }
+    
+    .exercise-check {
+        width: 26px;
+        height: 26px;
+    }
+    
+    .exercise-text-input {
+        font-size: 12px;
+        padding: 4px 4px;
+    }
+    
+    /* على الهاتف: أخفِ مقبض السحب، أظهر الأسهم */
+    .exercise-drag-handle {
+        display: none;
+    }
+    
+    .exercise-order-btns {
+        display: flex;
+    }
+}
+
+/* على الحاسوب: أظهر مقبض السحب، أخفِ الأسهم */
+@media (min-width: 641px) {
+    .exercise-order-btns {
+        display: none;
+    }
+}
+
 /* ============================================================
    حقول الورقة الإضافية (حل / أستاذ / تمارين)
    ============================================================ */
