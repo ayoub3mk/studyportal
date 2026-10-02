@@ -3356,12 +3356,35 @@ function addQuickAddListeners() {
     var noteInput = document.getElementById('quickAddNoteInput');
     
     function handleKey(e) {
+        /* Enter — احفظ وافتح صف جديد */
         if (e.key === 'Enter') {
             e.preventDefault();
             saveQuickAdd();
-        } else if (e.key === 'Escape') {
+        }
+        /* Escape — ألغِ */
+        else if (e.key === 'Escape') {
             e.preventDefault();
             cancelQuickAdd();
+        }
+        /* Tab — انتقل بين الحقول */
+        else if (e.key === 'Tab' && !e.shiftKey) {
+            /* من الكود → الملاحظة */
+            if (e.target === codeInput && noteInput) {
+                e.preventDefault();
+                noteInput.focus();
+            }
+            /* من الملاحظة → حفظ */
+            else if (e.target === noteInput) {
+                e.preventDefault();
+                saveQuickAdd();
+            }
+        }
+        /* Shift+Tab — رجوع */
+        else if (e.key === 'Tab' && e.shiftKey) {
+            if (e.target === noteInput && codeInput) {
+                e.preventDefault();
+                codeInput.focus();
+            }
         }
     }
     
@@ -10159,6 +10182,13 @@ document.addEventListener('keydown', function(e) {
 document.addEventListener('keydown', function(e) {
     if (e.key !== 'Escape') return;
     
+    /* أولوية 1: الإضافة السريعة */
+    if (typeof quickAddState !== 'undefined' && quickAddState.active) {
+        cancelQuickAdd();
+        return;
+    }
+    
+    /* أولوية 2: نوافذ الجولة */
     var skipConfirm = document.getElementById('tutorialSkipConfirm');
     var resetDialog = document.getElementById('tutorialResetDialog');
     
