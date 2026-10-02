@@ -3342,26 +3342,21 @@ function renderItemRow(subjId, secKey, item, idx, search, filter) {
         'class="w-20 sm:w-28 bg-transparent text-[10px] text-slate-700 dark:text-slate-200 outline-none placeholder:text-slate-400">';
     h += '</div>';
     
-    /* 📝 التمارين */
-    h += '<div class="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600">';
-    h += '<i class="fa-solid fa-pen-ruler text-amber-500"></i>';
-    h += '<input type="text" value="' + escapeHtml(exercises.label || '') + '" ' +
-        'placeholder="التمارين..." ' +
-        'maxlength="80" ' +
-        'onchange="updateItemExercisesLabel(\'' + subjId + '\', \'' + sk + '\', ' + idx + ', this.value)" ' +
-        'class="w-20 sm:w-28 bg-transparent text-[10px] text-slate-700 dark:text-slate-200 outline-none placeholder:text-slate-400">';
-    h += '<button onclick="toggleItemExercisesChecked(\'' + subjId + '\', \'' + sk + '\', ' + idx + ')" ' +
-        'title="' + (exercises.checked ? 'تمارين منجزة ✓' : 'تمارين غير منجزة') + '" ' +
-        'class="w-5 h-5 rounded flex items-center justify-center text-[9px] transition-colors ' +
-        (exercises.checked 
-            ? 'bg-emerald-500 text-white' 
-            : 'bg-white dark:bg-slate-600 text-slate-300 dark:text-slate-500 border border-slate-300 dark:border-slate-500 hover:border-emerald-500') + '">';
-    h += (exercises.checked ? '<i class="fa-solid fa-check"></i>' : '');
-    h += '</button>';
-    h += '</div>';
+        /* 📝 التمارين (زر واحد يفتح النافذة) */
+    var exItems = exercises.items || [];
+    var exDone = exItems.filter(function(ex) { return ex.checked; }).length;
+    var exTotal = exItems.length;
+    var exBadge = exTotal > 0 ? (exDone + '/' + exTotal) : 'التمارين';
+    var exColor = exTotal > 0 && exDone === exTotal 
+        ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+        : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900/50 hover:bg-amber-100 dark:hover:bg-amber-900/50';
     
-    h += '</div>';
-    h += '</div>';
+    h += '<button onclick="openExercisesModal(\'' + subjId + '\', \'' + sk + '\', ' + idx + ')" ' +
+        'title="إدارة التمارين" ' +
+        'class="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold border transition-colors ' + exColor + '">';
+    h += '<i class="fa-solid fa-pen-ruler"></i>';
+    h += '<span>' + exBadge + '</span>';
+    h += '</button>';
     return h;
 }
 /* ============================================================
@@ -11052,6 +11047,92 @@ if ('serviceWorker' in navigator) {
         </form>
     </div>
 </div>
+    <!-- ============================================================
+     نافذة إدارة التمارين
+     ============================================================ -->
+<div id="exercisesModal" class="fixed inset-0 z-[110] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col" style="max-height: 90vh;">
+        
+        <!-- رأس النافذة -->
+        <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-amber-500 to-orange-600 text-white">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                    <i class="fa-solid fa-pen-ruler"></i>
+                </div>
+                <div>
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-amber-100">تمارين الورقة</p>
+                    <h3 class="text-base font-black" id="exercisesTitle">—</h3>
+                    <p class="text-[11px] text-amber-100" id="exercisesSubtitle">—</p>
+                </div>
+            </div>
+            <button onclick="closeExercisesModal()" class="w-9 h-9 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors" title="إغلاق">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <!-- المحتوى -->
+        <div class="p-4 sm:p-5 overflow-y-auto flex-1" style="max-height: calc(90vh - 180px);">
+            
+            <!-- عنوان التمارين (label) -->
+            <div class="mb-4">
+                <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1.5">
+                    <i class="fa-solid fa-heading text-amber-500 mr-1"></i>
+                    عنوان التمارين (اختياري)
+                </label>
+                <input type="text" id="exercisesLabelInput" 
+                    placeholder="مثال: صفحة 45 من الكتاب" 
+                    maxlength="80"
+                    onchange="updateExercisesLabel(this.value)"
+                    class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+            </div>
+
+            <!-- قائمة التمارين -->
+            <div class="mb-3">
+                <div class="flex items-center justify-between mb-2">
+                    <label class="text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300">
+                        <i class="fa-solid fa-list-check text-amber-500 mr-1"></i>
+                        قائمة التمارين
+                    </label>
+                    <span id="exercisesCountBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">
+                        0/0
+                    </span>
+                </div>
+
+                <div id="exercisesList" class="space-y-2">
+                    <!-- سيتم تعبئتها بـ JavaScript -->
+                </div>
+
+                <!-- زر إضافة تمرين -->
+                <button onclick="addExerciseItem()" 
+                    class="w-full mt-2 py-2.5 px-3 rounded-lg border-2 border-dashed border-amber-300 dark:border-amber-700 hover:border-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/30 text-amber-600 dark:text-amber-400 text-sm font-bold transition-colors flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>إضافة تمرين جديد</span>
+                </button>
+            </div>
+
+        </div>
+
+        <!-- أزرار التحكم -->
+        <div class="p-3 sm:p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/40 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+                <button onclick="markAllExercises(true)" 
+                    class="px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/50 transition-colors">
+                    <i class="fa-solid fa-check-double mr-1"></i> الكل ✓
+                </button>
+                <button onclick="markAllExercises(false)" 
+                    class="px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+                    <i class="fa-solid fa-rotate-left mr-1"></i> صفر
+                </button>
+            </div>
+            <button onclick="closeExercisesModal()" 
+                class="px-5 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-colors">
+                <i class="fa-solid fa-check mr-1"></i> تم
+            </button>
+        </div>
+
+    </div>
+</div>
+
 <!-- ============================================================
      نافذة الجولة التعليمية (Tutorial)
      ============================================================ -->
