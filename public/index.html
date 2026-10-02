@@ -3101,6 +3101,8 @@ function loadUserData() {
         appState.series = (u.extras && u.extras.series) || [];
         appState.notes = (u.extras && u.extras.notes) || [];
         appState.tutorial = (u.extras && u.extras.tutorial) || null;
+        /* Migration تلقائي للأوراق */
+        try { migrateSubjectItems(); } catch (e) { console.warn('Migration error:', e); }
         CURRENT_USER = u;
         purgeOldHomework();
         applyTheme();
@@ -3460,6 +3462,78 @@ function cancelQuickAdd() {
     quickAddState.sectionKey = null;
     quickAddState.currentRow = null;
 }
+   /* ============================================================
+   Migration: إضافة الحقول الجديدة للأوراق القديمة
+   ============================================================ */
+
+function migrateSubjectItems() {
+    if (!appState.subjects || !Array.isArray(appState.subjects)) return false;
+    
+    var changed = false;
+    
+    appState.subjects.forEach(function(subj) {
+        /* المواد المقسمة (مثل الرياضيات) */
+        if (subj.sections && Array.isArray(subj.sections)) {
+            subj.sections.forEach(function(sec) {
+                if (!sec.items || !Array.isArray(sec.items)) return;
+                sec.items.forEach(function(item) {
+                    if (migrateItemFields(item)) changed = true;
+                });
+            });
+        }
+        /* المواد العادية */
+        else if (subj.items && Array.isArray(subj.items)) {
+            subj.items.forEach(function(item) {
+                if (migrateItemFields(item)) changed = true;
+            });
+        }
+    });
+    
+    if (changed) {
+        console.log('✅ Migration: تم تحديث أوراق قديمة');
+        saveState();
+    }
+    
+    return changed;
+}
+
+function migrateItemFields(item) {
+    if (!item) return false;
+    var changed = false;
+    
+    /* corrige (هل يوجد حل؟) */
+    if (typeof item.corrige === 'undefined') {
+        item.corrige = false;
+        changed = true;
+    }
+    
+    /* teacher (اسم الأستاذ) */
+    if (typeof item.teacher === 'undefined') {
+        item.teacher = '';
+        changed = true;
+    }
+    
+    /* exercises (ورقة التمارين) */
+    if (typeof item.exercises === 'undefined') {
+        item.exercises = { label: '', checked: false };
+        changed = true;
+    } else if (typeof item.exercises !== 'object' || item.exercises === null) {
+        item.exercises = { label: '', checked: false };
+        changed = true;
+    } else {
+        /* تحقق من الحقول الداخلية */
+        if (typeof item.exercises.label === 'undefined') {
+            item.exercises.label = '';
+            changed = true;
+        }
+        if (typeof item.exercises.checked === 'undefined') {
+            item.exercises.checked = false;
+            changed = true;
+        }
+    }
+    
+    return changed;
+} 
 /* ============================================================
    الجزء 10: عمليات الأوراق
    ============================================================ */
