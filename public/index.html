@@ -1833,7 +1833,12 @@ input[type="time"]::-webkit-calendar-picker-indicator {
                                 <i class="fa-solid fa-arrow-right text-slate-500 w-5 text-center"></i>
                                 <span>رجوع للمستخدمين</span>
                             </button>
-                            
+                            <!-- وضع الامتحان -->
+<button onclick="enterExamMode(); toggleMobileMenu();" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+    <i class="fa-solid fa-lock text-red-500 w-5 text-center"></i>
+    <span>وضع الامتحان</span>
+</button>
+
                             <!-- تركيز -->
                             <button onclick="openFocusModal(); toggleMobileMenu();" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
                                 <i class="fa-solid fa-hourglass-half text-brand-500 w-5 text-center"></i>
@@ -2564,6 +2569,14 @@ input[type="time"]::-webkit-calendar-picker-indicator {
                 <button type="button" onclick="document.getElementById('avatarFileInput').click()" class="text-xs font-semibold text-brand-600 dark:text-brand-400 mt-2 hover:underline">تغيير الصورة</button>
             </div>
             <div><label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">الاسم</label><input type="text" id="settingUsername" required class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm"></div>
+<!-- قسم الإشعارات -->
+<div class="bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-900/50 rounded-xl p-3 mt-2">
+    <button type="button" onclick="openNotificationsModal()" class="flex items-center gap-2 text-xs font-bold text-purple-700 dark:text-purple-300">
+        <i class="fa-solid fa-bell"></i> الإشعارات
+    </button>
+    <p class="text-[10px] text-purple-600 dark:text-purple-400 mt-1 mr-6">تذكير يومي + امتحانات</p>
+</div>
+
 <div class="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-900/50 rounded-xl p-3 mt-2">
     <button type="button" onclick="openResetTutorialDialog()" class="flex items-center gap-2 text-xs font-bold text-indigo-700 dark:text-indigo-300">
         <i class="fa-solid fa-graduation-cap"></i> إعادة الجولة التعليمية
@@ -11052,6 +11065,468 @@ enterUserApp = function() {
         }
     }, 1500);
 };
+    /* ============================================================
+   وضع الامتحان (Exam Mode)
+   ============================================================ */
+
+var examModeState = {
+    active: false,
+    startTime: null,
+    timerInterval: null,
+    clockInterval: null,
+    statsInterval: null
+};
+
+var EXAM_MODE_MOTIVATIONS = [
+    "التركيز العميق هو مفتاح النجاح 🔑",
+    "أنت أقوى من المشتتات 💪",
+    "25 دقيقة تركيز = ساعة من العمل العادي ⚡",
+    "عقلك قادر على أكثر مما تتصور 🧠",
+    "النجاح يبدأ من هنا 🚀",
+    "لا تفكر في النتيجة — فكّر في الخطوة القادمة 👣",
+    "الاستمرارية أهم من الكمال ✨",
+    "كل دقيقة تركيز تقربك من هدفك 🎯"
+];
+
+function enterExamMode() {
+    /* اطلب الوضع الكامل */
+    try {
+        var el = document.documentElement;
+        if (el.requestFullscreen) el.requestFullscreen();
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+        else if (el.msRequestFullscreen) el.msRequestFullscreen();
+    } catch (e) {}
+    
+    examModeState.active = true;
+    examModeState.startTime = Date.now();
+    
+    document.getElementById('examModeScreen').classList.remove('hidden');
+    document.getElementById('examModeScreen').classList.add('flex');
+    
+    /* ابدأ المؤقتات */
+    updateExamModeClock();
+    updateExamModeStats();
+    updateExamModeMotivation();
+    
+    examModeState.timerInterval = setInterval(updateExamModeTimer, 1000);
+    examModeState.clockInterval = setInterval(updateExamModeClock, 1000);
+    examModeState.statsInterval = setInterval(updateExamModeStats, 30000);
+    
+    /* منع الإغلاق */
+    window.addEventListener('beforeunload', examModeBeforeUnload);
+    
+    showToast('🎯 وضع الامتحان مُفعّل');
+}
+
+function tryExitExamMode() {
+    /* عرض الوقت المنقضي */
+    var elapsed = Math.floor((Date.now() - examModeState.startTime) / 1000);
+    var h = Math.floor(elapsed / 3600);
+    var m = Math.floor((elapsed % 3600) / 60);
+    var s = elapsed % 60;
+    var timeStr = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    
+    document.getElementById('examModeElapsed').textContent = timeStr;
+    document.getElementById('examModeExitConfirm').classList.remove('hidden');
+}
+
+function exitExamMode() {
+    examModeState.active = false;
+    
+    /* أوقف المؤقتات */
+    clearInterval(examModeState.timerInterval);
+    clearInterval(examModeState.clockInterval);
+    clearInterval(examModeState.statsInterval);
+    
+    document.getElementById('examModeExitConfirm').classList.add('hidden');
+    document.getElementById('examModeScreen').classList.add('hidden');
+    document.getElementById('examModeScreen').classList.remove('flex');
+    
+    /* اخرج من Fullscreen */
+    try {
+        if (document.fullscreenElement) document.exitFullscreen();
+    } catch (e) {}
+    
+    /* أزل منع الإغلاق */
+    window.removeEventListener('beforeunload', examModeBeforeUnload);
+    
+    var elapsed = Math.floor((Date.now() - examModeState.startTime) / 1000);
+    var mins = Math.floor(elapsed / 60);
+    showToast('👋 خرجت من وضع الامتحان بعد ' + mins + ' دقيقة');
+}
+
+function cancelExitExamMode() {
+    document.getElementById('examModeExitConfirm').classList.add('hidden');
+    showToast('✓ استمر في التركيز!');
+}
+
+function examModeBeforeUnload(e) {
+    e.preventDefault();
+    e.returnValue = 'هل تريد الخروج من وضع الامتحان؟';
+    return e.returnValue;
+}
+
+function updateExamModeTimer() {
+    var elapsed = Math.floor((Date.now() - examModeState.startTime) / 1000);
+    var h = Math.floor(elapsed / 3600);
+    var m = Math.floor((elapsed % 3600) / 60);
+    var s = elapsed % 60;
+    document.getElementById('examModeTimer').textContent = 
+        String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+function updateExamModeClock() {
+    var now = new Date();
+    var hh = String(now.getHours()).padStart(2, '0');
+    var mm = String(now.getMinutes()).padStart(2, '0');
+    document.getElementById('examModeClock').textContent = hh + ':' + mm;
+}
+
+function updateExamModeStats() {
+    /* عدد المواد */
+    document.getElementById('examModeSubjects').textContent = appState.subjects ? appState.subjects.length : 0;
+   
+    /* الأوراق غير المكتملة */
+    var pending = 0;
+    (appState.subjects || []).forEach(function(s) {
+        if (s.sections) {
+            s.sections.forEach(function(sec) {
+                sec.items.forEach(function(it) { if (!it.checked) pending++; });
+            });
+        } else if (s.items) {
+            s.items.forEach(function(it) { if (!it.checked) pending++; });
+        }
+    });
+    document.getElementById('examModePending').textContent = pending;
+    
+    /* النقاط */
+    document.getElementById('examModePoints').textContent = (CURRENT_STATS && CURRENT_STATS.points) || 0;
+}
+
+function updateExamModeMotivation() {
+    var idx = Math.floor(Math.random() * EXAM_MODE_MOTIVATIONS.length);
+    document.getElementById('examModeMotivation').textContent = '"' + EXAM_MODE_MOTIVATIONS[idx] + '"';
+    
+    /* تغيير الرسالة كل 5 دقائق */
+    setInterval(function() {
+        if (!examModeState.active) return;
+        var i = Math.floor(Math.random() * EXAM_MODE_MOTIVATIONS.length);
+        var el = document.getElementById('examModeMotivation');
+        if (el) el.textContent = '"' + EXAM_MODE_MOTIVATIONS[i] + '"';
+    }, 300000);
+}
+
+/* فتح من داخل التطبيق */
+function openFocusModalFromExamMode() {
+    tryExitExamMode();
+    setTimeout(function() {
+        if (typeof openFocusModal === 'function') openFocusModal();
+    }, 300);
+}
+    /* ============================================================
+   نظام الإشعارات (Notifications)
+   ============================================================ */
+
+var NOTIF_DEFAULTS = {
+    enabled: false,
+    dailyEnabled: true,
+    dailyTime: '18:00',
+    examEnabled: true,
+    goalEnabled: true,
+    lastDailySent: null,
+    lastExamSent: {},
+    lastGoalSent: null
+};
+
+var notifState = {
+    timers: {}
+};
+
+/* -- فتح/إغلاق النافذة -- */
+
+function openNotificationsModal() {
+    if (!appState.notifications) {
+        appState.notifications = { ...NOTIF_DEFAULTS };
+    }
+    
+    var n = appState.notifications;
+    
+    document.getElementById('notifEnabledToggle').checked = !!n.enabled;
+    document.getElementById('notifDailyToggle').checked = n.dailyEnabled !== false;
+    document.getElementById('notifDailyTime').value = n.dailyTime || '18:00';
+    document.getElementById('notifExamToggle').checked = n.examEnabled !== false;
+    document.getElementById('notifGoalToggle').checked = n.goalEnabled !== false;
+    
+    var options = document.getElementById('notifOptions');
+    if (n.enabled) options.classList.remove('hidden');
+    else options.classList.add('hidden');
+    
+    /* افحص حالة الإذن */
+    if ('Notification' in window && Notification.permission === 'denied') {
+        document.getElementById('notifDeniedNotice').classList.remove('hidden');
+    } else {
+        document.getElementById('notifDeniedNotice').classList.add('hidden');
+    }
+    
+    document.getElementById('notificationsModal').classList.remove('hidden');
+}
+
+function closeNotificationsModal() {
+    document.getElementById('notificationsModal').classList.add('hidden');
+    saveState();
+}
+
+/* -- تفعيل/تعطيل -- */
+
+function toggleNotificationsEnabled(enabled) {
+    if (!('Notification' in window)) {
+        showToast('❌ متصفحك لا يدعم الإشعارات');
+        document.getElementById('notifEnabledToggle').checked = false;
+        return;
+    }
+    
+    if (enabled) {
+        if (Notification.permission === 'granted') {
+            if (!appState.notifications) appState.notifications = { ...NOTIF_DEFAULTS };
+            appState.notifications.enabled = true;
+            document.getElementById('notifOptions').classList.remove('hidden');
+            scheduleNotifications();
+            saveState();
+            showToast('✓ تم تفعيل الإشعارات');
+        } else {
+            Notification.requestPermission().then(function(permission) {
+                if (permission === 'granted') {
+                    if (!appState.notifications) appState.notifications = { ...NOTIF_DEFAULTS };
+                    appState.notifications.enabled = true;
+                    document.getElementById('notifOptions').classList.remove('hidden');
+                    scheduleNotifications();
+                    saveState();
+                    showToast('✓ تم تفعيل الإشعارات');
+                } else {
+                    document.getElementById('notifEnabledToggle').checked = false;
+                    showToast('❌ لم تسمح بالإشعارات');
+                }
+            });
+        }
+    } else {
+        if (!appState.notifications) appState.notifications = { ...NOTIF_DEFAULTS };
+        appState.notifications.enabled = false;
+        document.getElementById('notifOptions').classList.add('hidden');
+        stopAllNotifTimers();
+        saveState();
+    }
+}
+
+function toggleNotifOption(option, value) {
+    if (!appState.notifications) appState.notifications = { ...NOTIF_DEFAULTS };
+    if (option === 'daily') appState.notifications.dailyEnabled = value;
+    if (option === 'exam') appState.notifications.examEnabled = value;
+    if (option === 'goal') appState.notifications.goalEnabled = value;
+    scheduleNotifications();
+    saveState();
+}
+
+function updateNotifTime(time) {
+    if (!appState.notifications) appState.notifications = { ...NOTIF_DEFAULTS };
+    appState.notifications.dailyTime = time;
+    scheduleNotifications();
+    saveState();
+}
+
+/* -- عرض الإشعار -- */
+
+function showNotification(title, body, tag) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    if (!appState.notifications || !appState.notifications.enabled) return;
+    
+    try {
+        var notif = new Notification(title, {
+            body: body,
+            icon: '/icon-192.png',
+            badge: '/icon-192.png',
+            tag: tag || 'study-portal'
+        });
+        
+        notif.onclick = function() {
+            window.focus();
+            notif.close();
+        };
+        
+        setTimeout(function() { notif.close(); }, 10000);
+    } catch (e) {
+        console.error('Notification error:', e);
+    }
+}
+
+/* -- جدولة الإشعارات -- */
+
+function scheduleNotifications() {
+    stopAllNotifTimers();
+    
+    if (!appState.notifications || !appState.notifications.enabled) return;
+    
+    /* 1. تذكير يومي — يفحص كل دقيقة */
+    notifState.timers.daily = setInterval(checkDailyNotification, 60000);
+    checkDailyNotification();
+    
+    /* 2. تذكير امتحان — يفحص كل ساعة */
+    notifState.timers.exam = setInterval(checkExamNotifications, 3600000);
+    checkExamNotifications();
+    
+    /* 3. تحذير الهدف — يفحص كل 30 دقيقة */
+    notifState.timers.goal = setInterval(checkGoalNotification, 1800000);
+    checkGoalNotification();
+}
+
+function stopAllNotifTimers() {
+    Object.keys(notifState.timers).forEach(function(key) {
+        clearInterval(notifState.timers[key]);
+    });
+    notifState.timers = {};
+}
+
+/* -- فحوصات -- */
+
+function checkDailyNotification() {
+    var n = appState.notifications;
+    if (!n || !n.enabled || !n.dailyEnabled) return;
+    
+    var now = new Date();
+    var todayStr = now.toDateString();
+    
+    /* تجنّب التكرار */
+    if (n.lastDailySent === todayStr) return;
+    
+    var currentTime = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    var targetTime = n.dailyTime || '18:00';
+    
+    /* هل حان الوقت؟ */
+    if (currentTime >= targetTime) {
+        /* احسب عدد الأوراق */
+        var total = 0, done = 0;
+        appState.subjects.forEach(function(s) {
+            if (s.sections) {
+                s.sections.forEach(function(sec) {
+                    sec.items.forEach(function(it) { total++; if (it.checked) done++; });
+                });
+            } else if (s.items) {
+                s.items.forEach(function(it) { total++; if (it.checked) done++; });
+            }
+        });
+        var remaining = total - done;
+        
+        if (remaining > 0) {
+            showNotification(
+                '📚 وقت المراجعة!',
+                'لديك ' + remaining + ' ورقة لم تراجعها. ابدأ الآن!',
+                'daily-reminder'
+            );
+        }
+        
+        n.lastDailySent = todayStr;
+        saveState();
+    }
+}
+
+function checkExamNotifications() {
+    var n = appState.notifications;
+    if (!n || !n.enabled || !n.examEnabled) return;
+    
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (!n.lastExamSent) n.lastExamSent = {};
+    
+    appState.subjects.forEach(function(sub) {
+        if (!sub.examDate) return;
+        
+        var examDate = new Date(sub.examDate);
+        examDate.setHours(0, 0, 0, 0);
+        var diff = Math.ceil((examDate - today) / 86400000);
+        
+        /* قبل 3 أيام بالضبط */
+        if (diff === 3) {
+            var examKey = sub.id + '_' + sub.examDate;
+            if (n.lastExamSent[examKey]) return;
+            
+            showNotification(
+                '⚠️ امتحان قريب',
+                'بقي 3 أيام على امتحان ' + displayName(sub) + '. هل راجعت كل الأوراق؟',
+                'exam-' + sub.id
+            );
+            
+            n.lastExamSent[examKey] = Date.now();
+        }
+    });
+    
+    saveState();
+}
+
+function checkGoalNotification() {
+    var n = appState.notifications;
+    if (!n || !n.enabled || !n.goalEnabled) return;
+    
+    var now = new Date();
+    var todayStr = now.toDateString();
+    
+    /* تجنّب التكرار */
+    if (n.lastGoalSent === todayStr) return;
+    
+    /* بعد 20:00 */
+    if (now.getHours() < 20) return;
+    
+    /* هل هناك هدف؟ */
+    var progress = CURRENT_STATS.todayProgress;
+    if (!progress) return;
+    
+    /* لم يتحقق؟ */
+    if (progress.goal_met) return;
+    
+    var remaining = (progress.goal_value || 0) - (progress.current_value || 0);
+    if (remaining <= 0) return;
+    
+    showNotification(
+        '🔥 هدفك اليومي لم يتحقق!',
+        'بقي ' + remaining + ' مهمة. لا تكسر الـ Streak!',
+        'goal-reminder'
+    );
+    
+    n.lastGoalSent = todayStr;
+    saveState();
+}
+
+/* -- زر الاختبار -- */
+
+function testNotification() {
+    if (!('Notification' in window)) {
+        showToast('❌ متصفحك لا يدعم الإشعارات');
+        return;
+    }
+    
+    if (Notification.permission !== 'granted') {
+        Notification.requestPermission().then(function(permission) {
+            if (permission === 'granted') {
+                showNotification('✓ اختبار ناجح', 'الإشعارات تعمل!', 'test');
+            }
+        });
+        return;
+    }
+    
+    showNotification('✓ اختبار ناجح', 'الإشعارات تعمل بشكل صحيح! 🎉', 'test');
+}
+
+/* -- دمج مع enterUserApp -- */
+
+var _origEnterUserAppForNotif = enterUserApp;
+enterUserApp = function() {
+    _origEnterUserAppForNotif();
+    
+    setTimeout(function() {
+        if (appState.notifications && appState.notifications.enabled) {
+            scheduleNotifications();
+        }
+    }, 2000);
+};
 /* ============================================================
    الجزء 36: القائمة المنسدلة للهاتف (نسخة موحدة ومصلحة)
    ============================================================ */
@@ -11772,7 +12247,188 @@ if ('serviceWorker' in navigator) {
 
     </div>
 </div>
+    <!-- ============================================================
+     شاشة وضع الامتحان (Exam Mode)
+     ============================================================ -->
+<div id="examModeScreen" class="fixed inset-0 z-[200] bg-slate-900 text-white hidden flex-col">
+    
+    <!-- زر الخروج -->
+    <div class="absolute top-4 left-4 z-10">
+        <button onclick="tryExitExamMode()" class="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors" title="خروج">
+            <i class="fa-solid fa-arrow-right text-lg"></i>
+        </button>
+    </div>
 
+    <!-- شريط الحالة -->
+    <div class="absolute top-4 right-4 z-10">
+        <div class="bg-white/10 backdrop-blur-md rounded-xl px-3 py-2 border border-white/20">
+            <p class="text-[10px] font-bold uppercase text-slate-300">الوقت الحالي</p>
+            <p id="examModeClock" class="text-lg font-black tabular-nums text-white leading-none mt-0.5">--:--</p>
+        </div>
+    </div>
+
+    <!-- المحتوى المركزي -->
+    <div class="flex-1 flex flex-col items-center justify-center px-6 text-center">
+        
+        <!-- العنوان -->
+        <div class="mb-8">
+            <div class="w-20 h-20 rounded-3xl bg-gradient-to-tr from-red-500 to-amber-500 flex items-center justify-center mx-auto shadow-2xl mb-4">
+                <i class="fa-solid fa-lock text-white text-3xl"></i>
+            </div>
+            <h2 class="text-2xl font-black text-white mb-2">وضع الامتحان</h2>
+            <p class="text-sm text-slate-400">لا مشتتات — ركّز فقط</p>
+        </div>
+
+        <!-- المؤقت الكبير -->
+        <div class="mb-8">
+            <p class="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">مدة الجلسة</p>
+            <div id="examModeTimer" class="text-7xl sm:text-8xl font-black text-white tabular-nums leading-none">00:00:00</div>
+        </div>
+
+        <!-- إحصائيات -->
+        <div class="grid grid-cols-3 gap-4 mb-8 max-w-md w-full">
+            <div class="bg-white/5 rounded-2xl p-3 border border-white/10">
+                <p class="text-[10px] font-bold uppercase text-slate-400 mb-1">المواد</p>
+                <p id="examModeSubjects" class="text-2xl font-black text-white">0</p>
+            </div>
+            <div class="bg-white/5 rounded-2xl p-3 border border-white/10">
+                <p class="text-[10px] font-bold uppercase text-slate-400 mb-1">غير مكتمل</p>
+                <p id="examModePending" class="text-2xl font-black text-white">0</p>
+            </div>
+            <div class="bg-white/5 rounded-2xl p-3 border border-white/10">
+                <p class="text-[10px] font-bold uppercase text-slate-400 mb-1">نقاطك</p>
+                <p id="examModePoints" class="text-2xl font-black text-white">0</p>
+            </div>
+        </div>
+
+        <!-- رسالة تحفيزية -->
+        <div class="max-w-md">
+            <p id="examModeMotivation" class="text-sm text-slate-300 italic leading-relaxed">"التركيز العميق هو مفتاح النجاح"</p>
+        </div>
+    </div>
+
+    <!-- شريط سفلي -->
+    <div class="p-4 text-center">
+        <p class="text-[10px] text-slate-500">
+            <i class="fa-solid fa-shield-halved mr-1"></i>
+            الخروج من الوضع قد يُقطع تركيزك
+        </p>
+    </div>
+</div>
+
+<!-- نافذة تأكيد الخروج -->
+<div id="examModeExitConfirm" class="fixed inset-0 z-[210] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-4 hidden">
+    <div class="bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-700">
+        <div class="text-center mb-4">
+            <div class="w-16 h-16 rounded-full bg-amber-500/20 text-amber-400 mx-auto flex items-center justify-center text-2xl mb-3">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 class="text-lg font-black text-white mb-2">هل أنت متأكد؟</h3>
+            <p class="text-sm text-slate-400 leading-relaxed">
+                ستفقد تركيزك إذا خرجت الآن.<br>
+                الوقت المنقضي: <strong id="examModeElapsed" class="text-amber-400">00:00:00</strong>
+            </p>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="exitExamMode()" class="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-bold transition-colors">
+                <i class="fa-solid fa-door-open mr-1"></i> خروج
+            </button>
+            <button onclick="cancelExitExamMode()" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold transition-colors">
+                <i class="fa-solid fa-arrow-left mr-1"></i> أرجع للتركيز
+            </button>
+        </div>
+    </div>
+</div>
+<!-- ============================================================
+     نافذة إعدادات الإشعارات
+     ============================================================ -->
+<div id="notificationsModal" class="fixed inset-0 z-[110] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 hidden overflow-y-auto">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-5 border border-slate-200 dark:border-slate-700 my-8">
+        
+        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 dark:border-slate-700">
+            <div class="flex items-center gap-2">
+                <div class="w-9 h-9 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                    <i class="fa-solid fa-bell"></i>
+                </div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-white">الإشعارات</h3>
+            </div>
+            <button onclick="closeNotificationsModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <!-- تفعيل عام -->
+        <div class="bg-slate-50 dark:bg-slate-700/40 rounded-xl p-3 mb-4">
+            <label class="flex items-center justify-between cursor-pointer">
+                <div>
+                    <p class="text-sm font-bold text-slate-800 dark:text-slate-100">تفعيل الإشعارات</p>
+                    <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">المتصفح يعرض تنبيهات</p>
+                </div>
+                <input type="checkbox" id="notifEnabledToggle" onchange="toggleNotificationsEnabled(this.checked)" class="w-10 h-5 rounded-full appearance-none bg-slate-300 dark:bg-slate-600 checked:bg-purple-500 transition-colors relative cursor-pointer">
+            </label>
+        </div>
+
+        <div id="notifOptions" class="space-y-3 hidden">
+            
+            <!-- تذكير يومي -->
+            <div class="bg-slate-50 dark:bg-slate-700/40 rounded-xl p-3">
+                <label class="flex items-center justify-between cursor-pointer mb-2">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-clock text-indigo-500"></i>
+                        <span class="text-xs font-bold text-slate-800 dark:text-slate-100">تذكير يومي للمراجعة</span>
+                    </div>
+                    <input type="checkbox" id="notifDailyToggle" onchange="toggleNotifOption('daily', this.checked)" class="w-4 h-4 rounded accent-purple-600">
+                </label>
+                <div class="flex items-center gap-2 mt-2 mr-6">
+                    <label class="text-[10px] text-slate-500 dark:text-slate-400">الوقت:</label>
+                    <input type="time" id="notifDailyTime" value="18:00" onchange="updateNotifTime(this.value)" class="flex-1 px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-xs">
+                </div>
+            </div>
+
+            <!-- تذكير الامتحانات -->
+            <div class="bg-slate-50 dark:bg-slate-700/40 rounded-xl p-3">
+                <label class="flex items-center justify-between cursor-pointer">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-graduation-cap text-amber-500"></i>
+                        <span class="text-xs font-bold text-slate-800 dark:text-slate-100">تذكير قبل الامتحانات</span>
+                    </div>
+                    <input type="checkbox" id="notifExamToggle" onchange="toggleNotifOption('exam', this.checked)" class="w-4 h-4 rounded accent-purple-600">
+                </label>
+                <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1 mr-6">قبل 3 أيام من كل امتحان</p>
+            </div>
+
+            <!-- تحذير الهدف -->
+            <div class="bg-slate-50 dark:bg-slate-700/40 rounded-xl p-3">
+                <label class="flex items-center justify-between cursor-pointer">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-bullseye text-emerald-500"></i>
+                        <span class="text-xs font-bold text-slate-800 dark:text-slate-100">تحذير عند عدم تحقيق الهدف</span>
+                    </div>
+                    <input type="checkbox" id="notifGoalToggle" onchange="toggleNotifOption('goal', this.checked)" class="w-4 h-4 rounded accent-purple-600">
+                </label>
+                <p class="text-[10px] text-slate-500 dark:text-slate-400 mt-1 mr-6">إذا لم تنجز هدفك حتى 20:00</p>
+            </div>
+
+            <!-- زر اختبار -->
+            <button onclick="testNotification()" class="w-full py-2.5 rounded-xl border border-purple-300 dark:border-purple-800 text-purple-600 dark:text-purple-400 text-xs font-bold hover:bg-purple-50 dark:hover:bg-purple-950/40 transition-colors">
+                <i class="fa-solid fa-flask mr-1"></i> اختبار إشعار الآن
+            </button>
+        </div>
+
+        <div id="notifDeniedNotice" class="hidden bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 rounded-xl p-3 mt-3">
+            <p class="text-[11px] text-red-600 dark:text-red-400">
+                <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+                أنت رفضت الإشعارات سابقًا. افتح إعدادات المتصفح للسماح.
+            </p>
+        </div>
+
+        <div class="flex justify-end pt-4 mt-4 border-t border-slate-200 dark:border-slate-700">
+            <button onclick="closeNotificationsModal()" class="px-5 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold">
+                تم
+            </button>
+        </div>
+    </div>
+</div>
 <!-- ============================================================
      نافذة الجولة التعليمية (Tutorial)
      ============================================================ -->
