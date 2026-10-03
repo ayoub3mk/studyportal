@@ -2070,6 +2070,10 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 <button onclick="switchTab('notes')" data-tab="notes" class="tab-btn px-3 py-2 text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
     <i class="fa-solid fa-note-sticky mr-1"></i> <span>Notes</span>
 </button>
+<button onclick="switchTab('exams')" data-tab="exams" class="tab-btn px-3 py-2 text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
+    <i class="fa-solid fa-calendar-days mr-1"></i> <span>الامتحانات</span>
+    <span id="examsBadge" class="hidden ml-1 text-[10px] font-black px-1.5 py-0.5 rounded-full bg-red-500 text-white"></span>
+</button>
         </div>
 
         <!-- تبويب قائمة المراجعة -->
@@ -2157,8 +2161,21 @@ input[type="time"]::-webkit-calendar-picker-indicator {
             </div>
         </section>
 
-        <!-- تبويب الإحصائيات -->
+      <!-- تبويب الإحصائيات -->
         <section id="tab-stats" class="hidden">
+            
+            <!-- فلتر الفترة -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-3 mb-4">
+                <label class="block text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-2">الفترة الزمنية</label>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="setStatsPeriod(7)" data-period="7" class="stats-period-btn px-3 py-2 rounded-lg text-xs font-bold border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">7 أيام</button>
+                    <button onclick="setStatsPeriod(30)" data-period="30" class="stats-period-btn px-3 py-2 rounded-lg text-xs font-bold border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">30 يوم</button>
+                    <button onclick="setStatsPeriod(90)" data-period="90" class="stats-period-btn px-3 py-2 rounded-lg text-xs font-bold border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">90 يوم</button>
+                    <button onclick="setStatsPeriod('all')" data-period="all" class="stats-period-btn px-3 py-2 rounded-lg text-xs font-bold border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700">الكل</button>
+                </div>
+            </div>
+
+            <!-- بطاقات ملخص -->
             <div class="grid grid-cols-3 gap-3 mb-4">
                 <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-3">
                     <p class="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400" data-i18n="statTotal">إجمالي</p>
@@ -2173,14 +2190,58 @@ input[type="time"]::-webkit-calendar-picker-indicator {
                     <p class="text-2xl font-black text-brand-600 dark:text-brand-400 mt-1"><span id="statsActiveHw">0</span></p>
                 </div>
             </div>
-            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-3 sm:p-4">
+
+            <!-- رسم بياني خطي -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-4 mb-4">
                 <h3 class="font-black text-base text-slate-900 dark:text-white mb-3">
-                    <i class="fa-solid fa-chart-simple text-brand-500 mr-1"></i>
-                    <span data-i18n="statBySubject">تقدم كل مادة</span>
+                    <i class="fa-solid fa-chart-line text-brand-500 mr-1"></i>
+                    <span>تطور المواد عبر الزمن</span>
                 </h3>
-                          <div id="statsBySubject" class="space-y-3"></div>
-        </div>
-    </section>
+                <div style="height: 280px;">
+                    <canvas id="progressLineChart"></canvas>
+                </div>
+                <p id="noProgressData" class="text-center text-xs text-slate-400 py-4 hidden">لا توجد بيانات بعد — راجع بعض الأوراق أولًا</p>
+            </div>
+
+            <!-- مقارنة المواد -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-4 mb-4">
+                <h3 class="font-black text-base text-slate-900 dark:text-white mb-3">
+                    <i class="fa-solid fa-chart-bar text-brand-500 mr-1"></i>
+                    <span>مقارنة المواد</span>
+                </h3>
+                <div style="height: 300px;">
+                    <canvas id="subjectsBarChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Heatmap النشاط -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-4 mb-4">
+                <h3 class="font-black text-base text-slate-900 dark:text-white mb-3">
+                    <i class="fa-solid fa-fire text-orange-500 mr-1"></i>
+                    <span>نشاطك اليومي</span>
+                </h3>
+                <div id="activityHeatmap" class="grid grid-cols-7 gap-1.5"></div>
+                <div class="flex items-center justify-center gap-3 mt-3 text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                    <span>أقل</span>
+                    <span class="w-3 h-3 rounded bg-slate-100 dark:bg-slate-700"></span>
+                    <span class="w-3 h-3 rounded bg-emerald-200 dark:bg-emerald-900/60"></span>
+                    <span class="w-3 h-3 rounded bg-emerald-400 dark:bg-emerald-700"></span>
+                    <span class="w-3 h-3 rounded bg-emerald-600 dark:bg-emerald-500"></span>
+                    <span class="w-3 h-3 rounded bg-emerald-800 dark:bg-emerald-300"></span>
+                    <span>أكثر</span>
+                </div>
+            </div>
+
+            <!-- KPIs -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-4">
+                <h3 class="font-black text-base text-slate-900 dark:text-white mb-3">
+                    <i class="fa-solid fa-trophy text-amber-500 mr-1"></i>
+                    <span>مؤشرات الأداء</span>
+                </h3>
+                <div id="statsKPIs" class="grid grid-cols-2 gap-3"></div>
+            </div>
+
+        </section>
 
     <!-- تبويب دروس خصوصية -->
     <section id="tab-tutoring" class="hidden">
@@ -2527,7 +2588,70 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     </select>
     <div id="seriesList" class="space-y-3"></div>
 </section>
+<!-- ===== تبويب الامتحانات ===== -->
+<section id="tab-exams" class="hidden">
+    
+    <!-- رأس الصفحة -->
+    <div class="bg-gradient-to-r from-cyan-500 to-blue-600 rounded-2xl p-4 mb-4 text-white shadow-lg">
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center text-2xl flex-shrink-0">
+                    <i class="fa-solid fa-calendar-days"></i>
+                </div>
+                <div>
+                    <h3 class="text-lg font-black">📅 جدول الامتحانات</h3>
+                    <p class="text-[11px] text-cyan-100 mt-0.5" id="examsCountText">0 امتحان قادم</p>
+                </div>
+            </div>
+            <button onclick="openAddExamModal()" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/20 hover:bg-white/30 text-white text-sm font-bold transition-colors">
+                <i class="fa-solid fa-plus"></i>
+                <span>امتحان جديد</span>
+            </button>
+        </div>
+    </div>
 
+    <!-- التبديل بين التقويم والقائمة -->
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-2 mb-4">
+        <div class="grid grid-cols-2 gap-1">
+            <button onclick="setExamsView('calendar')" data-exam-view="calendar" class="exams-view-btn py-2.5 rounded-lg text-xs font-bold bg-cyan-500 text-white transition-colors">
+                <i class="fa-solid fa-calendar mr-1"></i> تقويم
+            </button>
+            <button onclick="setExamsView('list')" data-exam-view="list" class="exams-view-btn py-2.5 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors">
+                <i class="fa-solid fa-list mr-1"></i> قائمة
+            </button>
+        </div>
+    </div>
+
+    <!-- عرض التقويم -->
+    <div id="examsCalendarView" class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-4 mb-4">
+        <div class="flex items-center justify-between mb-4">
+            <button onclick="prevMonth()" class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 flex items-center justify-center transition-colors">
+                <i class="fa-solid fa-chevron-right text-xs"></i>
+            </button>
+            <h4 id="calendarMonthLabel" class="font-black text-base text-slate-900 dark:text-white">—</h4>
+            <button onclick="nextMonth()" class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 flex items-center justify-center transition-colors">
+                <i class="fa-solid fa-chevron-left text-xs"></i>
+            </button>
+        </div>
+        
+        <!-- أسماء الأيام -->
+        <div class="grid grid-cols-7 gap-1 mb-2 text-center text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">
+            <div>أحد</div>
+            <div>إثن</div>
+            <div>ثلا</div>
+            <div>أرب</div>
+            <div>خمي</div>
+            <div>جمع</div>
+            <div>سبت</div>
+        </div>
+        
+        <!-- الأيام -->
+        <div id="calendarGrid" class="grid grid-cols-7 gap-1"></div>
+    </div>
+
+    <!-- عرض القائمة -->
+    <div id="examsListView" class="hidden space-y-3"></div>
+</section>
 <!-- ===== تبويب الملاحظات ===== -->
 <section id="tab-notes" class="hidden">
     <div class="bg-gradient-to-r from-amber-500 to-orange-600 rounded-2xl p-4 mb-4 text-white shadow-lg">
@@ -3045,7 +3169,9 @@ var appState = {
         date: null,
         checked: {}
     },
-    tutorial: null          /* حالة الإرشادات */
+    tutorial: null,         /* حالة الإرشادات */
+    notifications: null,    /* إعدادات الإشعارات */
+    exams: []               /* الامتحانات المخصصة */
 };
 
 var AUTH_TOKEN = null;
@@ -3445,6 +3571,8 @@ function loadUserData() {
         appState.series = (u.extras && u.extras.series) || [];
         appState.notes = (u.extras && u.extras.notes) || [];
         appState.tutorial = (u.extras && u.extras.tutorial) || null;
+        appState.notifications = (u.extras && u.extras.notifications) || null;
+        appState.exams = (u.extras && u.extras.exams) || [];
         /* Migration تلقائي للأوراق */
         try { migrateSubjectItems(); } catch (e) { console.warn('Migration error:', e); }
         CURRENT_USER = u;
@@ -5364,10 +5492,12 @@ function saveState() {
         homework: appState.homework,
         preparation: appState.preparation,
         prepChecked: appState.prepChecked,
-        extras: { 
+                extras: { 
             series: appState.series || [], 
             notes: appState.notes || [],
-            tutorial: appState.tutorial || null
+            tutorial: appState.tutorial || null,
+            notifications: appState.notifications || null,
+            exams: appState.exams || []
         },
         lang: appState.lang,
         darkMode: appState.darkMode
@@ -11066,6 +11196,651 @@ enterUserApp = function() {
     }, 1500);
 };
     /* ============================================================
+   جدول الامتحانات (Exams Calendar)
+   ============================================================ */
+
+var examsState = {
+    view: 'calendar',
+    currentMonth: new Date(),
+    editingId: null
+};
+
+/* -- ضبط العرض -- */
+function setExamsView(view) {
+    examsState.view = view;
+    
+    document.querySelectorAll('.exams-view-btn').forEach(function(b) {
+        var isActive = b.getAttribute('data-exam-view') === view;
+        b.classList.toggle('bg-cyan-500', isActive);
+        b.classList.toggle('text-white', isActive);
+        b.classList.toggle('text-slate-600', !isActive);
+        b.classList.toggle('dark:text-slate-300', !isActive);
+    });
+    
+    document.getElementById('examsCalendarView').classList.toggle('hidden', view !== 'calendar');
+    document.getElementById('examsListView').classList.toggle('hidden', view !== 'list');
+    
+    renderExams();
+}
+
+/* -- جلب كل الامتحانات -- */
+function getAllExams() {
+    var exams = [];
+    
+    /* من المواد */
+    (appState.subjects || []).forEach(function(s) {
+        if (!s.examDate) return;
+        exams.push({
+            id: 'subj_' + s.id,
+            title: displayName(s),
+            subjectId: s.id,
+            date: s.examDate,
+            type: 'subject',
+            fromSubject: true
+        });
+    });
+    
+    /* من الامتحانات المخصصة */
+    var custom = (appState.exams || []);
+    custom.forEach(function(e) {
+        exams.push(e);
+    });
+    
+    /* رتب حسب التاريخ */
+    exams.sort(function(a, b) {
+        return (a.date || '').localeCompare(b.date || '');
+    });
+    
+    return exams;
+}
+
+/* -- عرض كل الامتحانات -- */
+function renderExams() {
+    if (examsState.view === 'calendar') {
+        renderExamsCalendar();
+    } else {
+        renderExamsList();
+    }
+    
+    updateExamsBadge();
+}
+
+/* -- عرض التقويم -- */
+function renderExamsCalendar() {
+    var grid = document.getElementById('calendarGrid');
+    var label = document.getElementById('calendarMonthLabel');
+    if (!grid || !label) return;
+    
+    var year = examsState.currentMonth.getFullYear();
+    var month = examsState.currentMonth.getMonth();
+    
+    var monthNames = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+    label.textContent = monthNames[month] + ' ' + year;
+    
+    var firstDay = new Date(year, month, 1);
+    var lastDay = new Date(year, month + 1, 0);
+    var startWeekday = firstDay.getDay();
+    var daysInMonth = lastDay.getDate();
+    
+    var exams = getAllExams();
+    var examsByDay = {};
+    exams.forEach(function(e) {
+        var d = new Date(e.date);
+        if (d.getFullYear() === year && d.getMonth() === month) {
+            var day = d.getDate();
+            if (!examsByDay[day]) examsByDay[day] = [];
+            examsByDay[day].push(e);
+        }
+    });
+    
+    grid.innerHTML = '';
+    
+    /* أيام فارغة قبل الشهر */
+    for (var i = 0; i < startWeekday; i++) {
+        var empty = document.createElement('div');
+        empty.className = 'aspect-square';
+        grid.appendChild(empty);
+    }
+    
+    /* أيام الشهر */
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    for (var day = 1; day <= daysInMonth; day++) {
+        var d = new Date(year, month, day);
+        var cell = document.createElement('button');
+        cell.className = 'aspect-square rounded-lg flex flex-col items-center justify-center text-xs font-bold transition-all hover:scale-105 relative';
+        
+        var isToday = d.getTime() === today.getTime();
+        var hasExams = examsByDay[day];
+        
+        if (hasExams) {
+            cell.className += ' bg-cyan-500 text-white shadow-md';
+            cell.innerHTML = '<span>' + day + '</span>' +
+                '<span class="absolute bottom-1 text-[8px] font-black">' + hasExams.length + ' 📝</span>';
+            cell.onclick = (function(exams) {
+                return function() { showExamsDayDetails(exams); };
+            })(hasExams);
+        } else if (isToday) {
+            cell.className += ' bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 border-2 border-amber-400';
+            cell.textContent = day;
+        } else {
+            cell.className += ' bg-slate-50 dark:bg-slate-700/40 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700';
+            cell.textContent = day;
+        }
+        
+        grid.appendChild(cell);
+    }
+}
+
+/* -- عرض تفاصيل يوم -- */
+function showExamsDayDetails(exams) {
+    var text = exams.map(function(e) {
+        return '📝 ' + e.title + (e.time ? ' - ' + e.time : '');
+    }).join('\n');
+    alert(text);
+}
+
+/* -- التنقل بين الشهور -- */
+function prevMonth() {
+    examsState.currentMonth.setMonth(examsState.currentMonth.getMonth() - 1);
+    renderExamsCalendar();
+}
+
+function nextMonth() {
+    examsState.currentMonth.setMonth(examsState.currentMonth.getMonth() + 1);
+    renderExamsCalendar();
+}
+
+/* -- عرض القائمة -- */
+function renderExamsList() {
+    var container = document.getElementById('examsListView');
+    if (!container) return;
+    
+    var exams = getAllExams();
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    /* فلتر القادمة فقط */
+    var upcoming = exams.filter(function(e) {
+        var d = new Date(e.date);
+        d.setHours(0, 0, 0, 0);
+        return d >= today;
+    });
+    
+    if (upcoming.length === 0) {
+        container.innerHTML = 
+            '<div class="text-center py-10 bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700">' +
+                '<i class="fa-solid fa-calendar-check text-4xl text-slate-300 dark:text-slate-600 mb-3"></i>' +
+                '<p class="font-bold text-slate-700 dark:text-slate-300">لا امتحانات قادمة</p>' +
+                '<p class="text-xs text-slate-500 dark:text-slate-400 mt-1">أضف امتحانًا جديدًا للبدء</p>' +
+            '</div>';
+        return;
+    }
+    
+    container.innerHTML = '';
+    upcoming.forEach(function(e) {
+        var d = new Date(e.date);
+        d.setHours(0, 0, 0, 0);
+        var diff = Math.ceil((d - today) / 86400000);
+        
+        var urgency = diff === 0 ? 'red' : diff <= 3 ? 'amber' : 'cyan';
+        var urgencyText = diff === 0 ? 'اليوم!' : diff === 1 ? 'غدًا' : 'بعد ' + diff + ' يوم';
+        
+        var card = document.createElement('div');
+        card.className = 'bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-3';
+        card.innerHTML = 
+            '<div class="flex items-start gap-3">' +
+                '<div class="w-12 h-12 rounded-xl bg-' + urgency + '-100 dark:bg-' + urgency + '-950/60 text-' + urgency + '-600 dark:text-' + urgency + '-400 flex items-center justify-center flex-shrink-0">' +
+                    '<i class="fa-solid fa-graduation-cap text-lg"></i>' +
+                '</div>' +
+                '<div class="flex-1 min-w-0">' +
+                    '<div class="flex items-center gap-2 mb-1 flex-wrap">' +
+                        '<h4 class="font-bold text-sm text-slate-900 dark:text-white truncate">' + escapeHtml(e.title) + '</h4>' +
+                        '<span class="text-[10px] font-black px-2 py-0.5 rounded-md bg-' + urgency + '-100 dark:bg-' + urgency + '-950/60 text-' + urgency + '-700 dark:text-' + urgency + '-300">' + urgencyText + '</span>' +
+                    '</div>' +
+                    '<p class="text-[11px] text-slate-500 dark:text-slate-400">' +
+                        '<i class="fa-regular fa-calendar mr-1"></i>' + e.date +
+                        (e.time ? ' - ' + e.time : '') +
+                    '</p>' +
+                '</div>' +
+                '<div class="flex items-center gap-1 flex-shrink-0">' +
+                    '<button onclick="startExamPrep(\'' + e.id + '\')" title="بدء التحضير" ' +
+                        'class="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 flex items-center justify-center transition-colors">' +
+                        '<i class="fa-solid fa-play text-xs"></i>' +
+                    '</button>' +
+                    (!e.fromSubject ? 
+                        '<button onclick="deleteExam(\'' + e.id + '\')" title="حذف" ' +
+                            'class="w-9 h-9 rounded-lg text-slate-400 hover:bg-red-100 dark:hover:bg-red-900/40 hover:text-red-600 flex items-center justify-center transition-colors">' +
+                            '<i class="fa-solid fa-trash-can text-xs"></i>' +
+                        '</button>' : '') +
+                '</div>' +
+            '</div>';
+        container.appendChild(card);
+    });
+}
+
+/* -- بدء التحضير -- */
+function startExamPrep(examId) {
+    var exam = getAllExams().find(function(e) { return e.id === examId; });
+    if (!exam) return;
+    
+    /* عرض تأكيد */
+    if (confirm('هل تريد بدء جلسة تحضير لهذا الامتحان؟\n\nسيُفعّل وضع الامتحان.\n\n' + exam.title)) {
+        /* ادخل وضع الامتحان */
+        if (typeof enterExamMode === 'function') {
+            enterExamMode();
+        } else {
+            showToast('⚠️ وضع الامتحان غير متاح');
+        }
+    }
+}
+
+/* -- Badge -- */
+function updateExamsBadge() {
+    var badge = document.getElementById('examsBadge');
+    var countText = document.getElementById('examsCountText');
+    if (!badge) return;
+    
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    var upcoming = getAllExams().filter(function(e) {
+        var d = new Date(e.date);
+        d.setHours(0, 0, 0, 0);
+        var diff = Math.ceil((d - today) / 86400000);
+        return diff >= 0 && diff <= 7;
+    });
+    
+    if (upcoming.length > 0) {
+        badge.textContent = upcoming.length;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+    
+    var total = getAllExams().filter(function(e) {
+        var d = new Date(e.date);
+        d.setHours(0, 0, 0, 0);
+        return d >= today;
+    }).length;
+    
+    if (countText) countText.textContent = total + ' امتحان قادم';
+}
+
+/* -- فتح نافذة إضافة -- */
+function openAddExamModal() {
+    examsState.editingId = null;
+    document.getElementById('addExamModalTitle').innerHTML = 
+        '<i class="fa-solid fa-calendar-plus text-cyan-500 mr-2"></i><span>امتحان جديد</span>';
+    document.getElementById('examTitleInput').value = '';
+    document.getElementById('examDateInput').value = '';
+    document.getElementById('examTimeInput').value = '';
+    document.getElementById('examTypeInput').value = 'control1';
+    document.getElementById('addExamError').classList.add('hidden');
+    
+    /* ملء قائمة المواد */
+    var sel = document.getElementById('examSubjectSelect');
+    sel.innerHTML = '<option value="">— بدون مادة —</option>';
+    (appState.subjects || []).forEach(function(s) {
+        var o = document.createElement('option');
+        o.value = s.id;
+        o.textContent = displayName(s);
+        sel.appendChild(o);
+    });
+    
+    document.getElementById('addExamModal').classList.remove('hidden');
+}
+
+function closeAddExamModal() {
+    document.getElementById('addExamModal').classList.add('hidden');
+}
+
+/* -- حفظ امتحان -- */
+function saveExam(e) {
+    e.preventDefault();
+    
+    var title = document.getElementById('examTitleInput').value.trim();
+    var date = document.getElementById('examDateInput').value;
+    var time = document.getElementById('examTimeInput').value;
+    var type = document.getElementById('examTypeInput').value;
+    var subjectId = document.getElementById('examSubjectSelect').value;
+    
+    var err = document.getElementById('addExamError');
+    err.classList.add('hidden');
+    
+    if (!title || !date) {
+        err.textContent = 'املأ العنوان والتاريخ';
+        err.classList.remove('hidden');
+        return;
+    }
+    
+    if (!appState.exams) appState.exams = [];
+    
+    if (examsState.editingId) {
+        var ex = appState.exams.find(function(x) { return x.id === examsState.editingId; });
+        if (ex) {
+            ex.title = title;
+            ex.date = date;
+            ex.time = time;
+            ex.type = type;
+            ex.subjectId = subjectId;
+        }
+    } else {
+        appState.exams.push({
+            id: 'exam_' + Date.now(),
+            title: title,
+            date: date,
+            time: time,
+            type: type,
+            subjectId: subjectId,
+            fromSubject: false
+        });
+    }
+    
+    closeAddExamModal();
+    renderExams();
+    saveState();
+    showToast('✓ تم حفظ الامتحان');
+}
+
+/* -- حذف امتحان -- */
+function deleteExam(id) {
+    if (!confirm('حذف هذا الامتحان؟')) return;
+    appState.exams = (appState.exams || []).filter(function(x) { return x.id !== id; });
+    renderExams();
+    saveState();
+    showToast('🗑️ تم الحذف');
+}
+
+/* -- دمج مع switchTab -- */
+var _origSwitchTabForExams = switchTab;
+switchTab = function(tab) {
+    _origSwitchTabForExams(tab);
+    if (tab === 'exams') {
+        setTimeout(function() {
+            setExamsView(examsState.view);
+            updateExamsBadge();
+        }, 100);
+    }
+};
+
+/* -- دمج مع loadUserData (تحميل الامتحانات) -- */
+var _origLoadUserDataForExams = loadUserData;
+loadUserData = function() {
+    _origLoadUserDataForExams();
+    setTimeout(function() {
+        if (appState.exams === undefined) appState.exams = [];
+        updateExamsBadge();
+    }, 500);
+};
+    /* ============================================================
+   الإحصائيات المتقدمة (Advanced Stats)
+   ============================================================ */
+
+var statsState = {
+    period: 30,
+    progressChart: null,
+    barChart: null
+};
+
+/* -- ضبط الفترة -- */
+function setStatsPeriod(days) {
+    statsState.period = days;
+    
+    document.querySelectorAll('.stats-period-btn').forEach(function(b) {
+        var isActive = b.getAttribute('data-period') == days;
+        b.classList.toggle('bg-brand-500', isActive);
+        b.classList.toggle('text-white', isActive);
+        b.classList.toggle('border-brand-500', isActive);
+    });
+    
+    renderAdvancedStats();
+}
+
+/* -- عرض كل الإحصائيات -- */
+
+function renderAdvancedStats() {
+    renderProgressLineChart();
+    renderSubjectsBarChart();
+    renderActivityHeatmap();
+    renderStatsKPIs();
+}
+
+/* -- الرسم البياني الخطي -- */
+
+function renderProgressLineChart() {
+    var ctx = document.getElementById('progressLineChart');
+    if (!ctx) return;
+    
+    /* اجمع النشاط اليومي من CURRENT_STATS.recent */
+    var recent = (CURRENT_STATS && CURRENT_STATS.recent) || [];
+    
+    /* رتب تصاعديًا */
+    recent.sort(function(a, b) {
+        return (a.day || '').localeCompare(b.day || '');
+    });
+    
+    /* فلتر بالفترة */
+    var days = statsState.period === 'all' ? 365 : statsState.period;
+    var cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    var cutoffStr = cutoff.toISOString().slice(0, 10);
+    
+    var filtered = recent.filter(function(r) {
+        var day = typeof r.day === 'string' ? r.day.slice(0, 10) : '';
+        return day >= cutoffStr;
+    });
+    
+    var noData = document.getElementById('noProgressData');
+    
+    if (filtered.length === 0) {
+        if (statsState.progressChart) {
+            statsState.progressChart.destroy();
+            statsState.progressChart = null;
+        }
+        if (noData) noData.classList.remove('hidden');
+        return;
+    }
+    
+    if (noData) noData.classList.add('hidden');
+    
+    var labels = filtered.map(function(r) {
+        var d = typeof r.day === 'string' ? r.day.slice(0, 10) : '';
+        return d.substring(5); /* MM-DD */
+    });
+    
+    var data = filtered.map(function(r) {
+        return r.current_value || 0;
+    });
+    
+    if (statsState.progressChart) {
+        statsState.progressChart.destroy();
+    }
+    
+    statsState.progressChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'المهام المنجزة',
+                data: data,
+                borderColor: '#f97316',
+                backgroundColor: 'rgba(249, 115, 22, 0.1)',
+                tension: 0.3,
+                fill: true,
+                pointRadius: 3,
+                pointBackgroundColor: '#f97316'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, ticks: { precision: 0 } },
+                x: { ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 10 } }
+            }
+        }
+    });
+}
+
+/* -- رسم أعمدة المواد -- */
+
+function renderSubjectsBarChart() {
+    var ctx = document.getElementById('subjectsBarChart');
+    if (!ctx) return;
+    
+    var subjects = appState.subjects || [];
+    var labels = [];
+    var data = [];
+    var colors = [];
+    
+    subjects.forEach(function(s) {
+        var total = 0, done = 0;
+        if (s.sections) {
+            s.sections.forEach(function(sec) {
+                sec.items.forEach(function(it) { total++; if (it.checked) done++; });
+            });
+        } else if (s.items) {
+            s.items.forEach(function(it) { total++; if (it.checked) done++; });
+        }
+        if (total === 0) return;
+        
+        labels.push(displayName(s));
+        data.push(Math.round((done / total) * 100));
+        
+        var pct = (done / total) * 100;
+        if (pct >= 70) colors.push('#10b981');
+        else if (pct >= 40) colors.push('#f59e0b');
+        else colors.push('#ef4444');
+    });
+    
+    if (statsState.barChart) statsState.barChart.destroy();
+    
+    statsState.barChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'نسبة الإنجاز %',
+                data: data,
+                backgroundColor: colors,
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, max: 100, ticks: { callback: function(v) { return v + '%'; } } },
+                x: { ticks: { maxRotation: 45, minRotation: 45, autoSkip: false } }
+            }
+        }
+    });
+}
+
+/* -- Heatmap -- */
+
+function renderActivityHeatmap() {
+    var container = document.getElementById('activityHeatmap');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    var recent = (CURRENT_STATS && CURRENT_STATS.recent) || [];
+    var map = {};
+    recent.forEach(function(r) {
+        var day = typeof r.day === 'string' ? r.day.slice(0, 10) : '';
+        map[day] = r;
+    });
+    
+    /* آخر 30 يوم */
+    var today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    for (var i = 29; i >= 0; i--) {
+        var d = new Date(today);
+        d.setDate(d.getDate() - i);
+        var dayStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        
+        var cell = document.createElement('div');
+        cell.className = 'aspect-square rounded-md flex items-center justify-center text-[9px] font-bold cursor-pointer transition-all hover:scale-110';
+        cell.title = dayStr;
+        
+        var r = map[dayStr];
+        var value = r ? (r.current_value || 0) : 0;
+        var goalMet = r && r.goal_met;
+        
+        if (goalMet) {
+            cell.className += ' bg-emerald-600 text-white';
+            cell.innerHTML = '<i class="fa-solid fa-check"></i>';
+        } else if (value >= 10) {
+            cell.className += ' bg-emerald-800 text-white';
+            cell.textContent = value;
+        } else if (value >= 5) {
+            cell.className += ' bg-emerald-600 text-white';
+            cell.textContent = value;
+        } else if (value >= 1) {
+            cell.className += ' bg-emerald-400 text-white';
+            cell.textContent = value;
+        } else {
+            cell.className += ' bg-slate-100 dark:bg-slate-700 text-slate-400';
+            cell.textContent = d.getDate();
+        }
+        
+        container.appendChild(cell);
+    }
+}
+
+/* -- KPIs -- */
+
+function renderStatsKPIs() {
+    var container = document.getElementById('statsKPIs');
+    if (!container) return;
+    
+    /* احسب متوسط الإنجاز اليومي */
+    var recent = (CURRENT_STATS && CURRENT_STATS.recent) || [];
+    var daysWithActivity = recent.filter(function(r) { return (r.current_value || 0) > 0; }).length;
+    var totalTasks = recent.reduce(function(sum, r) { return sum + (r.current_value || 0); }, 0);
+    var avgDaily = daysWithActivity > 0 ? Math.round(totalTasks / daysWithActivity) : 0;
+    
+    /* نسبة الأهداف المحققة */
+    var goalsMet = recent.filter(function(r) { return r.goal_met; }).length;
+    var goalRate = recent.length > 0 ? Math.round((goalsMet / recent.length) * 100) : 0;
+    
+    var kpis = [
+        { label: 'معدل يومي', value: avgDaily, icon: 'fa-chart-line', color: 'brand' },
+        { label: 'أطول Streak', value: (CURRENT_STATS && CURRENT_STATS.longestStreak) || 0, icon: 'fa-medal', color: 'yellow' },
+        { label: 'نقاطك', value: (CURRENT_STATS && CURRENT_STATS.points) || 0, icon: 'fa-star', color: 'amber' },
+        { label: 'أهداف محققة', value: goalRate + '%', icon: 'fa-bullseye', color: 'emerald' }
+    ];
+    
+    container.innerHTML = '';
+    kpis.forEach(function(kpi) {
+        var div = document.createElement('div');
+        div.className = 'bg-slate-50 dark:bg-slate-700/40 rounded-xl p-3 border border-slate-200 dark:border-slate-600';
+        div.innerHTML = 
+            '<div class="flex items-center gap-2 mb-1">' +
+                '<i class="fa-solid ' + kpi.icon + ' text-' + kpi.color + '-500 text-xs"></i>' +
+                '<p class="text-[10px] font-bold uppercase text-slate-500 dark:text-slate-400">' + kpi.label + '</p>' +
+            '</div>' +
+            '<p class="text-xl font-black text-slate-900 dark:text-white">' + kpi.value + '</p>';
+        container.appendChild(div);
+    });
+}
+
+/* -- دمج مع switchTab -- */
+
+var _origSwitchTabForStats = switchTab;
+switchTab = function(tab) {
+    _origSwitchTabForStats(tab);
+    if (tab === 'stats') {
+        setTimeout(renderAdvancedStats, 100);
+    }
+};
+    /* ============================================================
    وضع الامتحان (Exam Mode)
    ============================================================ */
 
@@ -12245,6 +13020,64 @@ if ('serviceWorker' in navigator) {
             </button>
         </div>
 
+    </div>
+</div>
+    <!-- ============================================================
+     نافذة إضافة/تعديل امتحان
+     ============================================================ -->
+<div id="addExamModal" class="fixed inset-0 z-[110] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-5 border border-slate-200 dark:border-slate-700">
+        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 dark:border-slate-700">
+            <h3 id="addExamModalTitle" class="text-base font-bold text-slate-900 dark:text-white">
+                <i class="fa-solid fa-calendar-plus text-cyan-500 mr-2"></i>
+                <span>امتحان جديد</span>
+            </h3>
+            <button onclick="closeAddExamModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+        
+        <form onsubmit="saveExam(event)" class="space-y-3">
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">العنوان</label>
+                <input type="text" id="examTitleInput" required placeholder="مثال: مراقبة 1 رياضيات" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+            </div>
+            
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">المادة (اختياري)</label>
+                <select id="examSubjectSelect" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                    <option value="">— بدون مادة —</option>
+                </select>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">التاريخ</label>
+                    <input type="date" id="examDateInput" required class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">الوقت (اختياري)</label>
+                    <input type="time" id="examTimeInput" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300 mb-1">النوع</label>
+                <select id="examTypeInput" class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                    <option value="control1">المراقبة 1</option>
+                    <option value="control2">المراقبة 2</option>
+                    <option value="synthesis">التأليفي</option>
+                    <option value="other">أخرى</option>
+                </select>
+            </div>
+            
+            <p id="addExamError" class="text-xs font-semibold text-red-500 text-center hidden"></p>
+            
+            <div class="flex gap-2 justify-end pt-3 border-t border-slate-200 dark:border-slate-700">
+                <button type="button" onclick="closeAddExamModal()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold">إلغاء</button>
+                <button type="submit" class="px-5 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold">حفظ</button>
+            </div>
+        </form>
     </div>
 </div>
     <!-- ============================================================
