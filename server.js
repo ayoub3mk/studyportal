@@ -590,203 +590,175 @@ app.delete('/api/tutoring/items/:itemId', userAuthRequired, async function(req, 
     }
 });
 /* ============================================================
-   المساعد الذكي (OpenRouter + Llama 3.3)
+   المساعد الذكي (Hugging Face Inference API)
    ============================================================ */
 
-var OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-var AI_ENABLED = !!OPENROUTER_API_KEY;
+var HF_API_KEY = process.env.HUGGINGFACE_API_KEY;
+var AI_ENABLED = !!HF_API_KEY;
+
+/* ═══ الموديلات المتاحة على Hugging Face ═══ */
+var HF_MODELS = [
+    'meta-llama/Llama-3.2-3B-Instruct',
+    'mistralai/Mistral-7B-Instruct-v0.3',
+    'Qwen/Qwen2.5-7B-Instruct',
+    'meta-llama/Meta-Llama-3-8B-Instruct'
+];
 
 if (AI_ENABLED) {
-    console.log('✓ AI: OpenRouter مفتاح موجود');
+    console.log('✓ AI: Hugging Face مفتاح موجود');
 } else {
-    console.log('⚠️ AI: مفتاح OpenRouter مفقود');
+    console.log('⚠️ AI: HUGGINGFACE_API_KEY مفقود');
 }
-/* مخزن مؤقت للمحادثات (RAM — يُحذف بعد 30 دقيقة) */
-var aiChats = {};  /* { userId: { messages: [...], expiresAt: timestamp } } */
 
-var AI_CHAT_TTL = 30 * 60 * 1000;  /* 30 دقيقة */
+/* مخزن المحادثات (30 دقيقة) */
+var aiChats = {};
+var AI_CHAT_TTL = 30 * 60 * 1000;
 
-/* تنظيف كل 5 دقائق */
 setInterval(function() {
     var now = Date.now();
     var cleaned = 0;
-    Object.keys(aiChats).forEach(function(userId) {
-        if (aiChats[userId].expiresAt < now) {
-            delete aiChats[userId];
-            cleaned++;
-        }
+    Object.keys(aiChats).forEach(function(uid) {
+        if (aiChats[uid].expiresAt < now) { delete aiChats[uid]; cleaned++; }
     });
-    if (cleaned > 0) {
-        console.log('🧹 AI: تم حذف ' + cleaned + ' محادثة منتهية');
-    }
+    if (cleaned > 0) console.log('🧹 AI: ' + cleaned + ' محادثة');
 }, 5 * 60 * 1000);
 
-/* جلب محادثة المستخدم */
 function getAIChat(userId) {
     if (!aiChats[userId]) {
-        aiChats[userId] = {
-            messages: [],
-            expiresAt: Date.now() + AI_CHAT_TTL
-        };
+        aiChats[userId] = { messages: [], expiresAt: Date.now() + AI_CHAT_TTL };
     } else {
-        /* جدد الوقت */
         aiChats[userId].expiresAt = Date.now() + AI_CHAT_TTL;
     }
     return aiChats[userId];
 }
 
-/* -- مسار: إرسال سؤال -- */
+/* -- إرسال سؤال -- */
 app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
     try {
         if (!AI_ENABLED) {
-            return res.status(503).json({ 
-                ok: false, 
+            return res.status(503).json({
+                ok: false,
                 error: 'ai_not_configured',
-                message: 'المساعد الذكي غير مُفعّل.'
+                message: 'المساعد غير مُفعّل.'
             });
         }
 
         var message = (req.body.message || '').trim();
         if (!message) {
-            return res.status(400).json({ ok: false, error: 'empty_message', message: 'اكتب سؤالك' });
+            return res.status(400).json({ ok: false, error: 'empty_message' });
         }
         if (message.length > 2000) {
-            return res.status(400).json({ ok: false, error: 'too_long', message: 'السؤال طويل جدًا' });
+            return res.status(400).json({ ok: false, error: 'too_long' });
         }
 
         var chat = getAIChat(req.userId);
         chat.messages.push({ role: 'user', content: message, timestamp: Date.now() });
 
-        var systemPrompt = 'أنت مساعد دراسي للطالب ' + (req.userName || '') + 
-    ' (السنة الثانية ثانوي علوم). ' +
-    '⚠️ قواعد صارمة:\n' +
-    '1. أجب مباشرة دون كتابة خطوات تفكيرك.\n' +
-    '2. لا تكتب "سأشرح..." أو "دعني أفكر...".\n' +
-    '3. كن موجزًا: 3-5 أسطر كحد أقصى.\n' +
-    '4. استخدم مثالًا عمليًا قصيرًا إن أمكن.\n' +
-    '5. اللغة: عربية فصحى مبسطة (أو فرنسية إن سأل بها).\n' +
-    '6. إن احتاج السؤال شرحًا طويلًا، اختم بـ: "هل تريد المزيد؟"';
-        var messages = [{ role: 'system', content: systemPrompt }];
+        var systemPrompt = 
+            'أنت مساعد دراسي للطالب ' + (req.userName || '') + 
+            ' (السنة الثانية ثانوي علوم). أجب مباشرة، موجزًا (3-5 أسطر)، بالعربية.';
 
-        chat.messages.slice(-6).forEach(function(m) {   /* 6 رسائل كافية للسياق */
+        var messages = [{ role: 'system', content: systemPrompt }];
+        chat.messages.slice(-6).forEach(function(m) {
             messages.push({
                 role: m.role === 'user' ? 'user' : 'assistant',
                 content: m.content
             });
         });
 
-                   /* ═══ جرّب عدة موديلات مجانية (محدثة أكتوبر 2026) ═══ */
-      /* ═══ الموديلات المجانية المُتحقَّق منها (أكتوبر 2026) ═══
-   المرجع: https://openrouter.ai/models?max_price=0
-   الترتيب: الأسرع والأخف أولًا (للمساعد الدراسي) */
-var FREE_MODELS = [
-    'meta-llama/llama-3.2-3b-instruct:free',       /* 3B — سريع جدًا — بدون تفكير */
-    'meta-llama/llama-3.1-8b-instruct:free',       /* 8B — متوازن */
-    'google/gemma-4-26b-a4b:free',                 /* MoE 3.8B فعّال — سريع وقوي */
-    'mistralai/mistral-7b-instruct:free',          /* 7B — مستقر تاريخيًا */
-    'microsoft/phi-3-mini-128k-instruct:free',     /* 3.8B — سياق طويل */
-    'nvidia/nemotron-3-super:free',                /* قوي — احتياطي */
-    'google/gemma-4-31b:free'                      /* قوي جدًا — آخر ملاذ */
-];
+        /* ═══ جرّب كل موديل حتى ينجح أحدها ═══ */
         var response = null;
-        var lastErr = null;
         var usedModel = '';
+        var lastErr = null;
 
-        for (var mi = 0; mi < FREE_MODELS.length; mi++) {
-            var currentModel = FREE_MODELS[mi];
+        for (var i = 0; i < HF_MODELS.length; i++) {
+            var currentModel = HF_MODELS[i];
             try {
                 console.log('🤖 جرّب:', currentModel);
 
-                response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                var url = 'https://router.huggingface.co/v1/chat/completions';
+
+                var r = await fetch(url, {
                     method: 'POST',
                     headers: {
-                        'Authorization': 'Bearer ' + OPENROUTER_API_KEY,
-                        'Content-Type': 'application/json',
-                        'HTTP-Referer': 'https://studyportal-78tv.onrender.com',
-                        'X-Title': 'Study Portal'
+                        'Authorization': 'Bearer ' + HF_API_KEY,
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-    model: currentModel,
-    messages: messages,
-    max_tokens: 500,                        /* ردود أقصر = أسرع */
-    temperature: 0.5,                       /* ردود مباشرة */
-    reasoning: { enabled: false }           /* 🆕 تعطيل التفكير للموديلات الداعمة */
-})
+                        model: currentModel,
+                        messages: messages,
+                        max_tokens: 500,
+                        temperature: 0.5
+                    })
                 });
 
-                if (response.ok) {
+                if (r.ok) {
+                    response = r;
                     usedModel = currentModel;
                     console.log('✓ نجح:', currentModel);
                     break;
                 } else {
-                    var errData = await response.clone().json().catch(function() { return {}; });
-                    console.warn('⚠️ فشل', currentModel, ':', (errData.error && errData.error.message) || '');
-                    lastErr = new Error((errData.error && errData.error.message) || 'فشل');
-                    response = null;
+                    var errData = await r.json().catch(function() { return {}; });
+                    var errMsg = (errData.error && errData.error.message) || 
+                                 (errData.error) || 
+                                 ('HTTP ' + r.status);
+                    console.warn('⚠️ فشل', currentModel, ':', errMsg);
+                    lastErr = new Error(errMsg);
                 }
             } catch (e) {
                 console.warn('⚠️ استثناء', currentModel, ':', e.message);
                 lastErr = e;
-                response = null;
             }
         }
 
-       if (!response) {
-    console.error('❌ كل الموديلات فشلت. آخر خطأ:', lastErr && lastErr.message);
-    return res.status(503).json({
-        ok: false,
-        error: 'ai_unavailable',
-        message: 'المساعد مشغول حاليًا. حاول بعد دقيقة.'
-    });
-}
-
-        console.log('📊 استخدم الموديل:', usedModel);
+        if (!response) {
+            console.error('❌ كل الموديلات فشلت:', lastErr && lastErr.message);
+            return res.status(503).json({
+                ok: false,
+                error: 'ai_unavailable',
+                message: 'المساعد مشغول. حاول بعد دقيقة.'
+            });
+        }
 
         var data = await response.json();
-        var aiText = data.choices && data.choices[0] && data.choices[0].message 
-            ? data.choices[0].message.content 
-            : 'عذرًا، لم أستطع الإجابة.';
+        var aiText = (data.choices && data.choices[0] && data.choices[0].message &&
+                      data.choices[0].message.content) || 'عذرًا، لم أستطع الإجابة.';
 
         chat.messages.push({ role: 'model', content: aiText, timestamp: Date.now() });
 
         res.json({
             ok: true,
             reply: aiText,
+            model: usedModel,
             expiresAt: chat.expiresAt
         });
     } catch (err) {
-        console.error('❌ AI error:', err);
-        res.status(500).json({ 
-            ok: false, 
+        console.error('❌ AI exception:', err.message);
+        res.status(500).json({
+            ok: false,
             error: 'ai_error',
-            message: 'خطأ: ' + (err.message || '')
+            message: 'المساعد مشغول.'
         });
     }
 });
-/* -- مسار: جلب المحادثة -- */
+
+/* -- جلب المحادثة -- */
 app.get('/api/ai/chat', userAuthRequired, async function(req, res) {
     try {
         var chat = aiChats[req.userId] || { messages: [], expiresAt: 0 };
-        var now = Date.now();
-        var remaining = Math.max(0, chat.expiresAt - now);
-        
         res.json({
             ok: true,
             messages: chat.messages.map(function(m) {
-                return {
-                    role: m.role,
-                    content: m.content,
-                    timestamp: m.timestamp
-                };
+                return { role: m.role, content: m.content, timestamp: m.timestamp };
             }),
-            remainingMs: remaining
+            remainingMs: Math.max(0, chat.expiresAt - Date.now())
         });
     } catch (err) {
         res.status(500).json({ ok: false, error: 'server_error' });
     }
 });
 
-/* -- مسار: مسح المحادثة -- */
+/* -- مسح المحادثة -- */
 app.delete('/api/ai/chat', userAuthRequired, async function(req, res) {
     try {
         delete aiChats[req.userId];
@@ -796,11 +768,12 @@ app.delete('/api/ai/chat', userAuthRequired, async function(req, res) {
     }
 });
 
-/* -- مسار: التحقق من الحالة -- */
+/* -- حالة AI -- */
 app.get('/api/ai/status', userAuthRequired, async function(req, res) {
     res.json({
         ok: true,
         enabled: AI_ENABLED,
+        provider: 'huggingface',
         hasChat: !!aiChats[req.userId]
     });
 });
