@@ -11196,6 +11196,271 @@ enterUserApp = function() {
     }, 1500);
 };
     /* ============================================================
+   المساعد الذكي (AI Assistant)
+   ============================================================ */
+
+var aiState = {
+    messages: [],
+    isSending: false,
+    expiresAt: 0,
+    timerInterval: null
+};
+
+/* -- فتح/إغلاق -- */
+function openAIModal() {
+    document.getElementById('aiModal').classList.remove('hidden');
+    
+    /* جلب المحادثة السابقة */
+    loadAIChat();
+    
+    /* ركّز على الحقل */
+    setTimeout(function() {
+        document.getElementById('aiInput').focus();
+    }, 200);
+}
+
+function closeAIModal() {
+    document.getElementById('aiModal').classList.add('hidden');
+    if (aiState.timerInterval) {
+        clearInterval(aiState.timerInterval);
+        aiState.timerInterval = null;
+    }
+}
+
+/* -- تحميل المحادثة -- */
+function loadAIChat() {
+    fetch('/api/ai/chat', { credentials: 'include', cache: 'no-store' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (!data || !data.ok) return;
+            
+            aiState.messages = data.messages || [];
+            aiState.expiresAt = Date.now() + (data.remainingMs || 0);
+            
+            renderAIMessages();
+            
+            if (aiState.expiresAt > 0 && data.remainingMs > 0) {
+                startAITimer();
+            } else {
+                document.getElementById('aiTimerBar').classList.add('hidden');
+            }
+        })
+        .catch(function(err) { console.error('Load AI chat error:', err); });
+}
+
+/* -- عرض الرسائل -- */
+function renderAIMessages() {
+    var container = document.getElementById('aiMessages');
+    if (!container) return;
+    
+    if (aiState.messages.length === 0) {
+        /* لا رسائل → شاشة الترحيب */
+        container.innerHTML = `
+            <div class="text-center py-6">
+                <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 mx-auto flex items-center justify-center mb-3">
+                    <i class="fa-solid fa-wand-magic-sparkles text-white text-2xl"></i>
+                </div>
+                <h4 class="font-black text-sm text-slate-900 dark:text-white mb-1">مرحبًا! 👋</h4>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">كيف أساعدك في دراستك؟</p>
+                <div class="space-y-2 max-w-md mx-auto">
+                    <button onclick="askAIQuick('اشرح لي ')" class="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors text-right">
+                        📖 اشرح لي مفهومًا
+                    </button>
+                    <button onclick="askAIQuick('لخص لي ')" class="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors text-right">
+                        📝 لخص لي درسًا
+                    </button>
+                    <button onclick="askAIQuick('اسألني أسئلة عن ')" class="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors text-right">
+                        ❓ اسألني أسئلة
+                    </button>
+                    <button onclick="askAIQuick('ترجم لي ')" class="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors text-right">
+                        🌍 ترجم لي
+                    </button>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = '';
+    aiState.messages.forEach(function(m) {
+        var isUser = m.role === 'user';
+        var bubble = document.createElement('div');
+        bubble.className = 'flex ' + (isUser ? 'justify-end' : 'justify-start');
+        
+        var content = escapeHtml(m.content)
+            .replace(/\n/g, '<br>')
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/`([^`]+)`/g, '<code class="bg-slate-200 dark:bg-slate-700 px-1 rounded text-xs">$1</code>');
+        
+        bubble.innerHTML = 
+            '<div class="max-w-[85%] rounded-2xl px-4 py-2.5 ' + 
+                (isUser 
+                    ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white' 
+                    : 'bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-slate-100') + 
+            '">' +
+                (isUser ? '' : '<div class="flex items-center gap-2 mb-1.5"><i class="fa-solid fa-wand-magic-sparkles text-purple-500 text-xs"></i><span class="text-[10px] font-bold text-purple-600 dark:text-purple-400">المساعد</span></div>') +
+                '<p class="text-sm whitespace-pre-wrap break-words leading-relaxed">' + content + '</p>' +
+            '</div>';
+        container.appendChild(bubble);
+    });
+    
+    container.scrollTop = container.scrollHeight;
+}
+
+/* -- إرسال سؤال -- */
+function submitAIQuestion(e) {
+    e.preventDefault();
+    
+    var input = document.getElementById('aiInput');
+    var btn = document.getElementById('aiSendBtn');
+    var message = input.value.trim();
+    
+    if (!message || aiState.isSending) return;
+    
+    /* أضف رسالة المستخدم فورًا */
+    aiState.messages.push({ role: 'user', content: message, timestamp: Date.now() });
+    renderAIMessages();
+    
+    input.value = '';
+    aiState.isSending = true;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    
+    /* أضف مؤشر الكتابة */
+    var container = document.getElementById('aiMessages');
+    var typingIndicator = document.createElement('div');
+    typingIndicator.id = 'aiTyping';
+    typingIndicator.className = 'flex justify-start';
+    typingIndicator.innerHTML = 
+        '<div class="bg-slate-100 dark:bg-slate-700 rounded-2xl px-4 py-3">' +
+            '<div class="flex items-center gap-2">' +
+                '<i class="fa-solid fa-wand-magic-sparkles text-purple-500 text-xs"></i>' +
+                '<div class="flex gap-1">' +
+                    '<div class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-bounce"></div>' +
+                    '<div class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-bounce" style="animation-delay: 0.1s"></div>' +
+                    '<div class="w-1.5 h-1.5 rounded-full bg-purple-500 animate-bounce" style="animation-delay: 0.2s"></div>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    container.appendChild(typingIndicator);
+    container.scrollTop = container.scrollHeight;
+    
+    /* أرسل */
+    fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ message: message })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        aiState.isSending = false;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i><span class="hidden sm:inline">إرسال</span>';
+        
+        /* أزل مؤشر الكتابة */
+        var typing = document.getElementById('aiTyping');
+        if (typing) typing.remove();
+        
+        if (!data.ok) {
+            showToast('❌ ' + (data.message || 'خطأ'));
+            /* أزل رسالة المستخدم */
+            aiState.messages.pop();
+            renderAIMessages();
+            return;
+        }
+        
+        /* أضف الرد */
+        aiState.messages.push({ role: 'model', content: data.reply, timestamp: Date.now() });
+        aiState.expiresAt = data.expiresAt || Date.now() + 30*60*1000;
+        renderAIMessages();
+        startAITimer();
+    })
+    .catch(function(err) {
+        aiState.isSending = false;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i><span class="hidden sm:inline">إرسال</span>';
+        
+        var typing = document.getElementById('aiTyping');
+        if (typing) typing.remove();
+        
+        showToast('❌ خطأ في الاتصال');
+        console.error(err);
+    });
+}
+
+/* -- أزرار سريعة -- */
+function askAIQuick(prefix) {
+    var input = document.getElementById('aiInput');
+    if (input) {
+        input.value = prefix;
+        input.focus();
+    }
+}
+
+/* -- مسح المحادثة -- */
+function clearAIChat() {
+    if (!confirm('مسح المحادثة والبدء من جديد؟')) return;
+    
+    fetch('/api/ai/chat', {
+        method: 'DELETE',
+        credentials: 'include'
+    })
+    .then(function(r) { return r.json(); })
+    .then(function() {
+        aiState.messages = [];
+        aiState.expiresAt = 0;
+        renderAIMessages();
+        document.getElementById('aiTimerBar').classList.add('hidden');
+        showToast('✓ محادثة جديدة');
+    })
+    .catch(function(err) { console.error(err); });
+}
+
+/* -- مؤقت الحذف -- */
+function startAITimer() {
+    if (aiState.timerInterval) {
+        clearInterval(aiState.timerInterval);
+    }
+    
+    var timerBar = document.getElementById('aiTimerBar');
+    var timerText = document.getElementById('aiTimerText');
+    
+    if (!timerBar || !timerText) return;
+    
+    timerBar.classList.remove('hidden');
+    
+    function update() {
+        var remaining = Math.max(0, aiState.expiresAt - Date.now());
+        
+        if (remaining <= 0) {
+            clearInterval(aiState.timerInterval);
+            aiState.timerInterval = null;
+            timerBar.classList.add('hidden');
+            aiState.messages = [];
+            renderAIMessages();
+            return;
+        }
+        
+        var mins = Math.floor(remaining / 60000);
+        var secs = Math.floor((remaining % 60000) / 1000);
+        timerText.textContent = String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+    }
+    
+    update();
+    aiState.timerInterval = setInterval(update, 1000);
+}
+
+/* -- إغلاق بـ Escape -- */
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        var modal = document.getElementById('aiModal');
+        if (modal && !modal.classList.contains('hidden')) {
+            closeAIModal();
+        }
+    }
+});
+    /* ============================================================
    جدول الامتحانات (Exams Calendar)
    ============================================================ */
 
@@ -13020,6 +13285,92 @@ if ('serviceWorker' in navigator) {
             </button>
         </div>
 
+    </div>
+</div>
+    <!-- ============================================================
+     المساعد الذكي (AI Assistant)
+     ============================================================ -->
+
+<!-- زر عائم -->
+<button onclick="openAIModal()" id="aiFloatingBtn" 
+    class="fixed bottom-4 right-4 z-[90] w-14 h-14 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-600 text-white shadow-2xl hover:shadow-purple-500/50 flex items-center justify-center transition-all hover:scale-110 active:scale-95">
+    <i class="fa-solid fa-wand-magic-sparkles text-xl"></i>
+</button>
+
+<!-- نافذة المحادثة -->
+<div id="aiModal" class="fixed inset-0 z-[110] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full border border-slate-200 dark:border-slate-700 flex flex-col" style="max-height: 92vh;">
+        
+        <!-- رأس -->
+        <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-t-2xl">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-black">المساعد الذكي</h3>
+                    <p id="aiStatusText" class="text-[10px] text-purple-100">جاهز للإجابة</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="clearAIChat()" title="محادثة جديدة" class="w-8 h-8 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-rotate-right text-sm"></i>
+                </button>
+                <button onclick="closeAIModal()" class="w-8 h-8 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- شريط الوقت المتبقي -->
+        <div id="aiTimerBar" class="hidden px-4 py-2 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-900/50">
+            <p class="text-[11px] font-bold text-amber-700 dark:text-amber-300 text-center">
+                <i class="fa-solid fa-hourglass-half mr-1"></i>
+                المحادثة تُحذف بعد: <span id="aiTimerText" class="tabular-nums">30:00</span>
+            </p>
+        </div>
+
+        <!-- المحادثة -->
+        <div id="aiMessages" class="flex-1 overflow-y-auto p-4 space-y-3" style="min-height: 300px;">
+            <!-- رسالة ترحيب -->
+            <div class="text-center py-6">
+                <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 mx-auto flex items-center justify-center mb-3">
+                    <i class="fa-solid fa-wand-magic-sparkles text-white text-2xl"></i>
+                </div>
+                <h4 class="font-black text-sm text-slate-900 dark:text-white mb-1">مرحبًا! 👋</h4>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">كيف أساعدك في دراستك؟</p>
+                
+                <div class="space-y-2 max-w-md mx-auto">
+    <button onclick="askAIQuick('اشرح لي ')" class="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors text-right">
+        📖 اشرح لي مفهومًا
+    </button>
+    <button onclick="askAIQuick('لخص لي ')" class="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors text-right">
+        📝 لخص لي درسًا
+    </button>
+    <button onclick="askAIQuick('اسألني أسئلة عن ')" class="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors text-right">
+        ❓ اسألني أسئلة
+    </button>
+    <button onclick="askAIQuick('ترجم لي ')" class="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors text-right">
+        🌍 ترجم لي
+    </button>
+</div>
+        </div>
+
+        <!-- حقل الإدخال -->
+        <form onsubmit="submitAIQuestion(event)" class="p-3 border-t border-slate-200 dark:border-slate-700 flex gap-2">
+            <input type="text" 
+                id="aiInput" 
+                placeholder="اكتب سؤالك..." 
+                maxlength="2000"
+                autocomplete="off"
+                class="flex-1 px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+            <button type="submit" 
+                id="aiSendBtn"
+                class="px-4 py-2.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-sm font-bold flex items-center gap-1.5 transition-all">
+                <i class="fa-solid fa-paper-plane"></i>
+                <span class="hidden sm:inline">إرسال</span>
+            </button>
+        </form>
     </div>
 </div>
     <!-- ============================================================
