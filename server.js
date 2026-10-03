@@ -677,16 +677,39 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
             });
         });
 
-        /* استدعاء Gemini */
-        var response = await genAI.models.generateContent({
-            model: 'gemini-flash-latest',
-            contents: contents,
-            config: {
-                systemInstruction: systemPrompt,
-                maxOutputTokens: 1000,
-                temperature: 0.7
+               /* استدعاء Gemini — مع fallback */
+        var modelNames = ['gemini-1.5-flash', 'gemini-flash-latest', 'gemini-pro'];
+        var response = null;
+        var lastError = null;
+
+        for (var i = 0; i < modelNames.length; i++) {
+            try {
+                response = await genAI.models.generateContent({
+                    model: modelNames[i],
+                    contents: contents,
+                    config: {
+                        systemInstruction: systemPrompt,
+                        maxOutputTokens: 1000,
+                        temperature: 0.7
+                    }
+                });
+                console.log('✓ AI: استخدم ' + modelNames[i]);
+                break;
+            } catch (modelErr) {
+                console.warn('⚠️ فشل ' + modelNames[i] + ':', modelErr.message);
+                lastError = modelErr;
+                /* إذا لم يكن خطأ ضغط، توقف */
+                if (modelErr.message && !modelErr.message.includes('high demand') && 
+                    !modelErr.message.includes('UNAVAILABLE') &&
+                    !modelErr.message.includes('overloaded')) {
+                    break;
+                }
             }
-        });
+        }
+
+        if (!response) {
+            throw lastError || new Error('فشل الاتصال بـ Gemini');
+        }
 
         var aiText = response.text || 'عذرًا، لم أستطع الإجابة.';
 
