@@ -11389,14 +11389,7 @@ function submitAIQuestion(e) {
     });
 }
 
-/* -- أزرار سريعة -- */
-function askAIQuick(prefix) {
-    var input = document.getElementById('aiInput');
-    if (input) {
-        input.value = prefix;
-        input.focus();
-    }
-}
+
 
 /* -- مسح المحادثة -- */
 function clearAIChat() {
@@ -11472,7 +11465,7 @@ var examsState = {
 
 /* -- ضبط العرض -- */
 function setExamsView(view) {
-    examsState.view = view;
+    examsState.view = view || 'calendar';
     
     document.querySelectorAll('.exams-view-btn').forEach(function(b) {
         var isActive = b.getAttribute('data-exam-view') === view;
@@ -11482,10 +11475,19 @@ function setExamsView(view) {
         b.classList.toggle('dark:text-slate-300', !isActive);
     });
     
-    document.getElementById('examsCalendarView').classList.toggle('hidden', view !== 'calendar');
-    document.getElementById('examsListView').classList.toggle('hidden', view !== 'list');
+    var calView = document.getElementById('examsCalendarView');
+    var listView = document.getElementById('examsListView');
     
-    renderExams();
+    if (calView) calView.classList.toggle('hidden', view !== 'calendar');
+    if (listView) listView.classList.toggle('hidden', view !== 'list');
+    
+    if (view === 'calendar') {
+        renderExamsCalendar();
+    } else {
+        renderExamsList();
+    }
+    
+    updateExamsBadge();
 }
 
 /* -- جلب كل الامتحانات -- */
@@ -11824,9 +11826,9 @@ switchTab = function(tab) {
     _origSwitchTabForExams(tab);
     if (tab === 'exams') {
         setTimeout(function() {
+            examsState.view = examsState.view || 'calendar';
             setExamsView(examsState.view);
-            updateExamsBadge();
-        }, 100);
+        }, 200);
     }
 };
 
@@ -13340,22 +13342,7 @@ if ('serviceWorker' in navigator) {
                 <h4 class="font-black text-sm text-slate-900 dark:text-white mb-1">مرحبًا! 👋</h4>
                 <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">كيف أساعدك في دراستك؟</p>
                 
-                <div class="space-y-2 max-w-md mx-auto">
-    <button onclick="askAIQuick('اشرح لي ')" class="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors text-right">
-        📖 اشرح لي مفهومًا
-    </button>
-    <button onclick="askAIQuick('لخص لي ')" class="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors text-right">
-        📝 لخص لي درسًا
-    </button>
-    <button onclick="askAIQuick('اسألني أسئلة عن ')" class="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors text-right">
-        ❓ اسألني أسئلة
-    </button>
-    <button onclick="askAIQuick('ترجم لي ')" class="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-bold transition-colors text-right">
-        🌍 ترجم لي
-    </button>
-</div>
-        </div>
-
+                
         <!-- حقل الإدخال -->
         <form onsubmit="submitAIQuestion(event)" class="p-3 border-t border-slate-200 dark:border-slate-700 flex gap-2">
             <input type="text" 
