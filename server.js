@@ -674,11 +674,15 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
         var systemPrompt = 'أنت مساعد دراسي للطالب ' + (req.userName || '') + 
             '. سنة الثانية ثانوي علوم. أجب بالعربية الفصحى أو الفرنسية. كن موجزًا وواضحًا.';
 
-        /* ═══ محاولة أولى: gemini-2.0-flash-exp (الأحدث) ═══ */
+              /* ═══ محاولة الموديلات الجديدة ═══ */
         var aiText = null;
-        var modelsToTry = ['gemini-2.0-flash-exp', 'gemini-2.5-flash'];
+        var modelsToTry = [
+            'gemini-3.8-flash',      /* الأحدث (مقترح من Google) */
+            'gemini-2.5-flash',       /* احتياطي */
+            'gemini-1.5-flash',       /* احتياطي أخير */
+            'gemini-flash-latest'     /* الأحدث التلقائي */
+        ];
         var lastErr = null;
-
         for (var i = 0; i < modelsToTry.length; i++) {
             try {
                 console.log('🤖 محاولة الموديل:', modelsToTry[i]);
