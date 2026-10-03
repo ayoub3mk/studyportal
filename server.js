@@ -669,12 +669,13 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
             });
         });
 
-             /* ═══ جرّب عدة موديلات مجانية ═══ */
+                   /* ═══ جرّب عدة موديلات مجانية (محدثة أكتوبر 2026) ═══ */
         var FREE_MODELS = [
-            'qwen/qwen-2.5-7b-instruct:free',
-            'mistralai/mistral-7b-instruct:free',
-            'meta-llama/llama-3.1-8b-instruct:free',
-            'microsoft/phi-3-mini-128k-instruct:free',
+            'qwen/qwen3.8-27b:free',
+            'thinkingmachines/inkling-small:free',
+            'inclusionai/ling-3.1-flash:free',
+            'nvidia/nemotron-3.5-lightning:free',
+            'cohere/north-mini-code:free'
         ];
 
         var response = null;
