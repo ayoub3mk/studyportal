@@ -675,7 +675,6 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
             'mistralai/mistral-7b-instruct:free',
             'meta-llama/llama-3.1-8b-instruct:free',
             'microsoft/phi-3-mini-128k-instruct:free',
-            'google/gemma-2-9b-it:free'
         ];
 
         var response = null;
