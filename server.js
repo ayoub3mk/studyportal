@@ -645,7 +645,7 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
             return res.status(503).json({ 
                 ok: false, 
                 error: 'gemini_not_configured',
-                message: 'المساعد الذكي غير مُفعّل. اتصل بالمدير.'
+                message: 'المساعد الذكي غير مُفعّل.'
             });
         }
 
@@ -654,22 +654,15 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
             return res.status(400).json({ ok: false, error: 'empty_message', message: 'اكتب سؤالك' });
         }
         if (message.length > 2000) {
-            return res.status(400).json({ ok: false, error: 'too_long', message: 'السؤال طويل جدًا (2000 حرف كحد أقصى)' });
+            return res.status(400).json({ ok: false, error: 'too_long', message: 'السؤال طويل جدًا' });
         }
 
         var chat = getAIChat(req.userId);
         chat.messages.push({ role: 'user', content: message, timestamp: Date.now() });
 
-        /* نصيحة تعليمية */
-        var systemPrompt = 'أنت مساعد دراسي للطالب ' + (req.userName || '') + 
-            '. سنة الثانية ثانوي علوم. ' +
-            'أجب بالعربية الفصحى أو الفرنسية حسب لغة السؤال. ' +
-            'كن موجزًا وواضحًا.';
-
         /* ابنِ المحتوى */
         var contents = [];
         var recentMessages = chat.messages.slice(-20);
-
         recentMessages.forEach(function(m) {
             contents.push({
                 role: m.role === 'user' ? 'user' : 'model',
@@ -677,15 +670,21 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
             });
         });
 
-               /* استدعاء Gemini — مع fallback */
-        var modelNames = ['gemini-1.5-flash', 'gemini-flash-latest', 'gemini-pro'];
-        var response = null;
-        var lastError = null;
+        /* نصيحة تعليمية */
+        var systemPrompt = 'أنت مساعد دراسي للطالب ' + (req.userName || '') + 
+            '. سنة الثانية ثانوي علوم. أجب بالعربية الفصحى أو الفرنسية. كن موجزًا وواضحًا.';
 
-        for (var i = 0; i < modelNames.length; i++) {
+        /* ═══ محاولة أولى: gemini-2.0-flash-exp (الأحدث) ═══ */
+        var aiText = null;
+        var modelsToTry = ['gemini-2.0-flash-exp', 'gemini-2.5-flash'];
+        var lastErr = null;
+
+        for (var i = 0; i < modelsToTry.length; i++) {
             try {
-                response = await genAI.models.generateContent({
-                    model: modelNames[i],
+                console.log('🤖 محاولة الموديل:', modelsToTry[i]);
+                
+                var result = await genAI.models.generateContent({
+                    model: modelsToTry[i],
                     contents: contents,
                     config: {
                         systemInstruction: systemPrompt,
@@ -693,25 +692,20 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
                         temperature: 0.7
                     }
                 });
-                console.log('✓ AI: استخدم ' + modelNames[i]);
+                
+                aiText = result.text;
+                console.log('✓ نجح الموديل:', modelsToTry[i]);
                 break;
-            } catch (modelErr) {
-                console.warn('⚠️ فشل ' + modelNames[i] + ':', modelErr.message);
-                lastError = modelErr;
-                /* إذا لم يكن خطأ ضغط، توقف */
-                if (modelErr.message && !modelErr.message.includes('high demand') && 
-                    !modelErr.message.includes('UNAVAILABLE') &&
-                    !modelErr.message.includes('overloaded')) {
-                    break;
-                }
+            } catch (e) {
+                console.warn('⚠️ فشل', modelsToTry[i], ':', e.message);
+                lastErr = e;
             }
         }
 
-        if (!response) {
-            throw lastError || new Error('فشل الاتصال بـ Gemini');
+        /* ═══ إذا فشلت كل المحاولات ═══ */
+        if (!aiText) {
+            throw lastErr || new Error('جميع الموديلات فشلت');
         }
-
-        var aiText = response.text || 'عذرًا، لم أستطع الإجابة.';
 
         chat.messages.push({ role: 'model', content: aiText, timestamp: Date.now() });
 
@@ -721,11 +715,11 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
             expiresAt: chat.expiresAt
         });
     } catch (err) {
-        console.error('AI error:', err);
+        console.error('❌ AI error:', err);
         res.status(500).json({ 
             ok: false, 
             error: 'ai_error',
-            message: 'حدث خطأ في المساعد الذكي: ' + (err.message || '')
+            message: 'خطأ: ' + (err.message || '')
         });
     }
 });
