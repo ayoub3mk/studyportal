@@ -679,7 +679,7 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
 
         /* استدعاء Gemini */
         var response = await genAI.models.generateContent({
-            model: 'gemini-2.0-flash',
+            model: 'gemini-flash-latest',
             contents: contents,
             config: {
                 systemInstruction: systemPrompt,
