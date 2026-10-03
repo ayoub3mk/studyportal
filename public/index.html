@@ -8349,10 +8349,8 @@ function resetPrepIfNewDay() {
     if (appState.prepChecked.date !== today) {
         appState.prepChecked.date = today;
         appState.prepChecked.checked = {};
-        console.log('🔄 تم تصفير قائمة التحضير لليوم الجديد');
     }
 }
-
 /* -------- حساب مواد الغد -------- */
 
 function getTomorrowSubjects() {
@@ -10107,25 +10105,41 @@ function updateUserChatBadge(count) {
 }
 
 /* تحديث Badge دوريًا */
+var _chatBadgeFailures = 0;
 function refreshUserChatBadge() {
     if (!CURRENT_USER) return;
     fetch('/api/messages', { credentials: 'include', cache: 'no-store' })
         .then(function(r) { return r.ok ? r.json() : null; })
         .then(function(data) {
             if (data && data.ok) {
+                _chatBadgeFailures = 0;  /* إعادة التصفير عند النجاح */
                 updateUserChatBadge(data.unreadCount || 0);
             }
         })
-        .catch(function() {});
+        .catch(function(err) {
+            /* تجاهل الأخطاء المؤقتة (Render restart) */
+            _chatBadgeFailures++;
+            if (_chatBadgeFailures <= 3) {
+                console.warn('Chat badge: تعذر الاتصال (محاولة ' + _chatBadgeFailures + ')');
+            }
+            /* لا نطبع الخطأ بعد 3 محاولات */
+        });
 }
 
 /* عند دخول المستخدم للتطبيق — فعّل التحديث الدوري */
 var _originalEnterUserAppForChat = enterUserApp;
+var _chatBadgeInterval = null;
 enterUserApp = function() {
     _originalEnterUserAppForChat();
-    setTimeout(refreshUserChatBadge, 1000);
-    /* كل 30 ثانية، حدّث Badge */
-    setInterval(refreshUserChatBadge, 30000);
+    
+    /* انتظر 3 ثواني قبل أول طلب (بعد دخول المستخدم) */
+    setTimeout(refreshUserChatBadge, 3000);
+    
+    /* أوقف المؤقت القديم إن وجد */
+    if (_chatBadgeInterval) clearInterval(_chatBadgeInterval);
+    
+    /* كل 60 ثانية (بدل 30 لتقليل الحمل) */
+    _chatBadgeInterval = setInterval(refreshUserChatBadge, 60000);
 };
 
 /* إغلاق المحادثة بمفتاح Escape */
@@ -12535,16 +12549,36 @@ function testNotification() {
         return;
     }
     
-    if (Notification.permission !== 'granted') {
-        Notification.requestPermission().then(function(permission) {
-            if (permission === 'granted') {
-                showNotification('✓ اختبار ناجح', 'الإشعارات تعمل!', 'test');
-            }
-        });
+    if (Notification.permission === 'denied') {
+        showToast('❌ أنت رفضت الإشعارات — افتح إعدادات المتصفح');
         return;
     }
     
-    showNotification('✓ اختبار ناجح', 'الإشعارات تعمل بشكل صحيح! 🎉', 'test');
+    if (Notification.permission === 'granted') {
+        showNotification(
+            '🔔 اختبار ناجح',
+            'الإشعارات تعمل بشكل صحيح! 🎉',
+            'test-' + Date.now()  /* tag فريد لتجنب الاستبدال */
+        );
+        showToast('✓ تم إرسال الإشعار');
+        return;
+    }
+    
+    /* طلب الإذن */
+    Notification.requestPermission().then(function(permission) {
+        if (permission === 'granted') {
+            setTimeout(function() {
+                showNotification(
+                    '🔔 اختبار ناجح',
+                    'الإشعارات تعمل بشكل صحيح! 🎉',
+                    'test-' + Date.now()
+                );
+                showToast('✓ تم تفعيل الإشعارات');
+            }, 500);
+        } else {
+            showToast('❌ لم تسمح بالإشعارات');
+        }
+    });
 }
 
 /* -- دمج مع enterUserApp -- */
