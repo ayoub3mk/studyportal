@@ -658,11 +658,17 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
         chat.messages.push({ role: 'user', content: message, timestamp: Date.now() });
 
         var systemPrompt = 'أنت مساعد دراسي للطالب ' + (req.userName || '') + 
-            '. سنة الثانية ثانوي علوم. أجب بالعربية الفصحى أو الفرنسية. كن موجزًا وواضحًا.';
-
+    ' (السنة الثانية ثانوي علوم). ' +
+    '⚠️ قواعد صارمة:\n' +
+    '1. أجب مباشرة دون كتابة خطوات تفكيرك.\n' +
+    '2. لا تكتب "سأشرح..." أو "دعني أفكر...".\n' +
+    '3. كن موجزًا: 3-5 أسطر كحد أقصى.\n' +
+    '4. استخدم مثالًا عمليًا قصيرًا إن أمكن.\n' +
+    '5. اللغة: عربية فصحى مبسطة (أو فرنسية إن سأل بها).\n' +
+    '6. إن احتاج السؤال شرحًا طويلًا، اختم بـ: "هل تريد المزيد؟"';
         var messages = [{ role: 'system', content: systemPrompt }];
 
-        chat.messages.slice(-20).forEach(function(m) {
+        chat.messages.slice(-6).forEach(function(m) {   /* 6 رسائل كافية للسياق */
             messages.push({
                 role: m.role === 'user' ? 'user' : 'assistant',
                 content: m.content
@@ -670,14 +676,18 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
         });
 
                    /* ═══ جرّب عدة موديلات مجانية (محدثة أكتوبر 2026) ═══ */
-        var FREE_MODELS = [
-    'meta-llama/llama-3.2-3b-instruct:free',      /* صغير — سريع جدًا — بدون تفكير */
-    'microsoft/phi-3-mini-128k-instruct:free',    /* صغير — سريع */
-    'mistralai/mistral-7b-instruct:free',         /* متوسط — متوازن */
-    'qwen/qwen3.8-27b:free',                       /* كبير — يفكر كثيرًا */
-    'thinkingmachines/inkling-small:free'          /* كبير — يفكر */
+      /* ═══ الموديلات المجانية المُتحقَّق منها (أكتوبر 2026) ═══
+   المرجع: https://openrouter.ai/models?max_price=0
+   الترتيب: الأسرع والأخف أولًا (للمساعد الدراسي) */
+var FREE_MODELS = [
+    'meta-llama/llama-3.2-3b-instruct:free',       /* 3B — سريع جدًا — بدون تفكير */
+    'meta-llama/llama-3.1-8b-instruct:free',       /* 8B — متوازن */
+    'google/gemma-4-26b-a4b:free',                 /* MoE 3.8B فعّال — سريع وقوي */
+    'mistralai/mistral-7b-instruct:free',          /* 7B — مستقر تاريخيًا */
+    'microsoft/phi-3-mini-128k-instruct:free',     /* 3.8B — سياق طويل */
+    'nvidia/nemotron-3-super:free',                /* قوي — احتياطي */
+    'google/gemma-4-31b:free'                      /* قوي جدًا — آخر ملاذ */
 ];
-
         var response = null;
         var lastErr = null;
         var usedModel = '';
@@ -696,11 +706,12 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
                         'X-Title': 'Study Portal'
                     },
                     body: JSON.stringify({
-                        model: currentModel,
-                        messages: messages,
-                        max_tokens: 1000,
-                        temperature: 0.7
-                    })
+    model: currentModel,
+    messages: messages,
+    max_tokens: 500,                        /* ردود أقصر = أسرع */
+    temperature: 0.5,                       /* ردود مباشرة */
+    reasoning: { enabled: false }           /* 🆕 تعطيل التفكير للموديلات الداعمة */
+})
                 });
 
                 if (response.ok) {
@@ -720,9 +731,14 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
             }
         }
 
-        if (!response) {
-            throw lastErr || new Error('كل الموديلات فشلت');
-        }
+       if (!response) {
+    console.error('❌ كل الموديلات فشلت. آخر خطأ:', lastErr && lastErr.message);
+    return res.status(503).json({
+        ok: false,
+        error: 'ai_unavailable',
+        message: 'المساعد مشغول حاليًا. حاول بعد دقيقة.'
+    });
+}
 
         console.log('📊 استخدم الموديل:', usedModel);
 
