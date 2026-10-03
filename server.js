@@ -678,7 +678,7 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
                 'X-Title': 'Study Portal'
             },
             body: JSON.stringify({
-                model: 'meta-llama/llama-3.3-70b-instruct:free',
+                model: 'google/gemma-2-9b-it:free',
                 messages: messages,
                 max_tokens: 1000,
                 temperature: 0.7
