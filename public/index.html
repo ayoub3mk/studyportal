@@ -11366,13 +11366,16 @@ function submitAIQuestion(e) {
         var typing = document.getElementById('aiTyping');
         if (typing) typing.remove();
         
-        if (!data.ok) {
-            showToast('❌ ' + (data.message || 'خطأ'));
-            /* أزل رسالة المستخدم */
-            aiState.messages.pop();
-            renderAIMessages();
-            return;
-        }
+       if (!data.ok) {
+    var errMsg = data.message || 'خطأ';
+    if (data.error === 'ai_unavailable' || data.error === 'ai_not_configured') {
+        errMsg = '⏳ المساعد مشغول، حاول بعد دقيقة';
+    }
+    showToast('❌ ' + errMsg);
+    aiState.messages.pop();
+    renderAIMessages();
+    return;
+}
         
         /* أضف الرد */
         aiState.messages.push({ role: 'model', content: data.reply, timestamp: Date.now() });
