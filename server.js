@@ -671,12 +671,12 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
 
                    /* ═══ جرّب عدة موديلات مجانية (محدثة أكتوبر 2026) ═══ */
         var FREE_MODELS = [
-            'qwen/qwen3.8-27b:free',
-            'thinkingmachines/inkling-small:free',
-            'inclusionai/ling-3.1-flash:free',
-            'nvidia/nemotron-3.5-lightning:free',
-            'cohere/north-mini-code:free'
-        ];
+    'meta-llama/llama-3.2-3b-instruct:free',      /* صغير — سريع جدًا — بدون تفكير */
+    'microsoft/phi-3-mini-128k-instruct:free',    /* صغير — سريع */
+    'mistralai/mistral-7b-instruct:free',         /* متوسط — متوازن */
+    'qwen/qwen3.8-27b:free',                       /* كبير — يفكر كثيرًا */
+    'thinkingmachines/inkling-small:free'          /* كبير — يفكر */
+];
 
         var response = null;
         var lastErr = null;
