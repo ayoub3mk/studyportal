@@ -590,13 +590,19 @@ app.delete('/api/tutoring/items/:itemId', userAuthRequired, async function(req, 
     }
 });
 /* ============================================================
-   المساعد الذكي (Gemini AI)
+   المساعد الذكي (Gemini AI - New SDK)
    ============================================================ */
 
-var { GoogleGenerativeAI } = require('@google/generative-ai');
+var { GoogleGenAI } = require('@google/genai');
 
 var GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-var genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+var genAI = GEMINI_API_KEY ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : null;
+
+if (genAI) {
+    console.log('✓ Gemini AI: مفتاح موجود');
+} else {
+    console.log('⚠️ Gemini AI: مفتاح مفقود');
+}
 
 /* مخزن مؤقت للمحادثات (RAM — يُحذف بعد 30 دقيقة) */
 var aiChats = {};  /* { userId: { messages: [...], expiresAt: timestamp } } */
@@ -652,38 +658,38 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
         }
 
         var chat = getAIChat(req.userId);
-
-        /* احفظ رسالة المستخدم */
         chat.messages.push({ role: 'user', content: message, timestamp: Date.now() });
 
-        /* جهز السياق */
-        var model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
-        /* أول 20 رسالة فقط */
-        var contextMessages = chat.messages.slice(-20).map(function(m) {
-            return {
-                role: m.role === 'user' ? 'user' : 'model',
-                parts: [{ text: m.content }]
-            };
-        });
-
-        /* نصيحة تعليمية للطالب */
+        /* نصيحة تعليمية */
         var systemPrompt = 'أنت مساعد دراسي للطالب ' + (req.userName || '') + 
             '. سنة الثانية ثانوي علوم. ' +
             'أجب بالعربية الفصحى أو الفرنسية حسب لغة السؤال. ' +
-            'كن موجزًا وواضحًا. ساعد في الشرح والتلخيص وحل التمارين.';
+            'كن موجزًا وواضحًا.';
 
-        /* احذف آخر رسالة user ثم أرسلها مع السياق */
-        var lastUserMsg = contextMessages.pop();
+        /* ابنِ المحتوى */
+        var contents = [];
+        var recentMessages = chat.messages.slice(-20);
 
-        var result = await model.generateContent({
-            contents: contextMessages.concat([lastUserMsg]),
-            systemInstruction: { parts: [{ text: systemPrompt }] }
+        recentMessages.forEach(function(m) {
+            contents.push({
+                role: m.role === 'user' ? 'user' : 'model',
+                parts: [{ text: m.content }]
+            });
         });
 
-        var aiText = result.response.text();
+        /* استدعاء Gemini */
+        var response = await genAI.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: contents,
+            config: {
+                systemInstruction: systemPrompt,
+                maxOutputTokens: 1000,
+                temperature: 0.7
+            }
+        });
 
-        /* احفظ رد AI */
+        var aiText = response.text || 'عذرًا، لم أستطع الإجابة.';
+
         chat.messages.push({ role: 'model', content: aiText, timestamp: Date.now() });
 
         res.json({
@@ -696,11 +702,10 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
         res.status(500).json({ 
             ok: false, 
             error: 'ai_error',
-            message: 'حدث خطأ في المساعد الذكي'
+            message: 'حدث خطأ في المساعد الذكي: ' + (err.message || '')
         });
     }
 });
-
 /* -- مسار: جلب المحادثة -- */
 app.get('/api/ai/chat', userAuthRequired, async function(req, res) {
     try {
