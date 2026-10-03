@@ -590,27 +590,27 @@ app.delete('/api/tutoring/items/:itemId', userAuthRequired, async function(req, 
     }
 });
 /* ============================================================
-   المساعد الذكي (Hugging Face Inference API)
+   المساعد الذكي (Cloudflare Workers AI — Global API Key)
+   مجاني 100% — 10,000 طلب/يوم
    ============================================================ */
 
-var HF_API_KEY = process.env.HUGGINGFACE_API_KEY;
-var AI_ENABLED = !!HF_API_KEY;
+var CF_ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
+var CF_EMAIL = process.env.CLOUDFLARE_EMAIL;
+var CF_API_KEY = process.env.CLOUDFLARE_API_KEY;
+var AI_ENABLED = !!(CF_ACCOUNT_ID && CF_EMAIL && CF_API_KEY);
 
-/* ═══ الموديلات المتاحة على Hugging Face ═══ */
-var HF_MODELS = [
-    'meta-llama/Llama-3.2-3B-Instruct',
-    'mistralai/Mistral-7B-Instruct-v0.3',
-    'Qwen/Qwen2.5-7B-Instruct',
-    'meta-llama/Meta-Llama-3-8B-Instruct'
+var CF_MODELS = [
+    '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+    '@cf/meta/llama-3.1-8b-instruct',
+    '@cf/meta/llama-3.2-3b-instruct'
 ];
 
 if (AI_ENABLED) {
-    console.log('✓ AI: Hugging Face مفتاح موجود');
+    console.log('✓ AI: Cloudflare Workers AI مفعّل');
 } else {
-    console.log('⚠️ AI: HUGGINGFACE_API_KEY مفقود');
+    console.log('⚠️ AI: مفاتيح Cloudflare مفقودة');
 }
 
-/* مخزن المحادثات (30 دقيقة) */
 var aiChats = {};
 var AI_CHAT_TTL = 30 * 60 * 1000;
 
@@ -632,7 +632,6 @@ function getAIChat(userId) {
     return aiChats[userId];
 }
 
-/* -- إرسال سؤال -- */
 app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
     try {
         if (!AI_ENABLED) {
@@ -666,26 +665,25 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
             });
         });
 
-        /* ═══ جرّب كل موديل حتى ينجح أحدها ═══ */
         var response = null;
         var usedModel = '';
         var lastErr = null;
 
-        for (var i = 0; i < HF_MODELS.length; i++) {
-            var currentModel = HF_MODELS[i];
+        for (var i = 0; i < CF_MODELS.length; i++) {
+            var currentModel = CF_MODELS[i];
             try {
                 console.log('🤖 جرّب:', currentModel);
-
-                var url = 'https://router.huggingface.co/v1/chat/completions';
+                var url = 'https://api.cloudflare.com/client/v4/accounts/' + 
+                          CF_ACCOUNT_ID + '/ai/run/' + currentModel;
 
                 var r = await fetch(url, {
                     method: 'POST',
                     headers: {
-                        'Authorization': 'Bearer ' + HF_API_KEY,
+                        'X-Auth-Email': CF_EMAIL,
+                        'X-Auth-Key': CF_API_KEY,
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        model: currentModel,
                         messages: messages,
                         max_tokens: 500,
                         temperature: 0.5
@@ -699,9 +697,9 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
                     break;
                 } else {
                     var errData = await r.json().catch(function() { return {}; });
-                    var errMsg = (errData.error && errData.error.message) || 
-                                 (errData.error) || 
-                                 ('HTTP ' + r.status);
+                    var errMsg = (errData.errors && errData.errors[0] && errData.errors[0].message) 
+                              || (errData.error && errData.error.message) 
+                              || ('HTTP ' + r.status);
                     console.warn('⚠️ فشل', currentModel, ':', errMsg);
                     lastErr = new Error(errMsg);
                 }
@@ -721,8 +719,7 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
         }
 
         var data = await response.json();
-        var aiText = (data.choices && data.choices[0] && data.choices[0].message &&
-                      data.choices[0].message.content) || 'عذرًا، لم أستطع الإجابة.';
+        var aiText = (data.result && data.result.response) || 'عذرًا، لم أستطع الإجابة.';
 
         chat.messages.push({ role: 'model', content: aiText, timestamp: Date.now() });
 
@@ -742,7 +739,6 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
     }
 });
 
-/* -- جلب المحادثة -- */
 app.get('/api/ai/chat', userAuthRequired, async function(req, res) {
     try {
         var chat = aiChats[req.userId] || { messages: [], expiresAt: 0 };
@@ -758,7 +754,6 @@ app.get('/api/ai/chat', userAuthRequired, async function(req, res) {
     }
 });
 
-/* -- مسح المحادثة -- */
 app.delete('/api/ai/chat', userAuthRequired, async function(req, res) {
     try {
         delete aiChats[req.userId];
@@ -768,12 +763,11 @@ app.delete('/api/ai/chat', userAuthRequired, async function(req, res) {
     }
 });
 
-/* -- حالة AI -- */
 app.get('/api/ai/status', userAuthRequired, async function(req, res) {
     res.json({
         ok: true,
         enabled: AI_ENABLED,
-        provider: 'huggingface',
+        provider: 'cloudflare',
         hasChat: !!aiChats[req.userId]
     });
 });
