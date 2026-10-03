@@ -589,6 +589,159 @@ app.delete('/api/tutoring/items/:itemId', userAuthRequired, async function(req, 
         res.status(500).json({ error: 'server_error' });
     }
 });
+/* ============================================================
+   المساعد الذكي (Gemini AI)
+   ============================================================ */
+
+var { GoogleGenerativeAI } = require('@google/generative-ai');
+
+var GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+var genAI = GEMINI_API_KEY ? new GoogleGenerativeAI(GEMINI_API_KEY) : null;
+
+/* مخزن مؤقت للمحادثات (RAM — يُحذف بعد 30 دقيقة) */
+var aiChats = {};  /* { userId: { messages: [...], expiresAt: timestamp } } */
+
+var AI_CHAT_TTL = 30 * 60 * 1000;  /* 30 دقيقة */
+
+/* تنظيف كل 5 دقائق */
+setInterval(function() {
+    var now = Date.now();
+    var cleaned = 0;
+    Object.keys(aiChats).forEach(function(userId) {
+        if (aiChats[userId].expiresAt < now) {
+            delete aiChats[userId];
+            cleaned++;
+        }
+    });
+    if (cleaned > 0) {
+        console.log('🧹 AI: تم حذف ' + cleaned + ' محادثة منتهية');
+    }
+}, 5 * 60 * 1000);
+
+/* جلب محادثة المستخدم */
+function getAIChat(userId) {
+    if (!aiChats[userId]) {
+        aiChats[userId] = {
+            messages: [],
+            expiresAt: Date.now() + AI_CHAT_TTL
+        };
+    } else {
+        /* جدد الوقت */
+        aiChats[userId].expiresAt = Date.now() + AI_CHAT_TTL;
+    }
+    return aiChats[userId];
+}
+
+/* -- مسار: إرسال سؤال -- */
+app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
+    try {
+        if (!genAI) {
+            return res.status(503).json({ 
+                ok: false, 
+                error: 'gemini_not_configured',
+                message: 'المساعد الذكي غير مُفعّل. اتصل بالمدير.'
+            });
+        }
+
+        var message = (req.body.message || '').trim();
+        if (!message) {
+            return res.status(400).json({ ok: false, error: 'empty_message', message: 'اكتب سؤالك' });
+        }
+        if (message.length > 2000) {
+            return res.status(400).json({ ok: false, error: 'too_long', message: 'السؤال طويل جدًا (2000 حرف كحد أقصى)' });
+        }
+
+        var chat = getAIChat(req.userId);
+
+        /* احفظ رسالة المستخدم */
+        chat.messages.push({ role: 'user', content: message, timestamp: Date.now() });
+
+        /* جهز السياق */
+        var model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+        /* أول 20 رسالة فقط */
+        var contextMessages = chat.messages.slice(-20).map(function(m) {
+            return {
+                role: m.role === 'user' ? 'user' : 'model',
+                parts: [{ text: m.content }]
+            };
+        });
+
+        /* نصيحة تعليمية للطالب */
+        var systemPrompt = 'أنت مساعد دراسي للطالب ' + (req.userName || '') + 
+            '. سنة الثانية ثانوي علوم. ' +
+            'أجب بالعربية الفصحى أو الفرنسية حسب لغة السؤال. ' +
+            'كن موجزًا وواضحًا. ساعد في الشرح والتلخيص وحل التمارين.';
+
+        /* احذف آخر رسالة user ثم أرسلها مع السياق */
+        var lastUserMsg = contextMessages.pop();
+
+        var result = await model.generateContent({
+            contents: contextMessages.concat([lastUserMsg]),
+            systemInstruction: { parts: [{ text: systemPrompt }] }
+        });
+
+        var aiText = result.response.text();
+
+        /* احفظ رد AI */
+        chat.messages.push({ role: 'model', content: aiText, timestamp: Date.now() });
+
+        res.json({
+            ok: true,
+            reply: aiText,
+            expiresAt: chat.expiresAt
+        });
+    } catch (err) {
+        console.error('AI error:', err);
+        res.status(500).json({ 
+            ok: false, 
+            error: 'ai_error',
+            message: 'حدث خطأ في المساعد الذكي'
+        });
+    }
+});
+
+/* -- مسار: جلب المحادثة -- */
+app.get('/api/ai/chat', userAuthRequired, async function(req, res) {
+    try {
+        var chat = aiChats[req.userId] || { messages: [], expiresAt: 0 };
+        var now = Date.now();
+        var remaining = Math.max(0, chat.expiresAt - now);
+        
+        res.json({
+            ok: true,
+            messages: chat.messages.map(function(m) {
+                return {
+                    role: m.role,
+                    content: m.content,
+                    timestamp: m.timestamp
+                };
+            }),
+            remainingMs: remaining
+        });
+    } catch (err) {
+        res.status(500).json({ ok: false, error: 'server_error' });
+    }
+});
+
+/* -- مسار: مسح المحادثة -- */
+app.delete('/api/ai/chat', userAuthRequired, async function(req, res) {
+    try {
+        delete aiChats[req.userId];
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ ok: false, error: 'server_error' });
+    }
+});
+
+/* -- مسار: التحقق من الحالة -- */
+app.get('/api/ai/status', userAuthRequired, async function(req, res) {
+    res.json({
+        ok: true,
+        enabled: !!genAI,
+        hasChat: !!aiChats[req.userId]
+    });
+});
 
 /* ============================================================
    خدمة الواجهة
