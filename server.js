@@ -669,27 +669,62 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
             });
         });
 
-        var response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Authorization': 'Bearer ' + OPENROUTER_API_KEY,
-                'Content-Type': 'application/json',
-                'HTTP-Referer': 'https://studyportal-78tv.onrender.com',
-                'X-Title': 'Study Portal'
-            },
-            body: JSON.stringify({
-                model: 'google/gemma-2-9b-it:free',
-                messages: messages,
-                max_tokens: 1000,
-                temperature: 0.7
-            })
-        });
+             /* ═══ جرّب عدة موديلات مجانية ═══ */
+        var FREE_MODELS = [
+            'qwen/qwen-2.5-7b-instruct:free',
+            'mistralai/mistral-7b-instruct:free',
+            'meta-llama/llama-3.1-8b-instruct:free',
+            'microsoft/phi-3-mini-128k-instruct:free',
+            'google/gemma-2-9b-it:free'
+        ];
 
-        if (!response.ok) {
-            var errData = await response.json().catch(function() { return {}; });
-            console.error('OpenRouter error:', errData);
-            throw new Error((errData.error && errData.error.message) || 'فشل الاتصال');
+        var response = null;
+        var lastErr = null;
+        var usedModel = '';
+
+        for (var mi = 0; mi < FREE_MODELS.length; mi++) {
+            var currentModel = FREE_MODELS[mi];
+            try {
+                console.log('🤖 جرّب:', currentModel);
+
+                response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + OPENROUTER_API_KEY,
+                        'Content-Type': 'application/json',
+                        'HTTP-Referer': 'https://studyportal-78tv.onrender.com',
+                        'X-Title': 'Study Portal'
+                    },
+                    body: JSON.stringify({
+                        model: currentModel,
+                        messages: messages,
+                        max_tokens: 1000,
+                        temperature: 0.7
+                    })
+                });
+
+                if (response.ok) {
+                    usedModel = currentModel;
+                    console.log('✓ نجح:', currentModel);
+                    break;
+                } else {
+                    var errData = await response.clone().json().catch(function() { return {}; });
+                    console.warn('⚠️ فشل', currentModel, ':', (errData.error && errData.error.message) || '');
+                    lastErr = new Error((errData.error && errData.error.message) || 'فشل');
+                    response = null;
+                }
+            } catch (e) {
+                console.warn('⚠️ استثناء', currentModel, ':', e.message);
+                lastErr = e;
+                response = null;
+            }
         }
+
+        if (!response) {
+            throw lastErr || new Error('كل الموديلات فشلت');
+        }
+
+        console.log('📊 استخدم الموديل:', usedModel);
 
         var data = await response.json();
         var aiText = data.choices && data.choices[0] && data.choices[0].message 
