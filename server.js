@@ -590,20 +590,17 @@ app.delete('/api/tutoring/items/:itemId', userAuthRequired, async function(req, 
     }
 });
 /* ============================================================
-   المساعد الذكي (Gemini AI - New SDK)
+   المساعد الذكي (OpenRouter + Llama 3.3)
    ============================================================ */
 
-var { GoogleGenAI } = require('@google/genai');
+var OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+var AI_ENABLED = !!OPENROUTER_API_KEY;
 
-var GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-var genAI = GEMINI_API_KEY ? new GoogleGenAI({ apiKey: GEMINI_API_KEY }) : null;
-
-if (genAI) {
-    console.log('✓ Gemini AI: مفتاح موجود');
+if (AI_ENABLED) {
+    console.log('✓ AI: OpenRouter مفتاح موجود');
 } else {
-    console.log('⚠️ Gemini AI: مفتاح مفقود');
+    console.log('⚠️ AI: مفتاح OpenRouter مفقود');
 }
-
 /* مخزن مؤقت للمحادثات (RAM — يُحذف بعد 30 دقيقة) */
 var aiChats = {};  /* { userId: { messages: [...], expiresAt: timestamp } } */
 
@@ -641,10 +638,10 @@ function getAIChat(userId) {
 /* -- مسار: إرسال سؤال -- */
 app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
     try {
-        if (!genAI) {
+        if (!AI_ENABLED) {
             return res.status(503).json({ 
                 ok: false, 
-                error: 'gemini_not_configured',
+                error: 'ai_not_configured',
                 message: 'المساعد الذكي غير مُفعّل.'
             });
         }
@@ -660,56 +657,44 @@ app.post('/api/ai/chat', userAuthRequired, async function(req, res) {
         var chat = getAIChat(req.userId);
         chat.messages.push({ role: 'user', content: message, timestamp: Date.now() });
 
-        /* ابنِ المحتوى */
-        var contents = [];
-        var recentMessages = chat.messages.slice(-20);
-        recentMessages.forEach(function(m) {
-            contents.push({
-                role: m.role === 'user' ? 'user' : 'model',
-                parts: [{ text: m.content }]
-            });
-        });
-
-        /* نصيحة تعليمية */
         var systemPrompt = 'أنت مساعد دراسي للطالب ' + (req.userName || '') + 
             '. سنة الثانية ثانوي علوم. أجب بالعربية الفصحى أو الفرنسية. كن موجزًا وواضحًا.';
 
-              /* ═══ محاولة الموديلات الجديدة ═══ */
-        var aiText = null;
-        var modelsToTry = [
-            'gemini-3.8-flash',      /* الأحدث (مقترح من Google) */
-            'gemini-2.5-flash',       /* احتياطي */
-            'gemini-1.5-flash',       /* احتياطي أخير */
-            'gemini-flash-latest'     /* الأحدث التلقائي */
-        ];
-        var lastErr = null;
-        for (var i = 0; i < modelsToTry.length; i++) {
-            try {
-                console.log('🤖 محاولة الموديل:', modelsToTry[i]);
-                
-                var result = await genAI.models.generateContent({
-                    model: modelsToTry[i],
-                    contents: contents,
-                    config: {
-                        systemInstruction: systemPrompt,
-                        maxOutputTokens: 1000,
-                        temperature: 0.7
-                    }
-                });
-                
-                aiText = result.text;
-                console.log('✓ نجح الموديل:', modelsToTry[i]);
-                break;
-            } catch (e) {
-                console.warn('⚠️ فشل', modelsToTry[i], ':', e.message);
-                lastErr = e;
-            }
+        var messages = [{ role: 'system', content: systemPrompt }];
+
+        chat.messages.slice(-20).forEach(function(m) {
+            messages.push({
+                role: m.role === 'user' ? 'user' : 'assistant',
+                content: m.content
+            });
+        });
+
+        var response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + OPENROUTER_API_KEY,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': 'https://studyportal-78tv.onrender.com',
+                'X-Title': 'Study Portal'
+            },
+            body: JSON.stringify({
+                model: 'meta-llama/llama-3.3-70b-instruct:free',
+                messages: messages,
+                max_tokens: 1000,
+                temperature: 0.7
+            })
+        });
+
+        if (!response.ok) {
+            var errData = await response.json().catch(function() { return {}; });
+            console.error('OpenRouter error:', errData);
+            throw new Error((errData.error && errData.error.message) || 'فشل الاتصال');
         }
 
-        /* ═══ إذا فشلت كل المحاولات ═══ */
-        if (!aiText) {
-            throw lastErr || new Error('جميع الموديلات فشلت');
-        }
+        var data = await response.json();
+        var aiText = data.choices && data.choices[0] && data.choices[0].message 
+            ? data.choices[0].message.content 
+            : 'عذرًا، لم أستطع الإجابة.';
 
         chat.messages.push({ role: 'model', content: aiText, timestamp: Date.now() });
 
@@ -764,11 +749,10 @@ app.delete('/api/ai/chat', userAuthRequired, async function(req, res) {
 app.get('/api/ai/status', userAuthRequired, async function(req, res) {
     res.json({
         ok: true,
-        enabled: !!genAI,
+        enabled: AI_ENABLED,
         hasChat: !!aiChats[req.userId]
     });
 });
-
 /* ============================================================
    خدمة الواجهة
    ============================================================ */
