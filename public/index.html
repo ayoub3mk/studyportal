@@ -5661,63 +5661,96 @@ function myMemoryTranslate(text, from, to) {
     });
 }
 
+
 /* ============================================================
-   الجزء 26: Pomodoro
+   Pomodoro — نسخة مصححة (بدون تكرار)
    ============================================================ */
+
+var pomodoroInterval = null;      /* مرجع واحد فقط للمؤقت */
+var pomodoroSeconds = 25 * 60;
+var pomodoroRunning = false;
+var pomodoroMode = "focus";
+
+function togglePomodoro() {
+    /* 🛑 إيقاف أي مؤقت قديم قبل البدء */
+    if (pomodoroInterval) {
+        clearInterval(pomodoroInterval);
+        pomodoroInterval = null;
+    }
+    
+    if (pomodoroRunning) {
+        /* إيقاف مؤقت */
+        pomodoroRunning = false;
+        var btn = document.getElementById('timerToggleBtn');
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-play text-[10px]"></i>';
+        return;
+    }
+    
+    /* بدء جديد */
+    pomodoroRunning = true;
+    var btn = document.getElementById('timerToggleBtn');
+    if (btn) btn.innerHTML = '<i class="fa-solid fa-pause text-[10px]"></i>';
+    
+    /* 🎯 استخدم Date.now() لحساب الوقت بدقة */
+    var endTime = Date.now() + (pomodoroSeconds * 1000);
+    
+    pomodoroInterval = setInterval(function() {
+        var now = Date.now();
+        var remaining = Math.max(0, Math.round((endTime - now) / 1000));
+        
+        /* 🛑 إذا انتهى، أوقف */
+        if (remaining <= 0) {
+            clearInterval(pomodoroInterval);
+            pomodoroInterval = null;
+            pomodoroRunning = false;
+            pomodoroSeconds = 0;
+            updatePomodoroDisplay();
+            
+            if (btn) btn.innerHTML = '<i class="fa-solid fa-play text-[10px]"></i>';
+            
+            /* انتهت الجلسة */
+            if (pomodoroMode === 'focus') {
+                alert('🎉 انتهت جلسة التركيز! خذ استراحة 5 دقائق.');
+                pomodoroMode = 'break';
+                pomodoroSeconds = 5 * 60;
+            } else {
+                alert('☕ انتهت الاستراحة! لنبدأ جلسة جديدة.');
+                pomodoroMode = 'focus';
+                pomodoroSeconds = 25 * 60;
+            }
+            updatePomodoroDisplay();
+            return;
+        }
+        
+        /* 🎯 تحديث الرقم فقط إذا تغير */
+        if (remaining !== pomodoroSeconds) {
+            pomodoroSeconds = remaining;
+            updatePomodoroDisplay();
+        }
+    }, 500);   /* كل نصف ثانية، أدق من ثانية كاملة */
+}
+
 function updatePomodoroDisplay() {
-    var m = Math.floor(pomodoroSeconds/60);
+    var m = Math.floor(pomodoroSeconds / 60);
     var s = pomodoroSeconds % 60;
     var td = document.getElementById('timerDisplay');
     var pm = document.getElementById('pomodoroMode');
-    if (td) td.textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    if (td) td.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
     if (pm) pm.textContent = pomodoroMode === 'focus' ? 'تركيز' : 'استراحة';
 }
-function togglePomodoro() {
-    if (pomodoroRunning) {
-        clearInterval(pomodoroInterval);
-        pomodoroRunning = false;
-        document.getElementById('timerToggleBtn').innerHTML = '<i class="fa-solid fa-play text-[10px]"></i>';
-    } else {
-        pomodoroRunning = true;
-        document.getElementById('timerToggleBtn').innerHTML = '<i class="fa-solid fa-pause text-[10px]"></i>';
-        pomodoroInterval = setInterval(function(){
-            if (pomodoroSeconds > 0) { pomodoroSeconds--; updatePomodoroDisplay(); }
-            else {
-                clearInterval(pomodoroInterval);
-                pomodoroRunning = false;
-                document.getElementById('timerToggleBtn').innerHTML = '<i class="fa-solid fa-play text-[10px]"></i>';
-                if (pomodoroMode === 'focus') { alert('انتهت الجلسة! استراحة 5 دقائق.'); pomodoroMode = 'break'; pomodoroSeconds = 5*60; }
-                else { alert('انتهت الاستراحة!'); pomodoroMode = 'focus'; pomodoroSeconds = 25*60; }
-                updatePomodoroDisplay();
-            }
-        }, 1000);
-    }
-}
+
 function resetPomodoro() {
-    clearInterval(pomodoroInterval);
+    /* 🛑 أوقف أي مؤقت نشط */
+    if (pomodoroInterval) {
+        clearInterval(pomodoroInterval);
+        pomodoroInterval = null;
+    }
     pomodoroRunning = false;
     pomodoroMode = 'focus';
-    pomodoroSeconds = 25*60;
+    pomodoroSeconds = 25 * 60;
     updatePomodoroDisplay();
-    document.getElementById('timerToggleBtn').innerHTML = '<i class="fa-solid fa-play text-[10px]"></i>';
-}
-
-/* ============================================================
-   الجزء 27: المزامنة التلقائية
-   ============================================================ */
-var SYNC_INTERVAL = null;
-function startAutoSync() {
-    if (SYNC_INTERVAL) clearInterval(SYNC_INTERVAL);
-    SYNC_INTERVAL = setInterval(function(){
-        if (!CURRENT_USER) return;
-        fetch('/api/me', { credentials: 'include' })
-        .then(function(r){ return r.ok ? r.json() : null; })
-        .then(function(data){
-            if (!data || !data.user) return;
-            /* تحقق من التغييرات فقط في حالة عدم وجود تعديل محلي */
-        })
-        .catch(function(){});
-    }, 15000);
+    var btn = document.getElementById('timerToggleBtn');
+    if (btn) btn.innerHTML = '<i class="fa-solid fa-play text-[10px]"></i>';
 }
 
 /* ============================================================
