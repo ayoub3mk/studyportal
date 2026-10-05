@@ -1036,7 +1036,7 @@ app.post('/api/stats/complete-task', userAuthRequired, async function(req, res) 
 /* ترميم الأيام الفائتة */
 app.post('/api/stats/repair', userAuthRequired, async function(req, res) {
     try {
-        var days = req.body.days || [];  /* مصفوفة من التواريخ */
+        var days = req.body.days || [];
         if (!Array.isArray(days) || days.length === 0) {
             return res.status(400).json({ error: 'no_days' });
         }
@@ -1066,75 +1066,66 @@ app.post('/api/stats/repair', userAuthRequired, async function(req, res) {
         for (var j = 0; j < days.length; j++) {
             await db.ensureDayMet(req.userId, days[j]);
         }
+        
         /* ═══════════════════════════════════════════════════
-   إصلاح: احتساب Streak بعد الترميم
-   ═══════════════════════════════════════════════════ */
-
-var today = new Date();
-today.setHours(0, 0, 0, 0);
-var todayStr = today.getFullYear() + '-' + 
-               String(today.getMonth() + 1).padStart(2, '0') + '-' + 
-               String(today.getDate()).padStart(2, '0');
-
-/* اجلب كل الأيام المحققة (بعد الترميم) قبل اليوم */
-var consecutive = await db.getConsecutiveDays(req.userId, todayStr, 365);
-
-/* حوّل إلى Set للبحث السريع */
-var metDays = {};
-consecutive.forEach(function(d) {
-    var dayStr = typeof d === 'string' ? d.slice(0, 10) : '';
-    if (dayStr) metDays[dayStr] = true;
-});
-
-/* احسب الـ Streak من اليوم، رجوعًا للوراء */
-var newStreak = 0;
-var checkDate = new Date(today);
-/* ابدأ من اليوم (وليس أمس) */
-checkDate.setHours(0, 0, 0, 0);
-
-/* إذا كان اليوم محققًا، احسبه في الـ Streak */
-var todayDayStr = checkDate.getFullYear() + '-' + 
-                 String(checkDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                 String(checkDate.getDate()).padStart(2, '0');
-
-if (metDays[todayDayStr]) {
-    newStreak = 1;
-    /* ابدأ من أمس */
-    checkDate.setDate(checkDate.getDate() - 1);
-} else {
-    /* ابدأ من أمس (لأن اليوم لم يُحقق بعد) */
-    checkDate.setDate(checkDate.getDate() - 1);
-}
-
-/* عدّ الأيام المتتالية للوراء */
-while (true) {
-    var checkStr = checkDate.getFullYear() + '-' + 
-                  String(checkDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                  String(checkDate.getDate()).padStart(2, '0');
-    
-    if (metDays[checkStr]) {
-        newStreak++;
-        checkDate.setDate(checkDate.getDate() - 1);
-    } else {
-        break;
-    }
-    
-    /* حد أقصى (حماية من اللانهاية) */
-    if (newStreak > 1000) break;
-}
-
-var longest = Math.max(stats.longest_streak || 0, newStreak);
-
-console.log('✓ Streak بعد الترميم:', newStreak, '| الأيام المُرمَّمة:', days.join(', '));
+           احتساب Streak بعد الترميم
+           ═══════════════════════════════════════════════════ */
+        
+        var todayRepair = new Date();
+        todayRepair.setHours(0, 0, 0, 0);
+        var todayRepairStr = todayRepair.getFullYear() + '-' + 
+                             String(todayRepair.getMonth() + 1).padStart(2, '0') + '-' + 
+                             String(todayRepair.getDate()).padStart(2, '0');
+        
+        var consecutive = await db.getConsecutiveDays(req.userId, todayRepairStr, 365);
+        
+        var metDays = {};
+        consecutive.forEach(function(d) {
+            var dayStr = typeof d === 'string' ? d.slice(0, 10) : '';
+            if (dayStr) metDays[dayStr] = true;
+        });
+        
+        console.log('🔍 الأيام المحققة:', Object.keys(metDays).sort().reverse().slice(0, 10));
+        
+        var newStreak = 0;
+        var checkDate = new Date(todayRepair);
+        
+        while (true) {
+            var checkStr = checkDate.getFullYear() + '-' + 
+                          String(checkDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                          String(checkDate.getDate()).padStart(2, '0');
+            
+            if (metDays[checkStr]) {
+                newStreak++;
+                checkDate.setDate(checkDate.getDate() - 1);
+            } else {
+                if (newStreak === 0 && checkStr === todayRepairStr) {
+                    checkDate.setDate(checkDate.getDate() - 1);
+                    continue;
+                }
+                break;
+            }
+            
+            if (newStreak > 1000) break;
+        }
+        
+        var longest = Math.max(stats.longest_streak || 0, newStreak);
+        
+        console.log('✓ Streak الجديد:', newStreak);
+        
+        /* أحدث يوم محقق */
+        var sortedMetDays = Object.keys(metDays).sort().reverse();
+        var latestMetDay = sortedMetDays[0] || stats.last_completed_day;
+        
         /* حفظ */
         await db.saveUserStats(req.userId, {
             points: stats.points - totalCost,
             currentStreak: newStreak,
             longestStreak: longest,
-            lastCompletedDay: consecutive[0] || stats.last_completed_day,
-            repairCost: cost,  /* السعر الجديد بعد الزيادة */
+            lastCompletedDay: latestMetDay,
+            repairCost: cost,
             repairCount: (stats.repair_count || 0) + days.length,
-            lastRepairDay: todayStr
+            lastRepairDay: todayRepairStr
         });
         
         res.json({
@@ -1149,48 +1140,6 @@ console.log('✓ Streak بعد الترميم:', newStreak, '| الأيام ال
         res.status(500).json({ error: 'server_error' });
     }
 });
-
-/* إعادة تعيين سعر الترميم (دفع 100 نقطة) */
-app.post('/api/stats/reset-repair-cost', userAuthRequired, async function(req, res) {
-    try {
-        var stats = await db.getUserStats(req.userId);
-        
-        if (stats.points < 100) {
-            return res.status(400).json({ 
-                error: 'not_enough_points',
-                needed: 100,
-                have: stats.points
-            });
-        }
-        
-        await db.updateUserPoints(req.userId, -100);
-        
-        var today = new Date();
-        var todayStr = today.getFullYear() + '-' + 
-                       String(today.getMonth() + 1).padStart(2, '0') + '-' + 
-                       String(today.getDate()).padStart(2, '0');
-        
-        await db.saveUserStats(req.userId, {
-            points: stats.points - 100,
-            currentStreak: stats.current_streak,
-            longestStreak: stats.longest_streak,
-            lastCompletedDay: stats.last_completed_day,
-            repairCost: 20,  /* إعادة الضبط */
-            repairCount: 0,
-            lastRepairDay: todayStr
-        });
-        
-        res.json({
-            ok: true,
-            newPoints: stats.points - 100,
-            newRepairCost: 20
-        });
-    } catch (err) {
-        console.error('Reset repair cost error:', err);
-        res.status(500).json({ error: 'server_error' });
-    }
-});
-
 /* حفظ الهدف اليومي */
 app.get('/api/stats/today', userAuthRequired, async function(req, res) {
     try {
