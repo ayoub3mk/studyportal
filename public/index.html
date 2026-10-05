@@ -3669,9 +3669,19 @@ function renderSubjects() {
         if (subj.sections) {
             subj.sections.forEach(function(sec) {
                 var badgeText = sec.key === '1' ? t('sectionControl1') : t('sectionControl2');
-                itemsHtml += '<div class="flex items-center gap-2 px-2 py-1.5 my-1 rounded-lg bg-orange-50 dark:bg-orange-950/30 border-l-2 border-brand-500"><span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-brand-500 text-white text-[10px] font-black">' + sec.key + '</span><span class="text-[11px] font-bold text-brand-700 dark:text-brand-300">' + badgeText + '</span></div>';
+               /* رأس القسم + زر عجلة الحظ */
+                itemsHtml += '<div class="flex items-center justify-between gap-2 px-2 py-1.5 my-1 rounded-lg bg-orange-50 dark:bg-orange-950/30 border-l-2 border-brand-500">';
+                itemsHtml += '<div class="flex items-center gap-2">';
+                itemsHtml += '<span class="inline-flex items-center justify-center w-5 h-5 rounded-md bg-brand-500 text-white text-[10px] font-black">' + sec.key + '</span>';
+                itemsHtml += '<span class="text-[11px] font-bold text-brand-700 dark:text-brand-300">' + badgeText + '</span>';
+                itemsHtml += '</div>';
+                itemsHtml += '<button onclick="openWheelOfFortune(\'' + subj.id + '\', \'' + sec.key + '\')" title="عجلة الحظ — اختر ورقة عشوائية" class="flex items-center gap-1 px-2 py-1 rounded-md bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white text-[10px] font-bold shadow-sm transition-all hover:scale-105 active:scale-95">';
+                itemsHtml += '<i class="fa-solid fa-dice"></i>';
+                itemsHtml += '<span>عجلة</span>';
+                itemsHtml += '</button>';
+                itemsHtml += '</div>';
                 sec.items.forEach(function(item, idx) {
-                    itemsHtml += renderItemRow(subj.id, sec.key, item, idx, search, filter);
+                itemsHtml += renderItemRow(subj.id, sec.key, item, idx, search, filter);
                 });
                 /* زر إضافة ورقة للقسم */
                 itemsHtml += '<button onclick="quickAddItem(\'' + subj.id + '\', \'' + sec.key + '\')" class="w-full mt-1 py-2 px-3 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 hover:border-brand-500 hover:bg-brand-50 dark:hover:bg-brand-950/30 text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 text-[11px] font-bold transition-colors flex items-center justify-center gap-1.5">';
@@ -12788,7 +12798,189 @@ if ('serviceWorker' in navigator) {
     });
 }
 
+/* ============================================================
+   عجلة الحظ (Wheel of Fortune)
+   ============================================================ */
 
+var wheelState = {
+    subjectId: null,
+    sectionKey: null,
+    items: [],
+    colors: [],
+    isSpinning: false,
+    rotation: 0,
+    lastResult: null
+};
+
+function openWheelOfFortune(subjectId, sectionKey) {
+    var arr = getItemsContainer(subjectId, sectionKey);
+    if (!arr) {
+        showToast('⚠️ لم يُعثر على القسم');
+        return;
+    }
+    
+    var pending = arr
+        .map(function(item, idx) { return { item: item, idx: idx }; })
+        .filter(function(x) { return !x.item.checked; });
+    
+    var subj = findSubjectById(subjectId);
+    var subjName = subj ? displayName(subj) : '—';
+    var titleText = subjName;
+    if (sectionKey) {
+        titleText += ' — ' + (sectionKey === '1' ? 'المراقبة 1' : sectionKey === '2' ? 'المراقبة 2' : 'القسم ' + sectionKey);
+    }
+    document.getElementById('wheelTitle').textContent = titleText;
+    
+    if (pending.length === 0) {
+        document.getElementById('wheelEmpty').classList.remove('hidden');
+        document.getElementById('wheelResult').classList.add('hidden');
+        document.getElementById('wheelControls').classList.add('hidden');
+        document.getElementById('wheelModal').classList.remove('hidden');
+        return;
+    }
+    
+    wheelState.subjectId = subjectId;
+    wheelState.sectionKey = sectionKey;
+    wheelState.items = pending;
+    wheelState.isSpinning = false;
+    wheelState.rotation = 0;
+    wheelState.lastResult = null;
+    
+    var PALETTE = [
+        '#8b5cf6', '#ec4899', '#f97316', '#10b981', 
+        '#06b6d4', '#f59e0b', '#ef4444', '#3b82f6',
+        '#84cc16', '#14b8a6', '#a855f7', '#eab308',
+        '#f43f5e', '#6366f1', '#22c55e', '#0ea5e9'
+    ];
+    wheelState.colors = pending.map(function(_, i) { return PALETTE[i % PALETTE.length]; });
+    
+    document.getElementById('wheelEmpty').classList.add('hidden');
+    document.getElementById('wheelResult').classList.add('hidden');
+    document.getElementById('wheelControls').classList.remove('hidden');
+    
+    drawWheel();
+    document.getElementById('wheelModal').classList.remove('hidden');
+}
+
+function drawWheel() {
+    var svg = document.getElementById('wheelSVG');
+    if (!svg) return;
+    
+    var items = wheelState.items;
+    var colors = wheelState.colors;
+    var n = items.length;
+    
+    svg.innerHTML = '';
+    if (n === 0) return;
+    
+    var cx = 100, cy = 100, r = 95;
+    var anglePer = 360 / n;
+    
+    items.forEach(function(x, i) {
+        var startAngle = (i * anglePer - 90) * Math.PI / 180;
+        var endAngle = ((i + 1) * anglePer - 90) * Math.PI / 180;
+        
+        var x1 = cx + r * Math.cos(startAngle);
+        var y1 = cy + r * Math.sin(startAngle);
+        var x2 = cx + r * Math.cos(endAngle);
+        var y2 = cy + r * Math.sin(endAngle);
+        var largeArc = anglePer > 180 ? 1 : 0;
+        
+        var path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', 
+            'M ' + cx + ' ' + cy + 
+            ' L ' + x1 + ' ' + y1 + 
+            ' A ' + r + ' ' + r + ' 0 ' + largeArc + ' 1 ' + x2 + ' ' + y2 + 
+            ' Z'
+        );
+        path.setAttribute('fill', colors[i]);
+        path.setAttribute('stroke', 'white');
+        path.setAttribute('stroke-width', '0.8');
+        svg.appendChild(path);
+        
+        var midAngle = (startAngle + endAngle) / 2;
+        var textR = r * 0.65;
+        var tx = cx + textR * Math.cos(midAngle);
+        var ty = cy + textR * Math.sin(midAngle);
+        
+        var text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        text.setAttribute('x', tx);
+        text.setAttribute('y', ty);
+        text.setAttribute('text-anchor', 'middle');
+        text.setAttribute('dominant-baseline', 'middle');
+        text.setAttribute('fill', 'white');
+        text.setAttribute('font-size', n > 20 ? '4' : n > 12 ? '6' : '8');
+        text.setAttribute('font-weight', '900');
+        text.setAttribute('transform', 'rotate(' + ((i * anglePer + anglePer / 2)) + ' ' + tx + ' ' + ty + ')');
+        text.textContent = x.item.code;
+        svg.appendChild(text);
+    });
+}
+
+function spinWheel() {
+    if (wheelState.isSpinning) return;
+    if (wheelState.items.length === 0) return;
+    
+    wheelState.isSpinning = true;
+    
+    var spinBtn = document.getElementById('spinBtn');
+    spinBtn.disabled = true;
+    spinBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> جاري الدوران...';
+    
+    var n = wheelState.items.length;
+    var resultIdx = Math.floor(Math.random() * n);
+    var anglePer = 360 / n;
+    
+    var targetAngle = 360 - (resultIdx * anglePer + anglePer / 2);
+    var fullSpins = 5 + Math.floor(Math.random() * 3);
+    var totalRotation = wheelState.rotation + (fullSpins * 360) + targetAngle - (wheelState.rotation % 360);
+    
+    wheelState.rotation = totalRotation;
+    
+    var svg = document.getElementById('wheelSVG');
+    svg.style.transform = 'rotate(' + totalRotation + 'deg)';
+    
+    setTimeout(function() {
+        wheelState.isSpinning = false;
+        wheelState.lastResult = wheelState.items[resultIdx];
+        
+        document.getElementById('wheelResult').classList.remove('hidden');
+        document.getElementById('wheelResultText').textContent = wheelState.lastResult.item.code;
+        document.getElementById('wheelResultSub').textContent = 
+            (wheelState.lastResult.item.note || 'ورقة رقم ' + (wheelState.lastResult.idx + 1)) + 
+            ' — من أصل ' + n + ' ورقة غير منجزة';
+        
+        spinBtn.disabled = false;
+        spinBtn.innerHTML = '<i class="fa-solid fa-rotate mr-2"></i> أدر مرة أخرى';
+        
+        if (navigator.vibrate) navigator.vibrate(50);
+        
+        showToast('🎉 ' + wheelState.lastResult.item.code);
+    }, 5100);
+}
+
+function closeWheelModal() {
+    document.getElementById('wheelModal').classList.add('hidden');
+    
+    var svg = document.getElementById('wheelSVG');
+    if (svg) {
+        svg.style.transition = 'none';
+        svg.style.transform = 'rotate(0deg)';
+        setTimeout(function() {
+            svg.style.transition = 'transform 5s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
+        }, 50);
+    }
+    
+    wheelState.isSpinning = false;
+    wheelState.rotation = 0;
+    wheelState.lastResult = null;
+    
+    var spinBtn = document.getElementById('spinBtn');
+    if (spinBtn) {
+        spinBtn.disabled = false;
+        spinBtn.innerHTML = '<i class="fa-solid fa-rotate mr-2"></i> أدر العجلة';
+    }
+}
 </script>
 <!-- ============================================================
      نافذة إضافة/تعديل درس خصوصي
@@ -14184,5 +14376,61 @@ if ('serviceWorker' in navigator) {
         
     </div>
 </div>
+<!-- عجلة الحظ -->
+<div id="wheelModal" class="fixed inset-0 z-[120] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-2xl w-full border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div class="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-purple-600 to-pink-600 text-white">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                    <i class="fa-solid fa-dice text-lg"></i>
+                </div>
+                <div>
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-purple-100">عجلة الحظ</p>
+                    <h3 id="wheelTitle" class="text-base font-black">—</h3>
+                </div>
+            </div>
+            <button onclick="closeWheelModal()" class="w-9 h-9 rounded-lg hover:bg-white/20 flex items-center justify-center transition-colors">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <div class="relative mx-auto mb-6" style="width: 320px; height: 320px;">
+                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-full z-20" style="pointer-events: none;">
+                    <div style="width: 0; height: 0; border-left: 14px solid transparent; border-right: 14px solid transparent; border-bottom: 28px solid #dc2626; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));"></div>
+                </div>
+                <svg id="wheelSVG" viewBox="0 0 200 200" class="w-full h-full" style="filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15));"></svg>
+                <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-16 h-16 rounded-full bg-gradient-to-tr from-purple-600 to-pink-600 shadow-xl flex items-center justify-center border-4 border-white dark:border-slate-800">
+                    <i class="fa-solid fa-dice text-white text-xl"></i>
+                </div>
+            </div>
+            <div id="wheelResult" class="hidden text-center mb-4">
+                <p class="text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">🎯 النتيجة</p>
+                <p id="wheelResultText" class="text-4xl font-black text-slate-900 dark:text-white mb-2">—</p>
+                <p id="wheelResultSub" class="text-xs text-slate-500 dark:text-slate-400">—</p>
+            </div>
+            <div id="wheelEmpty" class="hidden text-center py-8">
+                <i class="fa-solid fa-circle-check text-4xl text-emerald-500 mb-3"></i>
+                <p class="font-black text-slate-900 dark:text-white">🎉 ما شاء الله!</p>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">لا توجد أوراق غير منجزة في هذا القسم</p>
+            </div>
+            <div id="wheelControls" class="flex gap-2">
+                <button onclick="spinWheel()" id="spinBtn" class="flex-1 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-black text-base shadow-lg transition-all">
+                    <i class="fa-solid fa-rotate mr-2"></i>
+                    أدر العجلة
+                </button>
+                <button onclick="closeWheelModal()" class="px-5 py-3 rounded-xl border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 font-bold text-sm hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                    إغلاق
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+#wheelSVG {
+    transition: transform 5s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+    transform-origin: center;
+}
+</style>
 </body>
 </html>
