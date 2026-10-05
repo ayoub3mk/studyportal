@@ -994,26 +994,73 @@ app.post('/api/stats/complete-task', userAuthRequired, async function(req, res) 
                 completedAt: new Date().toISOString()
             });
             
-            /* تحديث Streak */
-            var stats = await db.getUserStats(req.userId);
-            var newStreak = (stats.current_streak || 0) + 1;
-            var longest = Math.max(stats.longest_streak || 0, newStreak);
-            
-            /* مكافأة 7 أيام متتالية */
-            if (newStreak > 0 && newStreak % 7 === 0) {
-                streakBonus = 50;
-                await db.updateUserPoints(req.userId, streakBonus);
-            }
-            
-            await db.saveUserStats(req.userId, {
-                points: (await db.getUserStats(req.userId)).points,
-                currentStreak: newStreak,
-                longestStreak: longest,
-                lastCompletedDay: todayStr,
-                repairCost: stats.repair_cost,
-                repairCount: stats.repair_count,
-                lastRepairDay: stats.last_repair_day
-            });
+          /* ═══════════════════════════════════════════════════
+   تحديث Streak بشكل صحيح — احتساب كامل
+   ═══════════════════════════════════════════════════ */
+
+var stats = await db.getUserStats(req.userId);
+
+/* اجلب كل الأيام المحققة (بما فيها اليوم) */
+var todayDate = new Date();
+todayDate.setHours(0, 0, 0, 0);
+var todayStr2 = todayDate.getFullYear() + '-' + 
+                String(todayDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                String(todayDate.getDate()).padStart(2, '0');
+
+var allMetDays = await db.getConsecutiveDays(req.userId, todayStr2, 365);
+
+/* حوّل إلى كائن للبحث السريع */
+var metDaysMap = {};
+allMetDays.forEach(function(d) {
+    var dayStr = typeof d === 'string' ? d.slice(0, 10) : '';
+    if (dayStr) metDaysMap[dayStr] = true;
+});
+
+/* احسب الـ Streak الحقيقي */
+var newStreak = 0;
+var checkDate = new Date(todayDate);
+
+while (true) {
+    var checkStr = checkDate.getFullYear() + '-' + 
+                  String(checkDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                  String(checkDate.getDate()).padStart(2, '0');
+    
+    if (metDaysMap[checkStr]) {
+        newStreak++;
+        checkDate.setDate(checkDate.getDate() - 1);
+    } else {
+        /* إذا لم يكن اليوم محققًا، ابدأ من أمس */
+        if (newStreak === 0 && checkStr === todayStr2) {
+            checkDate.setDate(checkDate.getDate() - 1);
+            continue;
+        }
+        break;
+    }
+    
+    if (newStreak > 1000) break;
+}
+
+var longest = Math.max(stats.longest_streak || 0, newStreak);
+
+/* مكافأة 7 أيام متتالية */
+if (newStreak > 0 && newStreak % 7 === 0 && newStreak > (stats.current_streak || 0)) {
+    streakBonus = 50;
+    await db.updateUserPoints(req.userId, streakBonus);
+}
+
+console.log('✓ Streak محدّث:', newStreak);
+
+/* حفظ */
+var finalStats = await db.getUserStats(req.userId);
+await db.saveUserStats(req.userId, {
+    points: finalStats.points,
+    currentStreak: newStreak,
+    longestStreak: longest,
+    lastCompletedDay: todayStr2,
+    repairCost: stats.repair_cost,
+    repairCount: stats.repair_count,
+    lastRepairDay: stats.last_repair_day
+});
         }
         
         var finalStats = await db.getUserStats(req.userId);
