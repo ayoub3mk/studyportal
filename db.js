@@ -540,12 +540,13 @@ async function incrementDailyProgress(userId, day, delta) {
 /* جلب آخر N أيام التي حقق فيها الهدف */
 async function getConsecutiveDays(userId, fromDay, count) {
     var result = await pool.query(`
-        SELECT day FROM daily_progress 
-        WHERE user_id = $1 AND goal_met = 1 AND day < $2
+        SELECT TO_CHAR(day, 'YYYY-MM-DD') AS day_str
+        FROM daily_progress 
+        WHERE user_id = $1 AND goal_met = 1 AND day <= $2::date
         ORDER BY day DESC
         LIMIT $3
     `, [userId, fromDay, count]);
-    return result.rows.map(function(r) { return r.day; });
+    return result.rows.map(function(r) { return r.day_str; });
 }
 
 /* جلب الأيام الفائتة (التي لم يُحقق فيها الهدف) */
