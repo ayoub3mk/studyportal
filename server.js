@@ -1066,35 +1066,66 @@ app.post('/api/stats/repair', userAuthRequired, async function(req, res) {
         for (var j = 0; j < days.length; j++) {
             await db.ensureDayMet(req.userId, days[j]);
         }
-        
-        /* احسب الـ Streak الجديد */
-        var today = new Date();
-        var todayStr = today.getFullYear() + '-' + 
-                       String(today.getMonth() + 1).padStart(2, '0') + '-' + 
-                       String(today.getDate()).padStart(2, '0');
-        
-        /* اجلب الأيام المحققة المتتالية قبل اليوم */
-        var consecutive = await db.getConsecutiveDays(req.userId, todayStr, 100);
-        
-        /* احسب عدد الأيام المتتالية */
-        var newStreak = 0;
-        var checkDate = new Date(today);
+        /* ═══════════════════════════════════════════════════
+   إصلاح: احتساب Streak بعد الترميم
+   ═══════════════════════════════════════════════════ */
+
+var today = new Date();
+today.setHours(0, 0, 0, 0);
+var todayStr = today.getFullYear() + '-' + 
+               String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+               String(today.getDate()).padStart(2, '0');
+
+/* اجلب كل الأيام المحققة (بعد الترميم) قبل اليوم */
+var consecutive = await db.getConsecutiveDays(req.userId, todayStr, 365);
+
+/* حوّل إلى Set للبحث السريع */
+var metDays = {};
+consecutive.forEach(function(d) {
+    var dayStr = typeof d === 'string' ? d.slice(0, 10) : '';
+    if (dayStr) metDays[dayStr] = true;
+});
+
+/* احسب الـ Streak من اليوم، رجوعًا للوراء */
+var newStreak = 0;
+var checkDate = new Date(today);
+/* ابدأ من اليوم (وليس أمس) */
+checkDate.setHours(0, 0, 0, 0);
+
+/* إذا كان اليوم محققًا، احسبه في الـ Streak */
+var todayDayStr = checkDate.getFullYear() + '-' + 
+                 String(checkDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                 String(checkDate.getDate()).padStart(2, '0');
+
+if (metDays[todayDayStr]) {
+    newStreak = 1;
+    /* ابدأ من أمس */
+    checkDate.setDate(checkDate.getDate() - 1);
+} else {
+    /* ابدأ من أمس (لأن اليوم لم يُحقق بعد) */
+    checkDate.setDate(checkDate.getDate() - 1);
+}
+
+/* عدّ الأيام المتتالية للوراء */
+while (true) {
+    var checkStr = checkDate.getFullYear() + '-' + 
+                  String(checkDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                  String(checkDate.getDate()).padStart(2, '0');
+    
+    if (metDays[checkStr]) {
+        newStreak++;
         checkDate.setDate(checkDate.getDate() - 1);
-        
-        for (var k = 0; k < consecutive.length; k++) {
-            var expectedStr = checkDate.getFullYear() + '-' + 
-                             String(checkDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                             String(checkDate.getDate()).padStart(2, '0');
-            if (consecutive[k] === expectedStr) {
-                newStreak++;
-                checkDate.setDate(checkDate.getDate() - 1);
-            } else {
-                break;
-            }
-        }
-        
-        var longest = Math.max(stats.longest_streak || 0, newStreak);
-        
+    } else {
+        break;
+    }
+    
+    /* حد أقصى (حماية من اللانهاية) */
+    if (newStreak > 1000) break;
+}
+
+var longest = Math.max(stats.longest_streak || 0, newStreak);
+
+console.log('✓ Streak بعد الترميم:', newStreak, '| الأيام المُرمَّمة:', days.join(', '));
         /* حفظ */
         await db.saveUserStats(req.userId, {
             points: stats.points - totalCost,
