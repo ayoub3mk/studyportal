@@ -1490,435 +1490,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     background-color: #1e293b;
     border-color: #334155;
 }
-/* ============================================================
-   🧮 الآلة الحاسبة Sharp EL-W506T
-   ============================================================ */
 
-.calculator-body {
-    background: linear-gradient(180deg, #2c2c2c 0%, #1a1a1a 100%);
-    border-radius: 20px;
-    padding: 16px 14px 20px;
-    box-shadow: 
-        0 20px 40px rgba(0, 0, 0, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1),
-        inset 0 -2px 0 rgba(0, 0, 0, 0.3);
-    border: 2px solid #0a0a0a;
-    max-width: 100%;
-}
-
-.calc-brand {
-    color: #d4d4d4;
-    font-family: 'Arial Black', sans-serif;
-    font-size: 14px;
-    font-weight: 900;
-    letter-spacing: 3px;
-    text-align: left;
-    margin-bottom: 8px;
-    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.1);
-}
-
-/* ============================================================
-   الشاشة
-   ============================================================ */
-.calc-screen {
-    background: linear-gradient(180deg, #c8d8c8 0%, #b8c8b8 100%);
-    border: 3px solid #0a0a0a;
-    border-radius: 6px;
-    padding: 6px 8px;
-    min-height: 100px;
-    margin-bottom: 4px;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
-    font-family: 'Courier New', monospace;
-    position: relative;
-    overflow: hidden;
-}
-
-.calc-screen::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 50%;
-    background: linear-gradient(180deg, rgba(255,255,255,0.15), transparent);
-    pointer-events: none;
-}
-
-.calc-screen-top {
-    display: flex;
-    align-items: center;
-    font-size: 9px;
-    font-weight: bold;
-    color: #1a3a1a;
-    margin-bottom: 4px;
-    gap: 8px;
-}
-
-.calc-mem, .calc-indicator {
-    background: #1a3a1a;
-    color: #c8d8c8;
-    padding: 0 4px;
-    border-radius: 2px;
-    font-size: 8px;
-    font-weight: 900;
-}
-
-.calc-expr {
-    font-size: 12px;
-    color: #0a2a0a;
-    min-height: 20px;
-    word-break: break-all;
-    line-height: 1.3;
-    margin-bottom: 2px;
-}
-
-.calc-result {
-    font-size: 22px;
-    font-weight: 900;
-    color: #0a2a0a;
-    text-align: right;
-    min-height: 28px;
-    word-break: break-all;
-    line-height: 1.2;
-    font-family: 'Courier New', monospace;
-}
-
-.calc-writeview {
-    display: flex;
-    justify-content: space-between;
-    color: #999;
-    font-size: 9px;
-    font-style: italic;
-    font-weight: bold;
-    padding: 0 4px;
-    margin-bottom: 10px;
-}
-
-/* ============================================================
-   الصفوف والأزرار
-   ============================================================ */
-.calc-row {
-    display: grid;
-    gap: 5px;
-    margin-bottom: 5px;
-}
-
-.calc-row-home {
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-}
-
-.calc-row-shift {
-    grid-template-columns: repeat(5, 1fr);
-}
-
-.calc-row-func-top {
-    grid-template-columns: repeat(6, 1fr);
-}
-
-.calc-row-trig {
-    grid-template-columns: repeat(6, 1fr);
-}
-
-.calc-row-powers {
-    grid-template-columns: repeat(6, 1fr);
-}
-
-.calc-row-frac {
-    grid-template-columns: repeat(6, 1fr);
-}
-
-.calc-row-num {
-    grid-template-columns: repeat(5, 1fr);
-}
-
-/* ============================================================
-   الأزرار
-   ============================================================ */
-.calc-btn {
-    background: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 100%);
-    color: #ffffff;
-    border: 1px solid #0a0a0a;
-    border-radius: 5px;
-    padding: 10px 4px;
-    font-size: 11px;
-    font-weight: 900;
-    cursor: pointer;
-    transition: all 0.08s ease;
-    box-shadow: 
-        0 2px 3px rgba(0, 0, 0, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.15);
-    font-family: 'Arial', sans-serif;
-    text-align: center;
-    min-height: 38px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    user-select: none;
-    -webkit-user-select: none;
-    -webkit-tap-highlight-color: transparent;
-}
-
-.calc-btn:hover {
-    background: linear-gradient(180deg, #5a5a5a 0%, #3a3a3a 100%);
-}
-
-.calc-btn:active {
-    transform: translateY(1px);
-    box-shadow: 
-        0 1px 1px rgba(0, 0, 0, 0.4),
-        inset 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-
-.calc-btn sup {
-    font-size: 8px;
-    vertical-align: super;
-}
-
-/* ============================================================
-   أزرار خاصة
-   ============================================================ */
-.calc-btn-home {
-    background: linear-gradient(180deg, #555 0%, #333 100%);
-    padding: 6px 12px;
-    font-size: 9px;
-    border-radius: 10px;
-    min-height: 26px;
-}
-
-.calc-btn-off {
-    background: linear-gradient(180deg, #8b3a3a 0%, #5a1a1a 100%);
-    color: #fff;
-    font-size: 9px;
-    padding: 4px 10px;
-    min-height: 24px;
-    border-radius: 10px;
-}
-
-.calc-btn-off:hover {
-    background: linear-gradient(180deg, #a04545 0%, #6a2a2a 100%);
-}
-
-.calc-btn-on {
-    background: linear-gradient(180deg, #8b6a3a 0%, #5a3a1a 100%);
-    color: #fff;
-    font-size: 9px;
-    padding: 4px 10px;
-    min-height: 24px;
-    border-radius: 10px;
-}
-
-.calc-btn-on:hover {
-    background: linear-gradient(180deg, #a07a45 0%, #6a4a2a 100%);
-}
-
-/* 2ndF */
-.calc-btn-2nd {
-    background: linear-gradient(180deg, #c8a03a 0%, #8a6a1a 100%);
-    color: #1a1a1a;
-}
-
-/* ALPHA */
-.calc-btn-alpha {
-    background: linear-gradient(180deg, #6a4a9a 0%, #3a2a6a 100%);
-}
-
-/* DEL */
-.calc-btn-del {
-    background: linear-gradient(180deg, #a04a4a 0%, #6a2a2a 100%);
-}
-
-/* BS */
-.calc-btn-bs {
-    background: linear-gradient(180deg, #5a5a5a 0%, #3a3a3a 100%);
-    font-size: 9px;
-}
-
-/* MATH */
-.calc-btn-math {
-    background: linear-gradient(180deg, #5a5a5a 0%, #3a3a3a 100%);
-    font-size: 10px;
-}
-
-/* D1/D2/D3 */
-.calc-btn-d {
-    background: linear-gradient(180deg, #555 0%, #333 100%);
-    font-size: 9px;
-}
-
-/* الأرقام */
-.calc-btn-num {
-    background: linear-gradient(180deg, #e8e8e8 0%, #b8b8b8 100%);
-    color: #1a1a1a;
-    font-size: 14px;
-    font-weight: 900;
-}
-
-.calc-btn-num:hover {
-    background: linear-gradient(180deg, #f8f8f8 0%, #c8c8c8 100%);
-}
-
-/* العمليات */
-.calc-btn-op {
-    background: linear-gradient(180deg, #5a5a5a 0%, #3a3a3a 100%);
-    color: #fff;
-    font-size: 14px;
-}
-
-/* سالب */
-.calc-btn-neg {
-    background: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 100%);
-    font-size: 10px;
-}
-
-/* ANS */
-.calc-btn-ans {
-    background: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 100%);
-    font-size: 10px;
-}
-
-/* EXP */
-.calc-btn-exp {
-    background: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 100%);
-    font-size: 11px;
-}
-
-/* يساوي */
-.calc-btn-equals {
-    background: linear-gradient(180deg, #8b6a3a 0%, #5a3a1a 100%);
-    color: #fff;
-    font-size: 16px;
-    font-weight: 900;
-}
-
-.calc-btn-equals:hover {
-    background: linear-gradient(180deg, #a07a45 0%, #6a4a2a 100%);
-}
-
-/* D-Pad */
-.calc-dpad {
-    display: grid;
-    grid-template-areas:
-        ". up ."
-        "left . right"
-        ". down .";
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 2px;
-    justify-self: center;
-}
-
-.calc-dpad button {
-    background: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 100%);
-    border: 1px solid #0a0a0a;
-    border-radius: 3px;
-    color: #fff;
-    font-size: 10px;
-    cursor: pointer;
-    width: 24px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-}
-
-.calc-dpad button:active {
-    transform: translateY(1px);
-}
-
-.calc-dpad-up { grid-area: up; }
-.calc-dpad-left { grid-area: left; }
-.calc-dpad-right { grid-area: right; }
-.calc-dpad-down { grid-area: down; }
-
-/* عمود الطاقة */
-.calc-col-power {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-}
-
-/* ============================================================
-   الوضع الليلي — الحاسبة تبقى داكنة (تصميم Sharp)
-   ============================================================ */
-.dark .calculator-body {
-    box-shadow: 
-        0 20px 40px rgba(0, 0, 0, 0.6),
-        inset 0 1px 0 rgba(255, 255, 255, 0.05),
-        inset 0 -2px 0 rgba(0, 0, 0, 0.5);
-}
-
-/* ============================================================
-   للهاتف
-   ============================================================ */
-@media (max-width: 640px) {
-    .calculator-body {
-        padding: 12px 10px 16px;
-        border-radius: 16px;
-    }
-    
-    .calc-brand {
-        font-size: 12px;
-    }
-    
-    .calc-screen {
-        min-height: 80px;
-        padding: 5px 6px;
-    }
-    
-    .calc-expr {
-        font-size: 11px;
-        min-height: 16px;
-    }
-    
-    .calc-result {
-        font-size: 18px;
-        min-height: 24px;
-    }
-    
-    .calc-btn {
-        padding: 8px 3px;
-        font-size: 10px;
-        min-height: 34px;
-        border-radius: 4px;
-    }
-    
-    .calc-btn-num {
-        font-size: 12px;
-    }
-    
-    .calc-btn-op {
-        font-size: 12px;
-    }
-    
-    .calc-btn-equals {
-        font-size: 14px;
-    }
-    
-    .calc-row {
-        gap: 4px;
-        margin-bottom: 4px;
-    }
-    
-    .calc-dpad button {
-        width: 22px;
-        height: 18px;
-        font-size: 9px;
-    }
-    
-    .calc-btn-home {
-        font-size: 8px;
-        padding: 5px 10px;
-    }
-    
-    .calc-btn-off,
-    .calc-btn-on {
-        font-size: 8px;
-        padding: 3px 8px;
-    }
-}
 </style>
 </head>
 
@@ -15049,6 +14621,435 @@ function closeWheelModal() {
 #wheelSVG {
     transition: transform 5s cubic-bezier(0.17, 0.67, 0.12, 0.99);
     transform-origin: center;
+}
+/* ============================================================
+   🧮 الآلة الحاسبة Sharp EL-W506T
+   ============================================================ */
+
+.calculator-body {
+    background: linear-gradient(180deg, #2c2c2c 0%, #1a1a1a 100%);
+    border-radius: 20px;
+    padding: 16px 14px 20px;
+    box-shadow: 
+        0 20px 40px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.3);
+    border: 2px solid #0a0a0a;
+    max-width: 100%;
+}
+
+.calc-brand {
+    color: #d4d4d4;
+    font-family: 'Arial Black', sans-serif;
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    text-align: left;
+    margin-bottom: 8px;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================================
+   الشاشة
+   ============================================================ */
+.calc-screen {
+    background: linear-gradient(180deg, #c8d8c8 0%, #b8c8b8 100%);
+    border: 3px solid #0a0a0a;
+    border-radius: 6px;
+    padding: 6px 8px;
+    min-height: 100px;
+    margin-bottom: 4px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    font-family: 'Courier New', monospace;
+    position: relative;
+    overflow: hidden;
+}
+
+.calc-screen::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.15), transparent);
+    pointer-events: none;
+}
+
+.calc-screen-top {
+    display: flex;
+    align-items: center;
+    font-size: 9px;
+    font-weight: bold;
+    color: #1a3a1a;
+    margin-bottom: 4px;
+    gap: 8px;
+}
+
+.calc-mem, .calc-indicator {
+    background: #1a3a1a;
+    color: #c8d8c8;
+    padding: 0 4px;
+    border-radius: 2px;
+    font-size: 8px;
+    font-weight: 900;
+}
+
+.calc-expr {
+    font-size: 12px;
+    color: #0a2a0a;
+    min-height: 20px;
+    word-break: break-all;
+    line-height: 1.3;
+    margin-bottom: 2px;
+}
+
+.calc-result {
+    font-size: 22px;
+    font-weight: 900;
+    color: #0a2a0a;
+    text-align: right;
+    min-height: 28px;
+    word-break: break-all;
+    line-height: 1.2;
+    font-family: 'Courier New', monospace;
+}
+
+.calc-writeview {
+    display: flex;
+    justify-content: space-between;
+    color: #999;
+    font-size: 9px;
+    font-style: italic;
+    font-weight: bold;
+    padding: 0 4px;
+    margin-bottom: 10px;
+}
+
+/* ============================================================
+   الصفوف والأزرار
+   ============================================================ */
+.calc-row {
+    display: grid;
+    gap: 5px;
+    margin-bottom: 5px;
+}
+
+.calc-row-home {
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.calc-row-shift {
+    grid-template-columns: repeat(5, 1fr);
+}
+
+.calc-row-func-top {
+    grid-template-columns: repeat(6, 1fr);
+}
+
+.calc-row-trig {
+    grid-template-columns: repeat(6, 1fr);
+}
+
+.calc-row-powers {
+    grid-template-columns: repeat(6, 1fr);
+}
+
+.calc-row-frac {
+    grid-template-columns: repeat(6, 1fr);
+}
+
+.calc-row-num {
+    grid-template-columns: repeat(5, 1fr);
+}
+
+/* ============================================================
+   الأزرار
+   ============================================================ */
+.calc-btn {
+    background: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 100%);
+    color: #ffffff;
+    border: 1px solid #0a0a0a;
+    border-radius: 5px;
+    padding: 10px 4px;
+    font-size: 11px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: all 0.08s ease;
+    box-shadow: 
+        0 2px 3px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    font-family: 'Arial', sans-serif;
+    text-align: center;
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.calc-btn:hover {
+    background: linear-gradient(180deg, #5a5a5a 0%, #3a3a3a 100%);
+}
+
+.calc-btn:active {
+    transform: translateY(1px);
+    box-shadow: 
+        0 1px 1px rgba(0, 0, 0, 0.4),
+        inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.calc-btn sup {
+    font-size: 8px;
+    vertical-align: super;
+}
+
+/* ============================================================
+   أزرار خاصة
+   ============================================================ */
+.calc-btn-home {
+    background: linear-gradient(180deg, #555 0%, #333 100%);
+    padding: 6px 12px;
+    font-size: 9px;
+    border-radius: 10px;
+    min-height: 26px;
+}
+
+.calc-btn-off {
+    background: linear-gradient(180deg, #8b3a3a 0%, #5a1a1a 100%);
+    color: #fff;
+    font-size: 9px;
+    padding: 4px 10px;
+    min-height: 24px;
+    border-radius: 10px;
+}
+
+.calc-btn-off:hover {
+    background: linear-gradient(180deg, #a04545 0%, #6a2a2a 100%);
+}
+
+.calc-btn-on {
+    background: linear-gradient(180deg, #8b6a3a 0%, #5a3a1a 100%);
+    color: #fff;
+    font-size: 9px;
+    padding: 4px 10px;
+    min-height: 24px;
+    border-radius: 10px;
+}
+
+.calc-btn-on:hover {
+    background: linear-gradient(180deg, #a07a45 0%, #6a4a2a 100%);
+}
+
+/* 2ndF */
+.calc-btn-2nd {
+    background: linear-gradient(180deg, #c8a03a 0%, #8a6a1a 100%);
+    color: #1a1a1a;
+}
+
+/* ALPHA */
+.calc-btn-alpha {
+    background: linear-gradient(180deg, #6a4a9a 0%, #3a2a6a 100%);
+}
+
+/* DEL */
+.calc-btn-del {
+    background: linear-gradient(180deg, #a04a4a 0%, #6a2a2a 100%);
+}
+
+/* BS */
+.calc-btn-bs {
+    background: linear-gradient(180deg, #5a5a5a 0%, #3a3a3a 100%);
+    font-size: 9px;
+}
+
+/* MATH */
+.calc-btn-math {
+    background: linear-gradient(180deg, #5a5a5a 0%, #3a3a3a 100%);
+    font-size: 10px;
+}
+
+/* D1/D2/D3 */
+.calc-btn-d {
+    background: linear-gradient(180deg, #555 0%, #333 100%);
+    font-size: 9px;
+}
+
+/* الأرقام */
+.calc-btn-num {
+    background: linear-gradient(180deg, #e8e8e8 0%, #b8b8b8 100%);
+    color: #1a1a1a;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.calc-btn-num:hover {
+    background: linear-gradient(180deg, #f8f8f8 0%, #c8c8c8 100%);
+}
+
+/* العمليات */
+.calc-btn-op {
+    background: linear-gradient(180deg, #5a5a5a 0%, #3a3a3a 100%);
+    color: #fff;
+    font-size: 14px;
+}
+
+/* سالب */
+.calc-btn-neg {
+    background: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 100%);
+    font-size: 10px;
+}
+
+/* ANS */
+.calc-btn-ans {
+    background: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 100%);
+    font-size: 10px;
+}
+
+/* EXP */
+.calc-btn-exp {
+    background: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 100%);
+    font-size: 11px;
+}
+
+/* يساوي */
+.calc-btn-equals {
+    background: linear-gradient(180deg, #8b6a3a 0%, #5a3a1a 100%);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 900;
+}
+
+.calc-btn-equals:hover {
+    background: linear-gradient(180deg, #a07a45 0%, #6a4a2a 100%);
+}
+
+/* D-Pad */
+.calc-dpad {
+    display: grid;
+    grid-template-areas:
+        ". up ."
+        "left . right"
+        ". down .";
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 2px;
+    justify-self: center;
+}
+
+.calc-dpad button {
+    background: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 100%);
+    border: 1px solid #0a0a0a;
+    border-radius: 3px;
+    color: #fff;
+    font-size: 10px;
+    cursor: pointer;
+    width: 24px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.calc-dpad button:active {
+    transform: translateY(1px);
+}
+
+.calc-dpad-up { grid-area: up; }
+.calc-dpad-left { grid-area: left; }
+.calc-dpad-right { grid-area: right; }
+.calc-dpad-down { grid-area: down; }
+
+/* عمود الطاقة */
+.calc-col-power {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+/* ============================================================
+   الوضع الليلي — الحاسبة تبقى داكنة (تصميم Sharp)
+   ============================================================ */
+.dark .calculator-body {
+    box-shadow: 
+        0 20px 40px rgba(0, 0, 0, 0.6),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* ============================================================
+   للهاتف
+   ============================================================ */
+@media (max-width: 640px) {
+    .calculator-body {
+        padding: 12px 10px 16px;
+        border-radius: 16px;
+    }
+    
+    .calc-brand {
+        font-size: 12px;
+    }
+    
+    .calc-screen {
+        min-height: 80px;
+        padding: 5px 6px;
+    }
+    
+    .calc-expr {
+        font-size: 11px;
+        min-height: 16px;
+    }
+    
+    .calc-result {
+        font-size: 18px;
+        min-height: 24px;
+    }
+    
+    .calc-btn {
+        padding: 8px 3px;
+        font-size: 10px;
+        min-height: 34px;
+        border-radius: 4px;
+    }
+    
+    .calc-btn-num {
+        font-size: 12px;
+    }
+    
+    .calc-btn-op {
+        font-size: 12px;
+    }
+    
+    .calc-btn-equals {
+        font-size: 14px;
+    }
+    
+    .calc-row {
+        gap: 4px;
+        margin-bottom: 4px;
+    }
+    
+    .calc-dpad button {
+        width: 22px;
+        height: 18px;
+        font-size: 9px;
+    }
+    
+    .calc-btn-home {
+        font-size: 8px;
+        padding: 5px 10px;
+    }
+    
+    .calc-btn-off,
+    .calc-btn-on {
+        font-size: 8px;
+        padding: 3px 8px;
+    }
 }
 </style>
 </body>
