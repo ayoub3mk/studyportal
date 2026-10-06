@@ -608,7 +608,7 @@ async function getConsecutiveDays(userId, fromDay, count) {
         LIMIT $3
     `, [userId, fromDay, count]);
     return result.rows.map(function(r) { return r.day_str; });
-}
+} 
 
 /* جلب الأيام الفائتة (التي لم يُحقق فيها الهدف) */
 async function getMissedDays(userId, sinceDay, untilDay) {
