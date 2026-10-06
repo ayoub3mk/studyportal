@@ -536,7 +536,68 @@ async function incrementDailyProgress(userId, day, delta) {
         WHERE user_id = $2 AND day = $3
     `, [delta, userId, day]);
 }
-
+/* ═══════════════════════════════════════════════════
+   حساب الـ Streak الحقيقي من قاعدة البيانات
+   ═══════════════════════════════════════════════════ */
+async function calculateCurrentStreak(userId) {
+    try {
+        /* اجلب كل الأيام المحققة (آخر سنة) */
+        var result = await pool.query(`
+            SELECT TO_CHAR(day, 'YYYY-MM-DD') AS day_str
+            FROM daily_progress 
+            WHERE user_id = $1 AND goal_met = 1
+            ORDER BY day DESC
+            LIMIT 400
+        `, [userId]);
+        
+        /* إذا لا توجد أيام محققة */
+        if (result.rows.length === 0) {
+            return 0;
+        }
+        
+        /* كائن للبحث السريع */
+        var metDays = {};
+        result.rows.forEach(function(r) {
+            metDays[r.day_str] = true;
+        });
+        
+        /* ابدأ من اليوم */
+        var today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        var streak = 0;
+        var checkDate = new Date(today);
+        var triedToday = false;
+        
+        /* ابحث عن Streak حقيقي */
+        while (true) {
+            var checkStr = checkDate.getFullYear() + '-' + 
+                          String(checkDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                          String(checkDate.getDate()).padStart(2, '0');
+            
+            if (metDays[checkStr]) {
+                streak++;
+                checkDate.setDate(checkDate.getDate() - 1);
+                triedToday = true;
+            } else {
+                /* إذا اليوم غير محقق، جرّب أمس مرة واحدة */
+                if (!triedToday) {
+                    triedToday = true;
+                    checkDate.setDate(checkDate.getDate() - 1);
+                    continue;
+                }
+                break;
+            }
+            
+            if (streak > 1000) break;
+        }
+        
+        return streak;
+    } catch (e) {
+        console.error('calculateCurrentStreak error:', e.message);
+        return 0;
+    }
+}
 /* جلب آخر N أيام التي حقق فيها الهدف */
 async function getConsecutiveDays(userId, fromDay, count) {
     var result = await pool.query(`
@@ -1191,6 +1252,7 @@ module.exports = {
     upsertDailyProgress: upsertDailyProgress,
     incrementDailyProgress: incrementDailyProgress,
     getConsecutiveDays: getConsecutiveDays,
+    calculateCurrentStreak: calculateCurrentStreak,
     getMissedDays: getMissedDays,
     repairDay: repairDay,
     ensureDayMet: ensureDayMet,
