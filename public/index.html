@@ -1490,6 +1490,435 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     background-color: #1e293b;
     border-color: #334155;
 }
+/* ============================================================
+   🧮 الآلة الحاسبة Sharp EL-W506T
+   ============================================================ */
+
+.calculator-body {
+    background: linear-gradient(180deg, #2c2c2c 0%, #1a1a1a 100%);
+    border-radius: 20px;
+    padding: 16px 14px 20px;
+    box-shadow: 
+        0 20px 40px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.3);
+    border: 2px solid #0a0a0a;
+    max-width: 100%;
+}
+
+.calc-brand {
+    color: #d4d4d4;
+    font-family: 'Arial Black', sans-serif;
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    text-align: left;
+    margin-bottom: 8px;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================================
+   الشاشة
+   ============================================================ */
+.calc-screen {
+    background: linear-gradient(180deg, #c8d8c8 0%, #b8c8b8 100%);
+    border: 3px solid #0a0a0a;
+    border-radius: 6px;
+    padding: 6px 8px;
+    min-height: 100px;
+    margin-bottom: 4px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    font-family: 'Courier New', monospace;
+    position: relative;
+    overflow: hidden;
+}
+
+.calc-screen::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.15), transparent);
+    pointer-events: none;
+}
+
+.calc-screen-top {
+    display: flex;
+    align-items: center;
+    font-size: 9px;
+    font-weight: bold;
+    color: #1a3a1a;
+    margin-bottom: 4px;
+    gap: 8px;
+}
+
+.calc-mem, .calc-indicator {
+    background: #1a3a1a;
+    color: #c8d8c8;
+    padding: 0 4px;
+    border-radius: 2px;
+    font-size: 8px;
+    font-weight: 900;
+}
+
+.calc-expr {
+    font-size: 12px;
+    color: #0a2a0a;
+    min-height: 20px;
+    word-break: break-all;
+    line-height: 1.3;
+    margin-bottom: 2px;
+}
+
+.calc-result {
+    font-size: 22px;
+    font-weight: 900;
+    color: #0a2a0a;
+    text-align: right;
+    min-height: 28px;
+    word-break: break-all;
+    line-height: 1.2;
+    font-family: 'Courier New', monospace;
+}
+
+.calc-writeview {
+    display: flex;
+    justify-content: space-between;
+    color: #999;
+    font-size: 9px;
+    font-style: italic;
+    font-weight: bold;
+    padding: 0 4px;
+    margin-bottom: 10px;
+}
+
+/* ============================================================
+   الصفوف والأزرار
+   ============================================================ */
+.calc-row {
+    display: grid;
+    gap: 5px;
+    margin-bottom: 5px;
+}
+
+.calc-row-home {
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.calc-row-shift {
+    grid-template-columns: repeat(5, 1fr);
+}
+
+.calc-row-func-top {
+    grid-template-columns: repeat(6, 1fr);
+}
+
+.calc-row-trig {
+    grid-template-columns: repeat(6, 1fr);
+}
+
+.calc-row-powers {
+    grid-template-columns: repeat(6, 1fr);
+}
+
+.calc-row-frac {
+    grid-template-columns: repeat(6, 1fr);
+}
+
+.calc-row-num {
+    grid-template-columns: repeat(5, 1fr);
+}
+
+/* ============================================================
+   الأزرار
+   ============================================================ */
+.calc-btn {
+    background: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 100%);
+    color: #ffffff;
+    border: 1px solid #0a0a0a;
+    border-radius: 5px;
+    padding: 10px 4px;
+    font-size: 11px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: all 0.08s ease;
+    box-shadow: 
+        0 2px 3px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    font-family: 'Arial', sans-serif;
+    text-align: center;
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.calc-btn:hover {
+    background: linear-gradient(180deg, #5a5a5a 0%, #3a3a3a 100%);
+}
+
+.calc-btn:active {
+    transform: translateY(1px);
+    box-shadow: 
+        0 1px 1px rgba(0, 0, 0, 0.4),
+        inset 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.calc-btn sup {
+    font-size: 8px;
+    vertical-align: super;
+}
+
+/* ============================================================
+   أزرار خاصة
+   ============================================================ */
+.calc-btn-home {
+    background: linear-gradient(180deg, #555 0%, #333 100%);
+    padding: 6px 12px;
+    font-size: 9px;
+    border-radius: 10px;
+    min-height: 26px;
+}
+
+.calc-btn-off {
+    background: linear-gradient(180deg, #8b3a3a 0%, #5a1a1a 100%);
+    color: #fff;
+    font-size: 9px;
+    padding: 4px 10px;
+    min-height: 24px;
+    border-radius: 10px;
+}
+
+.calc-btn-off:hover {
+    background: linear-gradient(180deg, #a04545 0%, #6a2a2a 100%);
+}
+
+.calc-btn-on {
+    background: linear-gradient(180deg, #8b6a3a 0%, #5a3a1a 100%);
+    color: #fff;
+    font-size: 9px;
+    padding: 4px 10px;
+    min-height: 24px;
+    border-radius: 10px;
+}
+
+.calc-btn-on:hover {
+    background: linear-gradient(180deg, #a07a45 0%, #6a4a2a 100%);
+}
+
+/* 2ndF */
+.calc-btn-2nd {
+    background: linear-gradient(180deg, #c8a03a 0%, #8a6a1a 100%);
+    color: #1a1a1a;
+}
+
+/* ALPHA */
+.calc-btn-alpha {
+    background: linear-gradient(180deg, #6a4a9a 0%, #3a2a6a 100%);
+}
+
+/* DEL */
+.calc-btn-del {
+    background: linear-gradient(180deg, #a04a4a 0%, #6a2a2a 100%);
+}
+
+/* BS */
+.calc-btn-bs {
+    background: linear-gradient(180deg, #5a5a5a 0%, #3a3a3a 100%);
+    font-size: 9px;
+}
+
+/* MATH */
+.calc-btn-math {
+    background: linear-gradient(180deg, #5a5a5a 0%, #3a3a3a 100%);
+    font-size: 10px;
+}
+
+/* D1/D2/D3 */
+.calc-btn-d {
+    background: linear-gradient(180deg, #555 0%, #333 100%);
+    font-size: 9px;
+}
+
+/* الأرقام */
+.calc-btn-num {
+    background: linear-gradient(180deg, #e8e8e8 0%, #b8b8b8 100%);
+    color: #1a1a1a;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.calc-btn-num:hover {
+    background: linear-gradient(180deg, #f8f8f8 0%, #c8c8c8 100%);
+}
+
+/* العمليات */
+.calc-btn-op {
+    background: linear-gradient(180deg, #5a5a5a 0%, #3a3a3a 100%);
+    color: #fff;
+    font-size: 14px;
+}
+
+/* سالب */
+.calc-btn-neg {
+    background: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 100%);
+    font-size: 10px;
+}
+
+/* ANS */
+.calc-btn-ans {
+    background: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 100%);
+    font-size: 10px;
+}
+
+/* EXP */
+.calc-btn-exp {
+    background: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 100%);
+    font-size: 11px;
+}
+
+/* يساوي */
+.calc-btn-equals {
+    background: linear-gradient(180deg, #8b6a3a 0%, #5a3a1a 100%);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 900;
+}
+
+.calc-btn-equals:hover {
+    background: linear-gradient(180deg, #a07a45 0%, #6a4a2a 100%);
+}
+
+/* D-Pad */
+.calc-dpad {
+    display: grid;
+    grid-template-areas:
+        ". up ."
+        "left . right"
+        ". down .";
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 2px;
+    justify-self: center;
+}
+
+.calc-dpad button {
+    background: linear-gradient(180deg, #4a4a4a 0%, #2a2a2a 100%);
+    border: 1px solid #0a0a0a;
+    border-radius: 3px;
+    color: #fff;
+    font-size: 10px;
+    cursor: pointer;
+    width: 24px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.calc-dpad button:active {
+    transform: translateY(1px);
+}
+
+.calc-dpad-up { grid-area: up; }
+.calc-dpad-left { grid-area: left; }
+.calc-dpad-right { grid-area: right; }
+.calc-dpad-down { grid-area: down; }
+
+/* عمود الطاقة */
+.calc-col-power {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+/* ============================================================
+   الوضع الليلي — الحاسبة تبقى داكنة (تصميم Sharp)
+   ============================================================ */
+.dark .calculator-body {
+    box-shadow: 
+        0 20px 40px rgba(0, 0, 0, 0.6),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.5);
+}
+
+/* ============================================================
+   للهاتف
+   ============================================================ */
+@media (max-width: 640px) {
+    .calculator-body {
+        padding: 12px 10px 16px;
+        border-radius: 16px;
+    }
+    
+    .calc-brand {
+        font-size: 12px;
+    }
+    
+    .calc-screen {
+        min-height: 80px;
+        padding: 5px 6px;
+    }
+    
+    .calc-expr {
+        font-size: 11px;
+        min-height: 16px;
+    }
+    
+    .calc-result {
+        font-size: 18px;
+        min-height: 24px;
+    }
+    
+    .calc-btn {
+        padding: 8px 3px;
+        font-size: 10px;
+        min-height: 34px;
+        border-radius: 4px;
+    }
+    
+    .calc-btn-num {
+        font-size: 12px;
+    }
+    
+    .calc-btn-op {
+        font-size: 12px;
+    }
+    
+    .calc-btn-equals {
+        font-size: 14px;
+    }
+    
+    .calc-row {
+        gap: 4px;
+        margin-bottom: 4px;
+    }
+    
+    .calc-dpad button {
+        width: 22px;
+        height: 18px;
+        font-size: 9px;
+    }
+    
+    .calc-btn-home {
+        font-size: 8px;
+        padding: 5px 10px;
+    }
+    
+    .calc-btn-off,
+    .calc-btn-on {
+        font-size: 8px;
+        padding: 3px 8px;
+    }
+}
 </style>
 </head>
 
@@ -2073,6 +2502,9 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 <button onclick="switchTab('exams')" data-tab="exams" class="tab-btn px-3 py-2 text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
     <i class="fa-solid fa-calendar-days mr-1"></i> <span>الامتحانات</span>
     <span id="examsBadge" class="hidden ml-1 text-[10px] font-black px-1.5 py-0.5 rounded-full bg-red-500 text-white"></span>
+</button>
+<button onclick="switchTab('calculator')" data-tab="calculator" class="tab-btn px-3 py-2 text-[11px] sm:text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">
+    <i class="fa-solid fa-calculator mr-1"></i> <span>الآلة الحاسبة</span>
 </button>
         </div>
 
@@ -2672,6 +3104,179 @@ input[type="time"]::-webkit-calendar-picker-indicator {
         </select>
     </div>
     <div id="notesList" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+</section>
+<!-- ============================================================
+     تبويب الآلة الحاسبة العلمية (Sharp EL-W506T)
+     ============================================================ -->
+<section id="tab-calculator" class="hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-3 sm:p-4 mb-4">
+        
+        <!-- الرأس -->
+        <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-200 dark:border-slate-700">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-slate-700 to-slate-900 text-white flex items-center justify-center shadow">
+                    <i class="fa-solid fa-calculator text-lg"></i>
+                </div>
+                <div>
+                    <h3 class="font-black text-base text-slate-900 dark:text-white">SHARP EL-W506T</h3>
+                    <p class="text-[10px] text-slate-500 dark:text-slate-400">حاسبة علمية متقدمة — WriteView</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400">النمط</p>
+                <p id="calcModeDisplay" class="text-sm font-black text-brand-600 dark:text-brand-400">DEG</p>
+            </div>
+        </div>
+
+        <!-- الحاسبة (Sharp EL-W506T) -->
+        <div class="mx-auto" style="max-width: 420px;">
+            <div class="calculator-body">
+                
+                <!-- علامة SHARP -->
+                <div class="calc-brand">SHARP</div>
+                
+                <!-- الشاشة -->
+                <div class="calc-screen">
+                    <!-- الشريط العلوي -->
+                    <div class="calc-screen-top">
+                        <span id="calcMemory" class="calc-mem hidden">M</span>
+                        <span id="calc2nd" class="calc-indicator hidden">2ndF</span>
+                        <span id="calcAlpha" class="calc-indicator hidden">ALPHA</span>
+                        <span id="calcHyp" class="calc-indicator hidden">HYP</span>
+                        <span class="ml-auto" id="calcAngleUnit">DEG</span>
+                        <span class="ml-2">W-VIEW</span>
+                    </div>
+                    <!-- السطر 1: التعبير -->
+                    <div id="calcExpression" class="calc-expr"></div>
+                    <!-- السطر 2: النتيجة -->
+                    <div id="calcResult" class="calc-result">0</div>
+                </div>
+                
+                <!-- WriteView -->
+                <div class="calc-writeview">
+                    <span>WriteView</span>
+                    <span>EL-W506T</span>
+                </div>
+                
+                <!-- صف HOME و ON/C -->
+                <div class="calc-row calc-row-home">
+                    <button class="calc-btn calc-btn-home" onclick="calcHome()">HOME</button>
+                    <div class="calc-dpad">
+                        <button class="calc-dpad-up" onclick="calcUp()"><i class="fa-solid fa-caret-up"></i></button>
+                        <button class="calc-dpad-left" onclick="calcLeft()"><i class="fa-solid fa-caret-left"></i></button>
+                        <button class="calc-dpad-right" onclick="calcRight()"><i class="fa-solid fa-caret-right"></i></button>
+                        <button class="calc-dpad-down" onclick="calcDown()"><i class="fa-solid fa-caret-down"></i></button>
+                    </div>
+                    <div class="calc-col-power">
+                        <button class="calc-btn calc-btn-off" onclick="calcOff()">OFF</button>
+                        <button class="calc-btn calc-btn-on" onclick="calcAC()">ON/C</button>
+                    </div>
+                </div>
+                
+                <!-- صف 2ndF / ALPHA / MODE -->
+                <div class="calc-row calc-row-shift">
+                    <button class="calc-btn calc-btn-2nd" onclick="calcToggle2nd()">2ndF</button>
+                    <button class="calc-btn calc-btn-alpha" onclick="calcToggleAlpha()">ALPHA</button>
+                    <button class="calc-btn calc-btn-mode" onclick="calcMode()">MODE</button>
+                    <button class="calc-btn calc-btn-del" onclick="calcDEL()">DEL</button>
+                    <button class="calc-btn calc-btn-bs" onclick="calcBS()">BS</button>
+                </div>
+                
+                <!-- صف MATH / D1 / D2 / D3 -->
+                <div class="calc-row calc-row-func-top">
+                    <button class="calc-btn calc-btn-math" onclick="calcMath()">MATH</button>
+                    <button class="calc-btn calc-btn-d" onclick="calcD1()">D1</button>
+                    <button class="calc-btn calc-btn-d" onclick="calcD2()">D2</button>
+                    <button class="calc-btn calc-btn-d" onclick="calcD3()">D3</button>
+                    <button class="calc-btn calc-btn-setup" onclick="calcSetup()">SET UP</button>
+                    <button class="calc-btn calc-btn-solver" onclick="calcSolver()">SOLVER</button>
+                </div>
+                
+                <!-- صف الدوال المثلثية -->
+                <div class="calc-row calc-row-trig">
+                    <button class="calc-btn calc-btn-hyp" onclick="calcHyp()">hyp</button>
+                    <button class="calc-btn calc-btn-sin" onclick="calcSin()">sin</button>
+                    <button class="calc-btn calc-btn-cos" onclick="calcCos()">cos</button>
+                    <button class="calc-btn calc-btn-tan" onclick="calcTan()">tan</button>
+                    <button class="calc-btn calc-btn-pi" onclick="calcPi()">π</button>
+                    <button class="calc-btn calc-btn-dms" onclick="calcDMS()">D°M'S</button>
+                </div>
+                
+                <!-- صف القوى والجذور -->
+                <div class="calc-row calc-row-powers">
+                    <button class="calc-btn calc-btn-xy" onclick="calcPow()">x<sup>y</sup></button>
+                    <button class="calc-btn calc-btn-root" onclick="calcRoot()">√</button>
+                    <button class="calc-btn calc-btn-sqr" onclick="calcSquare()">x²</button>
+                    <button class="calc-btn calc-btn-log" onclick="calcLog()">log</button>
+                    <button class="calc-btn calc-btn-ln" onclick="calcLn()">ln</button>
+                    <button class="calc-btn calc-btn-ex" onclick="calcExp()">e<sup>x</sup></button>
+                </div>
+                
+                <!-- صف الكسور والذاكرة -->
+                <div class="calc-row calc-row-frac">
+                    <button class="calc-btn calc-btn-frac" onclick="calcFrac()">a/b</button>
+                    <button class="calc-btn calc-btn-rcl" onclick="calcRCL()">RCL</button>
+                    <button class="calc-btn calc-btn-sto" onclick="calcSTO()">STO</button>
+                    <button class="calc-btn calc-btn-mplus" onclick="calcMPlus()">M+</button>
+                    <button class="calc-btn calc-btn-mminus" onclick="calcMMinus()">M−</button>
+                    <button class="calc-btn calc-btn-change" onclick="calcChange()">CHANGE</button>
+                </div>
+                
+                <!-- صف الأرقام 7/8/9 -->
+                <div class="calc-row calc-row-num">
+                    <button class="calc-btn calc-btn-num" onclick="calcDigit('7')">7</button>
+                    <button class="calc-btn calc-btn-num" onclick="calcDigit('8')">8</button>
+                    <button class="calc-btn calc-btn-num" onclick="calcDigit('9')">9</button>
+                    <button class="calc-btn calc-btn-op" onclick="calcOp('÷')">÷</button>
+                    <button class="calc-btn calc-btn-op" onclick="calcOp('×')">×</button>
+                </div>
+                
+                <!-- صف 4/5/6 -->
+                <div class="calc-row calc-row-num">
+                    <button class="calc-btn calc-btn-num" onclick="calcDigit('4')">4</button>
+                    <button class="calc-btn calc-btn-num" onclick="calcDigit('5')">5</button>
+                    <button class="calc-btn calc-btn-num" onclick="calcDigit('6')">6</button>
+                    <button class="calc-btn calc-btn-op" onclick="calcOp('−')">−</button>
+                    <button class="calc-btn calc-btn-op" onclick="calcOp('+')">+</button>
+                </div>
+                
+                <!-- صف 1/2/3 -->
+                <div class="calc-row calc-row-num">
+                    <button class="calc-btn calc-btn-num" onclick="calcDigit('1')">1</button>
+                    <button class="calc-btn calc-btn-num" onclick="calcDigit('2')">2</button>
+                    <button class="calc-btn calc-btn-num" onclick="calcDigit('3')">3</button>
+                    <button class="calc-btn calc-btn-neg" onclick="calcNeg()">(−)</button>
+                    <button class="calc-btn calc-btn-ans" onclick="calcAns()">ANS</button>
+                </div>
+                
+                <!-- صف 0 / . / = -->
+                <div class="calc-row calc-row-num">
+                    <button class="calc-btn calc-btn-num" onclick="calcDigit('0')">0</button>
+                    <button class="calc-btn calc-btn-num" onclick="calcDigit('.')">.</button>
+                    <button class="calc-btn calc-btn-exp" onclick="calcExpNotation()">EXP</button>
+                    <button class="calc-btn calc-btn-equals" onclick="calcEquals()" style="grid-column: span 2;">=</button>
+                </div>
+                
+            </div>
+        </div>
+        
+        <!-- أزرار مساعدة -->
+        <div class="mt-4 flex flex-wrap gap-2 justify-center">
+            <button onclick="calcClearHistory()" class="px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-200 transition-colors">
+                <i class="fa-solid fa-trash-can mr-1"></i> مسح السجل
+            </button>
+            <button onclick="calcHelp()" class="px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-bold hover:bg-blue-100 transition-colors">
+                <i class="fa-solid fa-circle-info mr-1"></i> مساعدة
+            </button>
+        </div>
+        
+        <!-- السجل -->
+        <div id="calcHistory" class="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 hidden">
+            <h4 class="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">السجل</h4>
+            <div class="space-y-1 max-h-40 overflow-y-auto custom-scrollbar"></div>
+        </div>
+        
+    </div>
 </section>
 </main>
 </div>
