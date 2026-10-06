@@ -847,15 +847,65 @@ app.get('/api/stats', userAuthRequired, async function(req, res) {
         var stats = await db.getUserStats(req.userId);
         var recent = await db.getRecentProgress(req.userId, 30);
         
-        /* احصل على تاريخ اليوم بصيغة YYYY-MM-DD */
         var today = new Date();
+        today.setHours(0, 0, 0, 0);
         var todayStr = today.getFullYear() + '-' + 
                        String(today.getMonth() + 1).padStart(2, '0') + '-' + 
                        String(today.getDate()).padStart(2, '0');
         
+        /* 🆕 احسب الـ Streak من قاعدة البيانات مباشرة */
+        var consecutiveCheck = await db.getConsecutiveDays(req.userId, todayStr, 365);
+        
+        var metDaysCheck = {};
+        consecutiveCheck.forEach(function(d) {
+            var dayStr = typeof d === 'string' ? d.slice(0, 10) : '';
+            if (dayStr) metDaysCheck[dayStr] = true;
+        });
+        
+        var currentStreak = 0;
+        var checkDate = new Date(today);
+        var triedToday = false;
+        
+        while (true) {
+            var checkStr = checkDate.getFullYear() + '-' + 
+                          String(checkDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                          String(checkDate.getDate()).padStart(2, '0');
+            
+            if (metDaysCheck[checkStr]) {
+                currentStreak++;
+                checkDate.setDate(checkDate.getDate() - 1);
+                triedToday = true;
+            } else {
+                if (!triedToday) {
+                    triedToday = true;
+                    checkDate.setDate(checkDate.getDate() - 1);
+                    continue;
+                }
+                break;
+            }
+            
+            if (currentStreak > 1000) break;
+        }
+        
         /* احصل على آخر يوم حقق فيه الهدف */
         var lastCompletedDay = stats.last_completed_day;
-        var currentStreak = stats.current_streak || 0;
+        
+        /* 🆕 إذا كان Streak المخزّن ≠ الحقيقي، حدّثه */
+        if ((stats.current_streak || 0) !== currentStreak) {
+            var newLongest = Math.max(stats.longest_streak || 0, currentStreak);
+            await db.saveUserStats(req.userId, {
+                points: stats.points || 0,
+                currentStreak: currentStreak,
+                longestStreak: newLongest,
+                lastCompletedDay: stats.last_completed_day,
+                repairCost: stats.repair_cost || 20,
+                repairCount: stats.repair_count || 0,
+                lastRepairDay: stats.last_repair_day
+            });
+            stats.current_streak = currentStreak;
+            stats.longest_streak = newLongest;
+            console.log('🔄 Streak محدّث →', currentStreak);
+        }
         
         /* هل اليوم محقق؟ */
         var todayProgress = await db.getDailyProgress(req.userId, todayStr);
@@ -866,7 +916,6 @@ app.get('/api/stats', userAuthRequired, async function(req, res) {
         var repairCost = stats.repair_cost || 20;
         
         if (lastCompletedDay) {
-            /* من اليوم التالي لآخر يوم محقق، حتى أمس */
             var yesterday = new Date(today);
             yesterday.setDate(yesterday.getDate() - 1);
             var yesterdayStr = yesterday.getFullYear() + '-' + 
@@ -877,17 +926,17 @@ app.get('/api/stats', userAuthRequired, async function(req, res) {
             var dayAfterLast = new Date(lastDate);
             dayAfterLast.setDate(dayAfterLast.getDate() + 1);
             
-            var checkDate = new Date(dayAfterLast);
-            while (checkDate <= yesterday) {
-                var checkStr = checkDate.getFullYear() + '-' + 
-                              String(checkDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                              String(checkDate.getDate()).padStart(2, '0');
+            var checkMissedDate = new Date(dayAfterLast);
+            while (checkMissedDate <= yesterday) {
+                var checkMissedStr = checkMissedDate.getFullYear() + '-' + 
+                              String(checkMissedDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                              String(checkMissedDate.getDate()).padStart(2, '0');
                 
-                var dayProgress = await db.getDailyProgress(req.userId, checkStr);
+                var dayProgress = await db.getDailyProgress(req.userId, checkMissedStr);
                 if (!dayProgress || !dayProgress.goal_met) {
-                    missedDays.push(checkStr);
+                    missedDays.push(checkMissedStr);
                 }
-                checkDate.setDate(checkDate.getDate() + 1);
+                checkMissedDate.setDate(checkMissedDate.getDate() + 1);
             }
         }
         
@@ -896,7 +945,7 @@ app.get('/api/stats', userAuthRequired, async function(req, res) {
             var cost = repairCost;
             for (var i = 0; i < missedDays.length; i++) {
                 repairCostTotal += cost;
-                cost += 10; /* +10 نقاط لكل يوم إضافي */
+                cost += 10;
             }
         }
         
@@ -994,73 +1043,73 @@ app.post('/api/stats/complete-task', userAuthRequired, async function(req, res) 
                 completedAt: new Date().toISOString()
             });
             
-          /* ═══════════════════════════════════════════════════
-   تحديث Streak بشكل صحيح — احتساب كامل
-   ═══════════════════════════════════════════════════ */
-
-var stats = await db.getUserStats(req.userId);
-
-/* اجلب كل الأيام المحققة (بما فيها اليوم) */
-var todayDate = new Date();
-todayDate.setHours(0, 0, 0, 0);
-var todayStr2 = todayDate.getFullYear() + '-' + 
-                String(todayDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                String(todayDate.getDate()).padStart(2, '0');
-
-var allMetDays = await db.getConsecutiveDays(req.userId, todayStr2, 365);
-
-/* حوّل إلى كائن للبحث السريع */
-var metDaysMap = {};
-allMetDays.forEach(function(d) {
-    var dayStr = typeof d === 'string' ? d.slice(0, 10) : '';
-    if (dayStr) metDaysMap[dayStr] = true;
-});
-
-/* احسب الـ Streak الحقيقي */
-var newStreak = 0;
-var checkDate = new Date(todayDate);
-
-while (true) {
-    var checkStr = checkDate.getFullYear() + '-' + 
-                  String(checkDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                  String(checkDate.getDate()).padStart(2, '0');
-    
-    if (metDaysMap[checkStr]) {
-        newStreak++;
-        checkDate.setDate(checkDate.getDate() - 1);
-    } else {
-        /* إذا لم يكن اليوم محققًا، ابدأ من أمس */
-        if (newStreak === 0 && checkStr === todayStr2) {
-            checkDate.setDate(checkDate.getDate() - 1);
-            continue;
-        }
-        break;
-    }
-    
-    if (newStreak > 1000) break;
-}
-
-var longest = Math.max(stats.longest_streak || 0, newStreak);
-
-/* مكافأة 7 أيام متتالية */
-if (newStreak > 0 && newStreak % 7 === 0 && newStreak > (stats.current_streak || 0)) {
-    streakBonus = 50;
-    await db.updateUserPoints(req.userId, streakBonus);
-}
-
-console.log('✓ Streak محدّث:', newStreak);
-
-/* حفظ */
-var finalStats = await db.getUserStats(req.userId);
-await db.saveUserStats(req.userId, {
-    points: finalStats.points,
-    currentStreak: newStreak,
-    longestStreak: longest,
-    lastCompletedDay: todayStr2,
-    repairCost: stats.repair_cost,
-    repairCount: stats.repair_count,
-    lastRepairDay: stats.last_repair_day
-});
+            /* ═══════════════════════════════════════════════════
+               تحديث Streak بشكل صحيح — احتساب كامل
+               ═══════════════════════════════════════════════════ */
+            
+            var stats = await db.getUserStats(req.userId);
+            
+            /* اجلب كل الأيام المحققة (بما فيها اليوم) */
+            var todayDate = new Date();
+            todayDate.setHours(0, 0, 0, 0);
+            var todayStr2 = todayDate.getFullYear() + '-' + 
+                            String(todayDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                            String(todayDate.getDate()).padStart(2, '0');
+            
+            var allMetDays = await db.getConsecutiveDays(req.userId, todayStr2, 365);
+            
+            /* حوّل إلى كائن للبحث السريع */
+            var metDaysMap = {};
+            allMetDays.forEach(function(d) {
+                var dayStr = typeof d === 'string' ? d.slice(0, 10) : '';
+                if (dayStr) metDaysMap[dayStr] = true;
+            });
+            
+            /* احسب الـ Streak الحقيقي */
+            var newStreak = 0;
+            var checkDate = new Date(todayDate);
+            
+            while (true) {
+                var checkStr = checkDate.getFullYear() + '-' + 
+                              String(checkDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                              String(checkDate.getDate()).padStart(2, '0');
+                
+                if (metDaysMap[checkStr]) {
+                    newStreak++;
+                    checkDate.setDate(checkDate.getDate() - 1);
+                } else {
+                    /* إذا لم يكن اليوم محققًا، ابدأ من أمس */
+                    if (newStreak === 0 && checkStr === todayStr2) {
+                        checkDate.setDate(checkDate.getDate() - 1);
+                        continue;
+                    }
+                    break;
+                }
+                
+                if (newStreak > 1000) break;
+            }
+            
+            var longest = Math.max(stats.longest_streak || 0, newStreak);
+            
+            /* مكافأة 7 أيام متتالية */
+            if (newStreak > 0 && newStreak % 7 === 0 && newStreak > (stats.current_streak || 0)) {
+                streakBonus = 50;
+                await db.updateUserPoints(req.userId, streakBonus);
+            }
+            
+            console.log('✓ Streak محدّث:', newStreak);
+            
+            /* حفظ */
+            var finalStats = await db.getUserStats(req.userId);
+            await db.saveUserStats(req.userId, {
+                points: finalStats.points,
+                currentStreak: newStreak,
+                longestStreak: longest,
+                lastCompletedDay: todayStr2,
+                repairCost: stats.repair_cost,
+                repairCount: stats.repair_count,
+                lastRepairDay: stats.last_repair_day
+            });
         }
         
         var finalStats = await db.getUserStats(req.userId);
@@ -1187,6 +1236,48 @@ app.post('/api/stats/repair', userAuthRequired, async function(req, res) {
         res.status(500).json({ error: 'server_error' });
     }
 });
+
+/* إعادة تعيين سعر الترميم (دفع 100 نقطة) */
+app.post('/api/stats/reset-repair-cost', userAuthRequired, async function(req, res) {
+    try {
+        var stats = await db.getUserStats(req.userId);
+        
+        if (stats.points < 100) {
+            return res.status(400).json({ 
+                error: 'not_enough_points',
+                needed: 100,
+                have: stats.points
+            });
+        }
+        
+        await db.updateUserPoints(req.userId, -100);
+        
+        var today = new Date();
+        var todayStr = today.getFullYear() + '-' + 
+                       String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                       String(today.getDate()).padStart(2, '0');
+        
+        await db.saveUserStats(req.userId, {
+            points: stats.points - 100,
+            currentStreak: stats.current_streak,
+            longestStreak: stats.longest_streak,
+            lastCompletedDay: stats.last_completed_day,
+            repairCost: 20,  /* إعادة الضبط */
+            repairCount: 0,
+            lastRepairDay: todayStr
+        });
+        
+        res.json({
+            ok: true,
+            newPoints: stats.points - 100,
+            newRepairCost: 20
+        });
+    } catch (err) {
+        console.error('Reset repair cost error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
 /* حفظ الهدف اليومي */
 app.get('/api/stats/today', userAuthRequired, async function(req, res) {
     try {
