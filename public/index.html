@@ -1468,16 +1468,12 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 /* إصلاح قائمة الهاتف المنسدلة */
 /* ============================================================ */
 
+/* زر القائمة — يظهر على كل الأجهزة */
 #mobileMenuBtn {
-    display: none !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
 }
-
-@media (max-width: 640px) {
-    #mobileMenuBtn {
-        display: flex !important;
-    }
-}
-
 #mobileMenu.hidden {
     display: none !important;
 }
@@ -1490,7 +1486,63 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     background-color: #1e293b;
     border-color: #334155;
 }
-
+/* ============================================================
+   🧮 Sharp EL-W506T — تصميم مطابق
+   ============================================================ */
+.sharp-calc{width:380px;padding-bottom:26px;background:linear-gradient(180deg,#1b1b1b,#0b0b0b 40%,#101010);border:3px solid #7d7d80;border-radius:30px 30px 24px 24px;box-shadow:0 22px 44px rgba(0,0,0,.55),inset 0 0 0 2px #000,inset 0 3px 6px rgba(255,255,255,.07);position:relative;color-scheme:only light}
+.sharp-top{position:relative;height:90px}
+.sharp-brand{position:absolute;left:40px;top:34px;font-family:"Arial Black",Arial,sans-serif;font-size:14px;letter-spacing:3px;color:#f2f2f2}
+.sharp-solar{position:absolute;left:128px;right:36px;top:16px;height:48px;background:repeating-linear-gradient(90deg,transparent 0 52px,rgba(255,255,255,.07) 52px 53px),linear-gradient(180deg,#34343a,#1c1c20);border:1px solid #000;border-radius:4px;box-shadow:inset 0 1px 2px rgba(255,255,255,.1)}
+.sharp-screen{margin:0 33px;height:112px;background:linear-gradient(180deg,#c8d8c8,#b8c8b8);border:3px solid #000;border-radius:6px;padding:6px 8px;font-family:"Courier New",monospace;color:#1a2250;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 0 0 3px #2b2b2d,inset 0 2px 5px rgba(0,0,0,.35)}
+.sharp-ind{display:flex;justify-content:flex-end;gap:10px;font-size:8px;font-weight:bold;height:11px;line-height:11px}
+.sharp-ind span{opacity:.15}
+.sharp-ind .on{opacity:1}
+.sharp-ind #calcMemory{margin-right:auto}
+.sharp-expr{font-size:12px;min-height:18px;overflow:hidden;white-space:nowrap}
+.sharp-res{font-size:22px;font-weight:bold;text-align:right;min-height:28px}
+.sharp-wv{display:flex;justify-content:space-between;margin:12px 36px 0;color:#b5b5b5;font-size:11px;font-style:italic}
+.sharp-wv span:last-child{font-size:8px;font-style:normal;letter-spacing:.5px}
+.sharp-ctl{position:relative;height:96px;margin:14px 22px 0;border-top:1px solid #2c2c2c}
+.sharp-ctl>*{position:absolute}
+.sharp-p{display:block;width:46px;height:21px;border-radius:11px;border:1px solid #6a6a6a;background:linear-gradient(180deg,#2a2a2a,#121212);color:#fff;font:bold 9px Arial,sans-serif;cursor:pointer;box-shadow:0 1px 0 #000,inset 0 1px 0 rgba(255,255,255,.12);outline:none;padding:0}
+.sharp-p:hover{background:linear-gradient(180deg,#3a3a3a,#1e1e1e)}
+.sharp-p:active{transform:translateY(1px);box-shadow:inset 0 2px 4px #000}
+.sharp-p.sharp-or{border:2px solid #d98a2b;color:#e8942e}
+.sharp-p.sharp-gr{border:2px solid #35c2a0;color:#35c2a0}
+.sharp-ctl .sharp-p{width:54px;height:22px}
+.sharp-ctl .sharp-p.sharp-m{border-color:#7a3a55}
+.sharp-ctl .sharp-p.sharp-m b{color:#e0407f}
+.sharp-lab{position:absolute;font:bold 8px/10px Arial,sans-serif;white-space:nowrap}
+.sharp-d{display:block;background:linear-gradient(180deg,#58585c,#3a3a3d);border:1px solid #1a1a1a;border-radius:5px;box-shadow:inset 0 1px 0 rgba(255,255,255,.2),0 2px 0 #000;color:#161616;font-size:7px;cursor:pointer;outline:none;padding:0}
+.sharp-d:hover{background:linear-gradient(180deg,#68686c,#48484b)}
+.sharp-d:active{transform:translateY(1px)}
+.sharp-g6,.sharp-g5{display:grid}
+.sharp-g6{grid-template-columns:repeat(6,1fr);margin:0 31px}
+.sharp-g5{grid-template-columns:repeat(5,1fr);margin:0 27px}
+.sharp-c{margin-top:24px}.sharp-e{margin-top:25px}
+.sharp-k{position:relative;display:flex;justify-content:center}
+.sharp-l{position:absolute;left:0;right:0;top:-12px;display:flex;justify-content:space-between;padding:0 1px;font:bold 7.5px/10px Arial,sans-serif;white-space:nowrap;pointer-events:none}
+.sharp-l.sharp-m{justify-content:center}
+.sharp-l.sharp-r{justify-content:flex-end}
+.sharp-o{color:#e8942e}.sharp-g{color:#35c2a0}.sharp-w{color:#e6e6e6}
+.sharp-bx{background:#e8942e;color:#151515;padding:0 2px;border-radius:2px}
+.sharp-lk{pointer-events:auto;cursor:pointer}
+.sharp-b{display:block;width:40px;height:22px;border:1px solid #000;border-radius:5px;background:linear-gradient(180deg,#484848,#2a2a2a 45%,#1b1b1b);color:#fff;font:bold 11px Arial,sans-serif;cursor:pointer;box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 2px 0 #000,0 3px 3px rgba(0,0,0,.6);outline:none;padding:0}
+.sharp-b:hover{background:linear-gradient(180deg,#585858,#383838 45%,#262626)}
+.sharp-b:active{transform:translateY(1px);box-shadow:inset 0 2px 5px rgba(0,0,0,.8),0 1px 0 #000}
+.sharp-b sup{font-size:7px}
+.sharp-b.sharp-n{width:48px;height:40px;border-radius:9px;font-size:24px;font-weight:normal}
+.sharp-b.sharp-q{width:42px;height:30px;border-radius:7px;font-size:22px;font-weight:normal}
+.sharp-b.sharp-eq{width:94px}
+.sharp-rows .sharp-g5{row-gap:24px;margin-bottom:0}
+.sharp-rows{margin-top:30px}
+.sharp-rows .sharp-g5+.sharp-g5{margin-top:20px}
+.sharp-span2{grid-column:span 2}
+@media (max-width: 640px) {
+    .sharp-calc{width:340px}
+}
+</style>
+</head>
 </style>
 </head>
 
@@ -2694,141 +2746,112 @@ input[type="time"]::-webkit-calendar-picker-indicator {
                     <p class="text-[10px] text-slate-500 dark:text-slate-400">حاسبة علمية متقدمة — WriteView</p>
                 </div>
             </div>
-            <div class="text-right">
-                <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400">النمط</p>
-                <p id="calcModeDisplay" class="text-sm font-black text-brand-600 dark:text-brand-400">DEG</p>
-            </div>
         </div>
 
-        <!-- الحاسبة (Sharp EL-W506T) -->
-        <div class="mx-auto" style="max-width: 420px;">
-            <div class="calculator-body">
-                
-                <!-- علامة SHARP -->
-                <div class="calc-brand">SHARP</div>
-                
-                <!-- الشاشة -->
-                <div class="calc-screen">
-                    <!-- الشريط العلوي -->
-                    <div class="calc-screen-top">
-                        <span id="calcMemory" class="calc-mem hidden">M</span>
-                        <span id="calc2nd" class="calc-indicator hidden">2ndF</span>
-                        <span id="calcAlpha" class="calc-indicator hidden">ALPHA</span>
-                        <span id="calcHyp" class="calc-indicator hidden">HYP</span>
-                        <span class="ml-auto" id="calcAngleUnit">DEG</span>
-                        <span class="ml-2">W-VIEW</span>
-                    </div>
-                    <!-- السطر 1: التعبير -->
-                    <div id="calcExpression" class="calc-expr"></div>
-                    <!-- السطر 2: النتيجة -->
-                    <div id="calcResult" class="calc-result">0</div>
+        <!-- الحاسبة -->
+        <div class="flex justify-center" style="background:#cfcdc8;padding:16px 0;border-radius:12px;">
+            <div class="sharp-calc">
+              <div class="sharp-top"><div class="sharp-brand">SHARP</div><div class="sharp-solar"></div></div>
+
+              <div class="sharp-screen">
+                <div class="sharp-ind">
+                  <span id="calcMemory">M</span>
+                  <span id="calc2nd">2ndF</span>
+                  <span id="calcAlpha">ALPHA</span>
+                  <span id="calcHyp">HYP</span>
+                  <span class="on">N1</span>
+                  <span class="on" id="calcAngleUnit">DEG</span>
+                  <span class="on">W-VIEW</span>
                 </div>
-                
-                <!-- WriteView -->
-                <div class="calc-writeview">
-                    <span>WriteView</span>
-                    <span>EL-W506T</span>
+                <div class="sharp-expr" id="calcExpression"></div>
+                <div class="sharp-res" id="calcResult">0</div>
+              </div>
+              <div class="sharp-wv"><span>WriteView</span><span>EL-W506T</span></div>
+
+              <!-- Controls -->
+              <div class="sharp-ctl">
+                <button class="sharp-p" style="left:0;top:12px" onclick="calcHome()">HOME</button>
+                <span class="sharp-lab sharp-o sharp-lk" style="right:0;width:54px;text-align:center;top:-2px" onclick="calcOff()">OFF</span>
+                <button class="sharp-p sharp-m" style="right:0;top:12px" onclick="calcAC()">ON<b>/C</b></button>
+                <button class="sharp-d" style="left:50%;margin-left:-46px;top:8px;width:92px;height:24px" onclick="calcUp()">▲</button>
+                <button class="sharp-d" style="left:42px;top:36px;width:76px;height:24px" onclick="calcLeft()">◀</button>
+                <button class="sharp-d" style="right:42px;top:36px;width:76px;height:24px" onclick="calcRight()">▶</button>
+                <button class="sharp-d" style="left:50%;margin-left:-46px;top:64px;width:92px;height:24px" onclick="calcDown()">▼</button>
+                <button class="sharp-p sharp-or" style="left:0;top:70px" onclick="calcToggle2nd()">2ndF</button>
+                <span class="sharp-lab sharp-o" style="right:0;width:54px;text-align:center;top:58px">CA</span>
+                <button class="sharp-p" style="right:0;top:70px" onclick="calcMode()">MODE</button>
+              </div>
+
+              <!-- Row C -->
+              <div class="sharp-g6 sharp-c">
+                <div class="sharp-k"><div class="sharp-l sharp-m"><span class="sharp-o">M-CLR</span></div><button class="sharp-p sharp-gr" onclick="calcToggleAlpha()">ALPHA</button></div>
+                <div class="sharp-k"><div class="sharp-l sharp-m"><span class="sharp-o sharp-lk" onclick="calcSetup()">SET UP</span></div><button class="sharp-p" onclick="calcMath()">MATH</button></div>
+                <div class="sharp-k"><div class="sharp-l sharp-m"><span class="sharp-o">ALGB</span></div><button class="sharp-p" onclick="calcD1()">D1</button></div>
+                <div class="sharp-k"><div class="sharp-l sharp-m"><span class="sharp-o sharp-lk" onclick="calcSolver()">SOLVER</span></div><button class="sharp-p" onclick="calcD2()">D2</button></div>
+                <div class="sharp-k"><button class="sharp-p" onclick="calcD3()">D3</button></div>
+                <div class="sharp-k"><div class="sharp-l sharp-m"><span class="sharp-o">DEL</span></div><button class="sharp-p" onclick="calcBS()">BS</button></div>
+              </div>
+
+              <!-- Row D -->
+              <div class="sharp-g6 sharp-e">
+                <div class="sharp-k"><div class="sharp-l"><span class="sharp-o">arc hyp</span><span class="sharp-w">NOT</span></div><button class="sharp-b" onclick="calcHyp()">hyp</button></div>
+                <div class="sharp-k"><div class="sharp-l"><span class="sharp-o">sin<sup>-1</sup></span><span class="sharp-w">AND</span></div><button class="sharp-b" onclick="calcSin()">sin</button></div>
+                <div class="sharp-k"><div class="sharp-l"><span class="sharp-o">cos<sup>-1</sup></span><span class="sharp-w">OR</span></div><button class="sharp-b" onclick="calcCos()">cos</button></div>
+                <div class="sharp-k"><div class="sharp-l"><span class="sharp-o">tan<sup>-1</sup></span><span class="sharp-w">XOR</span></div><button class="sharp-b" onclick="calcTan()">tan</button></div>
+                <div class="sharp-k"><div class="sharp-l"><span class="sharp-o">log<sub>a</sub>x</span><span class="sharp-w">XNOR</span></div><button class="sharp-b" onclick="calcPi()">π</button></div>
+                <div class="sharp-k"><div class="sharp-l sharp-r"><span class="sharp-o">↔DEG</span></div><button class="sharp-b" style="font-size:9px" onclick="calcDMS()">D°M'S</button></div>
+              </div>
+
+              <!-- Row E -->
+              <div class="sharp-g6 sharp-e">
+                <div class="sharp-k"><div class="sharp-l"><span class="sharp-o"><sup>x</sup>√</span><span class="sharp-g">A</span></div><button class="sharp-b" onclick="calcPow()"><i>y<sup>x</sup></i></button></div>
+                <div class="sharp-k"><div class="sharp-l"><span class="sharp-o"><sup>3</sup>√</span><span class="sharp-g">B</span></div><button class="sharp-b" onclick="calcRoot()">√</button></div>
+                <div class="sharp-k"><div class="sharp-l"><span class="sharp-o">x<sup>-1</sup></span><span class="sharp-g">C</span></div><button class="sharp-b" onclick="calcSquare()"><i>x<sup>2</sup></i></button></div>
+                <div class="sharp-k"><div class="sharp-l"><span class="sharp-o">10<sup>x</sup></span><span class="sharp-g">D</span></div><button class="sharp-b" onclick="calcLog()">log</button></div>
+                <div class="sharp-k"><div class="sharp-l"><span class="sharp-o">e<sup>x</sup></span><span class="sharp-g">E</span></div><button class="sharp-b" onclick="calcLn()">ln</button></div>
+                <div class="sharp-k"><div class="sharp-l"><span class="sharp-o">∠</span><span class="sharp-g">F</span></div><button class="sharp-b" style="font-size:10px" onclick="calcXY()">(x,y)</button></div>
+              </div>
+
+              <!-- Row F -->
+              <div class="sharp-g6 sharp-e">
+                <div class="sharp-k"><div class="sharp-l"><span class="sharp-o">P.FACT</span><span class="sharp-g">e</span></div><button class="sharp-b" onclick="calcExpNotation()"><i>Exp</i></button></div>
+                <div class="sharp-k"><div class="sharp-l sharp-m"><span class="sharp-o">a<sup>b</sup>⁄<sub>c</sub></span></div><button class="sharp-b" onclick="calcFrac()">a/b</button></div>
+                <div class="sharp-k"><div class="sharp-l"><span class="sharp-o">x<sup>3</sup></span><span class="sharp-g">X</span></div><button class="sharp-b" onclick="calcRCL()">RCL</button></div>
+                <div class="sharp-k"><div class="sharp-l"><span class="sharp-o">int÷</span><span class="sharp-g">Y</span></div><button class="sharp-b" onclick="calcSTO()">STO</button></div>
+                <div class="sharp-k"><div class="sharp-l"><span class="sharp-o">M−</span><span class="sharp-g">M</span></div><button class="sharp-b" onclick="calcMPlus()">M+</button></div>
+                <div class="sharp-k"><div class="sharp-l"><span class="sharp-g">DATA</span><span class="sharp-g">INS-D</span></div><button class="sharp-b" style="font-size:7px" onclick="calcChange()">CHANGE</button></div>
+              </div>
+
+              <!-- Numbers -->
+              <div class="sharp-rows">
+                <div class="sharp-g5">
+                  <div class="sharp-k"><div class="sharp-l sharp-m"><span class="sharp-o">RANDOM</span></div><button class="sharp-b sharp-n" onclick="calcDigit('7')">7</button></div>
+                  <div class="sharp-k"><div class="sharp-l"><span class="sharp-o">→rθ</span><span class="sharp-g">STAT</span></div><button class="sharp-b sharp-n" onclick="calcDigit('8')">8</button></div>
+                  <div class="sharp-k"><div class="sharp-l"><span class="sharp-o">→xy</span><span class="sharp-g">MEMORY</span></div><button class="sharp-b sharp-n" onclick="calcDigit('9')">9</button></div>
+                  <div class="sharp-k"><div class="sharp-l"><span class="sharp-o">x<sup>r</sup></span><span class="sharp-g">∫dx</span></div><button class="sharp-b sharp-q" onclick="calcParenOpen()">(</button></div>
+                  <div class="sharp-k"><div class="sharp-l"><span class="sharp-o">y<sup>r</sup></span><span class="sharp-g">d/dx</span></div><button class="sharp-b sharp-q" onclick="calcParenClose()">)</button></div>
                 </div>
-                
-                <!-- صف HOME و ON/C -->
-                <div class="calc-row calc-row-home">
-                    <button class="calc-btn calc-btn-home" onclick="calcHome()">HOME</button>
-                    <div class="calc-dpad">
-                        <button class="calc-dpad-up" onclick="calcUp()"><i class="fa-solid fa-caret-up"></i></button>
-                        <button class="calc-dpad-left" onclick="calcLeft()"><i class="fa-solid fa-caret-left"></i></button>
-                        <button class="calc-dpad-right" onclick="calcRight()"><i class="fa-solid fa-caret-right"></i></button>
-                        <button class="calc-dpad-down" onclick="calcDown()"><i class="fa-solid fa-caret-down"></i></button>
-                    </div>
-                    <div class="calc-col-power">
-                        <button class="calc-btn calc-btn-off" onclick="calcOff()">OFF</button>
-                        <button class="calc-btn calc-btn-on" onclick="calcAC()">ON/C</button>
-                    </div>
+                <div class="sharp-g5">
+                  <div class="sharp-k"><div class="sharp-l"><span class="sharp-o"><i>n!</i></span><span class="sharp-g">CONST</span></div><button class="sharp-b sharp-n" onclick="calcDigit('4')">4</button></div>
+                  <div class="sharp-k"><div class="sharp-l"><span class="sharp-o"><i>nCr</i></span><span class="sharp-g">CONV</span></div><button class="sharp-b sharp-n" onclick="calcDigit('5')">5</button></div>
+                  <div class="sharp-k"><div class="sharp-l sharp-m"><span class="sharp-o"><i>nPr</i></span></div><button class="sharp-b sharp-n" onclick="calcDigit('6')">6</button></div>
+                  <div class="sharp-k"><div class="sharp-l"><span class="sharp-bx">→HEX</span><span class="sharp-g">Σ</span></div><button class="sharp-b sharp-q" onclick="calcOp('×')">×</button></div>
+                  <div class="sharp-k"><div class="sharp-l"><span class="sharp-bx">→BIN</span><span class="sharp-g">Π</span></div><button class="sharp-b sharp-q" onclick="calcOp('÷')">÷</button></div>
                 </div>
-                
-                <!-- صف 2ndF / ALPHA / MODE -->
-                <div class="calc-row calc-row-shift">
-                    <button class="calc-btn calc-btn-2nd" onclick="calcToggle2nd()">2ndF</button>
-                    <button class="calc-btn calc-btn-alpha" onclick="calcToggleAlpha()">ALPHA</button>
-                    <button class="calc-btn calc-btn-mode" onclick="calcMode()">MODE</button>
-                    <button class="calc-btn calc-btn-del" onclick="calcDEL()">DEL</button>
-                    <button class="calc-btn calc-btn-bs" onclick="calcBS()">BS</button>
+                <div class="sharp-g5">
+                  <div class="sharp-k"><div class="sharp-l"><span class="sharp-o">%</span><span class="sharp-g">&lt;ENG</span></div><button class="sharp-b sharp-n" onclick="calcDigit('1')">1</button></div>
+                  <div class="sharp-k"><div class="sharp-l"><span class="sharp-g">GCD</span><span class="sharp-g">ENG&gt;</span></div><button class="sharp-b sharp-n" onclick="calcDigit('2')">2</button></div>
+                  <div class="sharp-k"><div class="sharp-l sharp-m"><span class="sharp-g">LCM</span></div><button class="sharp-b sharp-n" onclick="calcDigit('3')">3</button></div>
+                  <div class="sharp-k"><div class="sharp-l sharp-m"><span class="sharp-bx">→PEN</span></div><button class="sharp-b sharp-q" onclick="calcOp('+')">+</button></div>
+                  <div class="sharp-k"><div class="sharp-l sharp-m"><span class="sharp-bx">→OCT</span></div><button class="sharp-b sharp-q" onclick="calcOp('−')">−</button></div>
                 </div>
-                
-                <!-- صف MATH / D1 / D2 / D3 -->
-                <div class="calc-row calc-row-func-top">
-                    <button class="calc-btn calc-btn-math" onclick="calcMath()">MATH</button>
-                    <button class="calc-btn calc-btn-d" onclick="calcD1()">D1</button>
-                    <button class="calc-btn calc-btn-d" onclick="calcD2()">D2</button>
-                    <button class="calc-btn calc-btn-d" onclick="calcD3()">D3</button>
-                    <button class="calc-btn calc-btn-setup" onclick="calcSetup()">SET UP</button>
-                    <button class="calc-btn calc-btn-solver" onclick="calcSolver()">SOLVER</button>
+                <div class="sharp-g5" style="margin-bottom:14px">
+                  <div class="sharp-k"><div class="sharp-l sharp-m"><span class="sharp-o">MDF</span></div><button class="sharp-b sharp-n" onclick="calcDigit('0')">0</button></div>
+                  <div class="sharp-k"><div class="sharp-l sharp-m"><span class="sharp-g">DRG▸</span></div><button class="sharp-b sharp-n" onclick="calcDigit('.')">•</button></div>
+                  <div class="sharp-k"><div class="sharp-l sharp-m"><span class="sharp-g">abs</span></div><button class="sharp-b sharp-n" style="font-size:15px" onclick="calcNeg()">(−)</button></div>
+                  <div class="sharp-k sharp-span2"><div class="sharp-l" style="left:8px;right:8px"><span class="sharp-bx">→DEC</span><span class="sharp-g sharp-lk" onclick="calcAns()">ANS</span></div><button class="sharp-b sharp-q sharp-eq" onclick="calcEquals()">=</button></div>
                 </div>
-                
-                <!-- صف الدوال المثلثية -->
-                <div class="calc-row calc-row-trig">
-                    <button class="calc-btn calc-btn-hyp" onclick="calcHyp()">hyp</button>
-                    <button class="calc-btn calc-btn-sin" onclick="calcSin()">sin</button>
-                    <button class="calc-btn calc-btn-cos" onclick="calcCos()">cos</button>
-                    <button class="calc-btn calc-btn-tan" onclick="calcTan()">tan</button>
-                    <button class="calc-btn calc-btn-pi" onclick="calcPi()">π</button>
-                    <button class="calc-btn calc-btn-dms" onclick="calcDMS()">D°M'S</button>
-                </div>
-                
-                <!-- صف القوى والجذور -->
-                <div class="calc-row calc-row-powers">
-                    <button class="calc-btn calc-btn-xy" onclick="calcPow()">x<sup>y</sup></button>
-                    <button class="calc-btn calc-btn-root" onclick="calcRoot()">√</button>
-                    <button class="calc-btn calc-btn-sqr" onclick="calcSquare()">x²</button>
-                    <button class="calc-btn calc-btn-log" onclick="calcLog()">log</button>
-                    <button class="calc-btn calc-btn-ln" onclick="calcLn()">ln</button>
-                    <button class="calc-btn calc-btn-ex" onclick="calcExp()">e<sup>x</sup></button>
-                </div>
-                
-                <!-- صف الكسور والذاكرة -->
-                <div class="calc-row calc-row-frac">
-                    <button class="calc-btn calc-btn-frac" onclick="calcFrac()">a/b</button>
-                    <button class="calc-btn calc-btn-rcl" onclick="calcRCL()">RCL</button>
-                    <button class="calc-btn calc-btn-sto" onclick="calcSTO()">STO</button>
-                    <button class="calc-btn calc-btn-mplus" onclick="calcMPlus()">M+</button>
-                    <button class="calc-btn calc-btn-mminus" onclick="calcMMinus()">M−</button>
-                    <button class="calc-btn calc-btn-change" onclick="calcChange()">CHANGE</button>
-                </div>
-                
-                <!-- صف الأرقام 7/8/9 -->
-                <div class="calc-row calc-row-num">
-                    <button class="calc-btn calc-btn-num" onclick="calcDigit('7')">7</button>
-                    <button class="calc-btn calc-btn-num" onclick="calcDigit('8')">8</button>
-                    <button class="calc-btn calc-btn-num" onclick="calcDigit('9')">9</button>
-                    <button class="calc-btn calc-btn-op" onclick="calcOp('÷')">÷</button>
-                    <button class="calc-btn calc-btn-op" onclick="calcOp('×')">×</button>
-                </div>
-                
-                <!-- صف 4/5/6 -->
-                <div class="calc-row calc-row-num">
-                    <button class="calc-btn calc-btn-num" onclick="calcDigit('4')">4</button>
-                    <button class="calc-btn calc-btn-num" onclick="calcDigit('5')">5</button>
-                    <button class="calc-btn calc-btn-num" onclick="calcDigit('6')">6</button>
-                    <button class="calc-btn calc-btn-op" onclick="calcOp('−')">−</button>
-                    <button class="calc-btn calc-btn-op" onclick="calcOp('+')">+</button>
-                </div>
-                
-                <!-- صف 1/2/3 -->
-                <div class="calc-row calc-row-num">
-                    <button class="calc-btn calc-btn-num" onclick="calcDigit('1')">1</button>
-                    <button class="calc-btn calc-btn-num" onclick="calcDigit('2')">2</button>
-                    <button class="calc-btn calc-btn-num" onclick="calcDigit('3')">3</button>
-                    <button class="calc-btn calc-btn-neg" onclick="calcNeg()">(−)</button>
-                    <button class="calc-btn calc-btn-ans" onclick="calcAns()">ANS</button>
-                </div>
-                
-                <!-- صف 0 / . / = -->
-                <div class="calc-row calc-row-num">
-                    <button class="calc-btn calc-btn-num" onclick="calcDigit('0')">0</button>
-                    <button class="calc-btn calc-btn-num" onclick="calcDigit('.')">.</button>
-                    <button class="calc-btn calc-btn-exp" onclick="calcExpNotation()">EXP</button>
-                    <button class="calc-btn calc-btn-equals" onclick="calcEquals()" style="grid-column: span 2;">=</button>
-                </div>
-                
+              </div>
             </div>
         </div>
         
@@ -13149,6 +13172,282 @@ function spinWheel() {
         showToast('🎉 ' + wheelState.lastResult.item.code);
     }, 5100);
 }
+
+/* ============================================================
+   🧮 Sharp EL-W506T — JavaScript
+   ============================================================ */
+
+var calcState = {
+    expression: '', result: '0', angleMode: 'DEG',
+    memory: 0, hasMemory: false,
+    is2nd: false, isAlpha: false, isHyp: false,
+    lastAnswer: 0, history: [], justEvaluated: false
+};
+
+function calcUpdateDisplay() {
+    var exprEl = document.getElementById('calcExpression');
+    var resEl = document.getElementById('calcResult');
+    var memEl = document.getElementById('calcMemory');
+    var secondEl = document.getElementById('calc2nd');
+    var alphaEl = document.getElementById('calcAlpha');
+    var hypEl = document.getElementById('calcHyp');
+    var unitEl = document.getElementById('calcAngleUnit');
+    if (exprEl) exprEl.textContent = calcState.expression || '';
+    if (resEl) {
+        var r = calcState.result;
+        if (typeof r === 'number') {
+            if (Math.abs(r) > 1e10 || (Math.abs(r) < 1e-4 && r !== 0)) resEl.textContent = r.toExponential(8);
+            else resEl.textContent = parseFloat(r.toPrecision(12)).toString();
+        } else resEl.textContent = r;
+    }
+    if (memEl) memEl.className = calcState.hasMemory ? 'on' : '';
+    if (secondEl) secondEl.className = calcState.is2nd ? 'on' : '';
+    if (alphaEl) alphaEl.className = calcState.isAlpha ? 'on' : '';
+    if (hypEl) hypEl.className = calcState.isHyp ? 'on' : '';
+    if (unitEl) unitEl.textContent = calcState.angleMode;
+}
+
+function calcDigit(d) {
+    if (calcState.justEvaluated) { calcState.expression = ''; calcState.justEvaluated = false; }
+    calcState.expression += d;
+    calcUpdateDisplay();
+}
+function calcOp(op) {
+    if (calcState.justEvaluated) { calcState.expression = calcState.result.toString(); calcState.justEvaluated = false; }
+    calcState.expression += op;
+    calcUpdateDisplay();
+}
+function calcParenOpen() {
+    if (calcState.justEvaluated) { calcState.expression = ''; calcState.justEvaluated = false; }
+    calcState.expression += '(';
+    calcUpdateDisplay();
+}
+function calcParenClose() { calcState.expression += ')'; calcUpdateDisplay(); }
+function calcAC() { calcState.expression = ''; calcState.result = '0'; calcState.justEvaluated = false; calcUpdateDisplay(); }
+function calcDEL() {
+    if (calcState.justEvaluated) { calcAC(); return; }
+    calcState.expression = calcState.expression.slice(0, -1);
+    calcUpdateDisplay();
+}
+function calcBS() { calcState.expression = calcState.expression.slice(0, -1); calcUpdateDisplay(); }
+function calcToRad(a) {
+    if (calcState.angleMode === 'RAD') return a;
+    if (calcState.angleMode === 'GRAD') return a * Math.PI / 200;
+    return a * Math.PI / 180;
+}
+function calcFromRad(a) {
+    if (calcState.angleMode === 'RAD') return a;
+    if (calcState.angleMode === 'GRAD') return a * 200 / Math.PI;
+    return a * 180 / Math.PI;
+}
+function calcInsertFunc(n) {
+    if (calcState.justEvaluated) { calcState.expression = ''; calcState.justEvaluated = false; }
+    calcState.expression += n + '(';
+    calcUpdateDisplay();
+}
+function calcSin() { if (calcState.is2nd) { calcInsertFunc('asin'); calcState.is2nd = false; } else calcInsertFunc('sin'); }
+function calcCos() { if (calcState.is2nd) { calcInsertFunc('acos'); calcState.is2nd = false; } else calcInsertFunc('cos'); }
+function calcTan() { if (calcState.is2nd) { calcInsertFunc('atan'); calcState.is2nd = false; } else calcInsertFunc('tan'); }
+function calcLog() { if (calcState.is2nd) { calcInsertFunc('pow10'); calcState.is2nd = false; } else calcInsertFunc('log'); }
+function calcLn() { if (calcState.is2nd) { calcInsertFunc('exp'); calcState.is2nd = false; } else calcInsertFunc('ln'); }
+function calcSquare() { calcState.expression += '^2'; calcUpdateDisplay(); }
+function calcRoot() { if (calcState.is2nd) { calcInsertFunc('cbrt'); calcState.is2nd = false; } else calcInsertFunc('sqrt'); }
+function calcPow() { calcState.expression += '^'; calcUpdateDisplay(); }
+function calcExpNotation() { calcState.expression += 'E'; calcUpdateDisplay(); }
+function calcPi() {
+    if (calcState.is2nd) { calcState.expression += Math.E.toString(); calcState.is2nd = false; }
+    else calcState.expression += Math.PI.toString();
+    calcUpdateDisplay();
+}
+function calcFrac() { calcState.expression += '/'; calcUpdateDisplay(); }
+function calcNeg() {
+    var last = calcState.expression.slice(-1);
+    if (!calcState.expression || '+-×÷*/('.indexOf(last) !== -1) calcState.expression += '-';
+    else calcState.expression += '×-1';
+    calcUpdateDisplay();
+}
+function calcAns() {
+    if (calcState.justEvaluated) { calcState.expression = calcState.result.toString(); calcState.justEvaluated = false; }
+    else calcState.expression += calcState.lastAnswer.toString();
+    calcUpdateDisplay();
+}
+function calcXY() { calcState.expression += ','; calcUpdateDisplay(); }
+function calcMPlus() {
+    try {
+        var val = calcEvaluate(calcState.expression || '0');
+        calcState.memory += val; calcState.hasMemory = true;
+        calcState.expression = ''; calcState.result = val.toString();
+        calcUpdateDisplay();
+    } catch (e) { showCalcError(); }
+}
+function calcMMinus() {
+    try {
+        var val = calcEvaluate(calcState.expression || '0');
+        calcState.memory -= val; calcState.hasMemory = true;
+        calcState.expression = ''; calcState.result = val.toString();
+        calcUpdateDisplay();
+    } catch (e) { showCalcError(); }
+}
+function calcRCL() { calcState.expression += calcState.memory.toString(); calcUpdateDisplay(); }
+function calcSTO() {
+    try {
+        var val = calcEvaluate(calcState.expression || '0');
+        calcState.memory = val; calcState.hasMemory = true;
+        calcUpdateDisplay();
+    } catch (e) { showCalcError(); }
+}
+function calcToggle2nd() { calcState.is2nd = !calcState.is2nd; calcUpdateDisplay(); }
+function calcToggleAlpha() { calcState.isAlpha = !calcState.isAlpha; calcUpdateDisplay(); }
+function calcHyp() { calcState.isHyp = !calcState.isHyp; calcUpdateDisplay(); }
+function calcMode() {
+    if (calcState.angleMode === 'DEG') calcState.angleMode = 'RAD';
+    else if (calcState.angleMode === 'RAD') calcState.angleMode = 'GRAD';
+    else calcState.angleMode = 'DEG';
+    calcUpdateDisplay();
+}
+function calcSetup() {}
+function calcSolver() {}
+function calcMath() {}
+function calcD1() {}
+function calcD2() {}
+function calcD3() {}
+function calcDMS() {
+    try {
+        var val = calcEvaluate(calcState.expression || '0');
+        var deg = Math.floor(val);
+        var minF = (val - deg) * 60;
+        var min = Math.floor(minF);
+        var sec = (minF - min) * 60;
+        calcState.result = deg + '°' + min + "'" + sec.toFixed(2) + '"';
+        calcUpdateDisplay();
+    } catch (e) { showCalcError(); }
+}
+function calcChange() {}
+function calcHome() { calcAC(); }
+function calcOff() { calcState.expression = ''; calcState.result = '0'; calcUpdateDisplay(); }
+function calcUp() {}
+function calcDown() {}
+function calcLeft() {}
+function calcRight() {}
+
+function calcEvaluate(expr) {
+    if (!expr || !expr.trim()) return 0;
+    expr = expr.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
+    expr = expr.replace(/,/g, '');
+    expr = expr.replace(/E/g, '*10^');
+    var funcs = {
+        'sin': function(x){return Math.sin(calcToRad(x));},
+        'cos': function(x){return Math.cos(calcToRad(x));},
+        'tan': function(x){return Math.tan(calcToRad(x));},
+        'asin': function(x){return calcFromRad(Math.asin(x));},
+        'acos': function(x){return calcFromRad(Math.acos(x));},
+        'atan': function(x){return calcFromRad(Math.atan(x));},
+        'sqrt': function(x){return Math.sqrt(x);},
+        'cbrt': function(x){return Math.cbrt(x);},
+        'log': function(x){return Math.log10(x);},
+        'ln': function(x){return Math.log(x);},
+        'pow10': function(x){return Math.pow(10,x);},
+        'exp': function(x){return Math.exp(x);},
+        'abs': function(x){return Math.abs(x);}
+    };
+    var prev;
+    do {
+        prev = expr;
+        Object.keys(funcs).forEach(function(name) {
+            var re = new RegExp(name + '\\(([^()]+)\\)', 'g');
+            expr = expr.replace(re, function(m, inner) {
+                try { return funcs[name](calcEvaluate(inner)).toString(); }
+                catch (e) { return 'NaN'; }
+            });
+        });
+    } while (expr !== prev);
+    var open = (expr.match(/\(/g) || []).length;
+    var close = (expr.match(/\)/g) || []).length;
+    for (var i = 0; i < open - close; i++) expr += ')';
+    expr = expr.replace(/π/g, Math.PI.toString());
+    while (expr.indexOf('^') !== -1) {
+        var before = expr;
+        expr = expr.replace(/(-?\d+\.?\d*)\^(-?\d+\.?\d*)/, function(m, b, p) {
+            return Math.pow(parseFloat(b), parseFloat(p)).toString();
+        });
+        if (expr === before) break;
+    }
+    if (!/^[\d\s+\-*/().]+$/.test(expr)) throw new Error('invalid');
+    var result = Function('"use strict"; return (' + expr + ')')();
+    if (typeof result !== 'number' || !isFinite(result)) throw new Error('invalid');
+    return result;
+}
+
+function calcEquals() {
+    if (!calcState.expression) return;
+    try {
+        var result = calcEvaluate(calcState.expression);
+        calcState.history.push({ expr: calcState.expression, result: result });
+        if (calcState.history.length > 50) calcState.history.shift();
+        calcState.lastAnswer = result;
+        calcState.result = result;
+        calcState.justEvaluated = true;
+        calcUpdateDisplay();
+        renderCalcHistory();
+    } catch (e) { showCalcError(); }
+}
+
+function showCalcError() {
+    calcState.result = 'Syntax ERROR';
+    calcUpdateDisplay();
+    setTimeout(function() { calcState.result = '0'; calcUpdateDisplay(); }, 1500);
+}
+
+function renderCalcHistory() {
+    var container = document.getElementById('calcHistory');
+    if (!container) return;
+    var list = container.querySelector('.space-y-1');
+    if (!list) return;
+    if (calcState.history.length === 0) { container.classList.add('hidden'); return; }
+    container.classList.remove('hidden');
+    list.innerHTML = '';
+    calcState.history.slice().reverse().slice(0, 10).forEach(function(h) {
+        var item = document.createElement('div');
+        item.className = 'flex items-center justify-between text-xs py-1.5 px-2 rounded-lg bg-slate-50 dark:bg-slate-700/40 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700';
+        item.innerHTML = '<span class="text-slate-500 dark:text-slate-400 font-mono truncate">' + escapeHtml(h.expr) + '</span>' +
+            '<span class="font-black text-brand-600 dark:text-brand-400 ml-2">= ' + h.result + '</span>';
+        item.onclick = function() { calcState.expression = h.result.toString(); calcUpdateDisplay(); };
+        list.appendChild(item);
+    });
+}
+
+function calcClearHistory() {
+    if (calcState.history.length === 0) { if (typeof showToast === 'function') showToast('السجل فارغ'); return; }
+    if (!confirm('مسح السجل؟')) return;
+    calcState.history = [];
+    renderCalcHistory();
+}
+
+function calcHelp() {
+    alert('🧮 Sharp EL-W506T\n\n• 2ndF: تفعيل الدوال الثانوية\n• MODE: DEG/RAD/GRAD\n• M+/M−: الذاكرة\n• STO/RCL: حفظ/استرجاع\n• ANS: النتيجة السابقة\n• ON/C: مسح\n• DEL/BS: حذف حرف\n• =: الحساب');
+}
+
+document.addEventListener('keydown', function(e) {
+    var calcTab = document.getElementById('tab-calculator');
+    if (!calcTab || calcTab.classList.contains('hidden')) return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (/^[0-9]$/.test(e.key)) calcDigit(e.key);
+    else if (e.key === '.') calcDigit('.');
+    else if (e.key === '+') calcOp('+');
+    else if (e.key === '-') calcOp('−');
+    else if (e.key === '*') calcOp('×');
+    else if (e.key === '/') { e.preventDefault(); calcOp('÷'); }
+    else if (e.key === '(' || e.key === ')') calcDigit(e.key);
+    else if (e.key === 'Enter' || e.key === '=') { e.preventDefault(); calcEquals(); }
+    else if (e.key === 'Backspace') { e.preventDefault(); calcDEL(); }
+    else if (e.key === 'Escape') calcAC();
+});
+
+var _origSwitchTabForCalc = switchTab;
+switchTab = function(tab) {
+    _origSwitchTabForCalc(tab);
+    if (tab === 'calculator') setTimeout(calcUpdateDisplay, 100);
+};
 
 function closeWheelModal() {
     document.getElementById('wheelModal').classList.add('hidden');
