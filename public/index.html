@@ -1468,12 +1468,16 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 /* إصلاح قائمة الهاتف المنسدلة */
 /* ============================================================ */
 
-/* زر القائمة — يظهر على كل الأجهزة */
 #mobileMenuBtn {
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
+    display: none !important;
 }
+
+@media (max-width: 640px) {
+    #mobileMenuBtn {
+        display: flex !important;
+    }
+}
+
 #mobileMenu.hidden {
     display: none !important;
 }
@@ -1487,8 +1491,8 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     border-color: #334155;
 }
 
+</style>
 </head>
-
 
 <body class="h-full font-sans antialiased text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-900">
 
@@ -1870,8 +1874,10 @@ input[type="time"]::-webkit-calendar-picker-indicator {
                             </button>
                             
                             <!-- أولياء الأمور -->
-                           <button onclick="openMyParentsModal(); toggleMobileMenu();" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-    <i class="fa-solid fa-user-shield text-emerald-500 w-5 text-center"></i>
+                            <button onclick="openMyParentsModal(); toggleMobileMenu();"
+                            <!-- أولياء الأمور -->
+                            <button onclick="openMyParentsModal(); toggleMobileMenu();" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                <i class="fa-solid fa-user-shield text-emerald-500 w-5 text-center"></i>
                                 <span>إدارة أولياء الأمور</span>
                             </button>
                             <!-- تواصل مع المدير -->
@@ -2675,53 +2681,171 @@ input[type="time"]::-webkit-calendar-picker-indicator {
      تبويب الآلة الحاسبة العلمية (Sharp EL-W506T)
      ============================================================ -->
 <section id="tab-calculator" class="hidden">
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-6 mb-4 text-center">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-3 sm:p-4 mb-4">
         
-        <h3 class="text-xl font-black text-slate-900 dark:text-white mb-6">
-            <i class="fa-solid fa-calculator text-brand-500 mr-2"></i>
-            الحاسبة العلمية 991 Plus
-        </h3>
-        
-        <!-- زر الفتح التلقائي -->
-        <button onclick="openCalcApp()" 
-            class="w-full sm:w-auto px-8 py-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-base font-black shadow-lg transition-all mb-3">
-            <i class="fa-solid fa-bolt mr-2"></i>
-            افتح التطبيق
-        </button>
-        
-        <p class="text-[11px] text-slate-500 dark:text-slate-400 mb-6">
-            إذا لم يكن مثبتًا، سيتم توجيهك لصفحة التحميل
-        </p>
-        
-        <!-- أزرار المتاجر -->
-        <div class="flex flex-wrap items-center justify-center gap-3">
-            
-            <a href="https://play.google.com/store/apps/details?id=advanced.scientific.calculator.calc991.plus&pcampaignid=web_share" 
-               target="_blank" 
-               rel="noopener noreferrer"
-               class="inline-flex items-center gap-3 px-5 py-2.5 rounded-xl bg-black hover:bg-slate-900 text-white transition-all">
-                <svg viewBox="0 0 512 512" class="w-7 h-7" fill="currentColor">
-                    <path d="M325.3 234.3L104.6 13l280.8 161.2-60.1 60.1zM47 0C34 6.8 25.3 19.2 25.3 35.3v441.3c0 16.1 8.7 28.5 21.7 35.3l256.6-256L47 0zm425.2 225.6l-58.9-34.1-65.7 64.5 65.7 64.5 60.1-34.1c18-14.3 18-46.5-1.2-60.8zM104.6 499l280.8-161.2-60.1-60.1L104.6 499z"/>
-                </svg>
-                <div class="text-left">
-                    <p class="text-[9px] uppercase tracking-wider opacity-80 leading-none">GET IT ON</p>
-                    <p class="text-base font-bold leading-tight">Google Play</p>
+        <!-- الرأس -->
+        <div class="flex items-center justify-between mb-4 pb-3 border-b border-slate-200 dark:border-slate-700">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-slate-700 to-slate-900 text-white flex items-center justify-center shadow">
+                    <i class="fa-solid fa-calculator text-lg"></i>
                 </div>
-            </a>
-            
-            <a href="https://apps.apple.com/us/app/scientific-calculator-plus-991/id1449106995" 
-               target="_blank" 
-               rel="noopener noreferrer"
-               class="inline-flex items-center gap-3 px-5 py-2.5 rounded-xl bg-black hover:bg-slate-900 text-white transition-all">
-                <svg viewBox="0 0 24 24" class="w-7 h-7" fill="currentColor">
-                    <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-                </svg>
-                <div class="text-left">
-                    <p class="text-[9px] uppercase tracking-wider opacity-80 leading-none">Download on the</p>
-                    <p class="text-base font-bold leading-tight">App Store</p>
+                <div>
+                    <h3 class="font-black text-base text-slate-900 dark:text-white">SHARP EL-W506T</h3>
+                    <p class="text-[10px] text-slate-500 dark:text-slate-400">حاسبة علمية متقدمة — WriteView</p>
                 </div>
-            </a>
-            
+            </div>
+            <div class="text-right">
+                <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400">النمط</p>
+                <p id="calcModeDisplay" class="text-sm font-black text-brand-600 dark:text-brand-400">DEG</p>
+            </div>
+        </div>
+
+        <!-- الحاسبة (Sharp EL-W506T) -->
+        <div class="mx-auto" style="max-width: 420px;">
+            <div class="calculator-body">
+                
+                <!-- علامة SHARP -->
+                <div class="calc-brand">SHARP</div>
+                
+                <!-- الشاشة -->
+                <div class="calc-screen">
+                    <!-- الشريط العلوي -->
+                    <div class="calc-screen-top">
+                        <span id="calcMemory" class="calc-mem hidden">M</span>
+                        <span id="calc2nd" class="calc-indicator hidden">2ndF</span>
+                        <span id="calcAlpha" class="calc-indicator hidden">ALPHA</span>
+                        <span id="calcHyp" class="calc-indicator hidden">HYP</span>
+                        <span class="ml-auto" id="calcAngleUnit">DEG</span>
+                        <span class="ml-2">W-VIEW</span>
+                    </div>
+                    <!-- السطر 1: التعبير -->
+                    <div id="calcExpression" class="calc-expr"></div>
+                    <!-- السطر 2: النتيجة -->
+                    <div id="calcResult" class="calc-result">0</div>
+                </div>
+                
+                <!-- WriteView -->
+                <div class="calc-writeview">
+                    <span>WriteView</span>
+                    <span>EL-W506T</span>
+                </div>
+                
+                <!-- صف HOME و ON/C -->
+                <div class="calc-row calc-row-home">
+                    <button class="calc-btn calc-btn-home" onclick="calcHome()">HOME</button>
+                    <div class="calc-dpad">
+                        <button class="calc-dpad-up" onclick="calcUp()"><i class="fa-solid fa-caret-up"></i></button>
+                        <button class="calc-dpad-left" onclick="calcLeft()"><i class="fa-solid fa-caret-left"></i></button>
+                        <button class="calc-dpad-right" onclick="calcRight()"><i class="fa-solid fa-caret-right"></i></button>
+                        <button class="calc-dpad-down" onclick="calcDown()"><i class="fa-solid fa-caret-down"></i></button>
+                    </div>
+                    <div class="calc-col-power">
+                        <button class="calc-btn calc-btn-off" onclick="calcOff()">OFF</button>
+                        <button class="calc-btn calc-btn-on" onclick="calcAC()">ON/C</button>
+                    </div>
+                </div>
+                
+                <!-- صف 2ndF / ALPHA / MODE -->
+                <div class="calc-row calc-row-shift">
+                    <button class="calc-btn calc-btn-2nd" onclick="calcToggle2nd()">2ndF</button>
+                    <button class="calc-btn calc-btn-alpha" onclick="calcToggleAlpha()">ALPHA</button>
+                    <button class="calc-btn calc-btn-mode" onclick="calcMode()">MODE</button>
+                    <button class="calc-btn calc-btn-del" onclick="calcDEL()">DEL</button>
+                    <button class="calc-btn calc-btn-bs" onclick="calcBS()">BS</button>
+                </div>
+                
+                <!-- صف MATH / D1 / D2 / D3 -->
+                <div class="calc-row calc-row-func-top">
+                    <button class="calc-btn calc-btn-math" onclick="calcMath()">MATH</button>
+                    <button class="calc-btn calc-btn-d" onclick="calcD1()">D1</button>
+                    <button class="calc-btn calc-btn-d" onclick="calcD2()">D2</button>
+                    <button class="calc-btn calc-btn-d" onclick="calcD3()">D3</button>
+                    <button class="calc-btn calc-btn-setup" onclick="calcSetup()">SET UP</button>
+                    <button class="calc-btn calc-btn-solver" onclick="calcSolver()">SOLVER</button>
+                </div>
+                
+                <!-- صف الدوال المثلثية -->
+                <div class="calc-row calc-row-trig">
+                    <button class="calc-btn calc-btn-hyp" onclick="calcHyp()">hyp</button>
+                    <button class="calc-btn calc-btn-sin" onclick="calcSin()">sin</button>
+                    <button class="calc-btn calc-btn-cos" onclick="calcCos()">cos</button>
+                    <button class="calc-btn calc-btn-tan" onclick="calcTan()">tan</button>
+                    <button class="calc-btn calc-btn-pi" onclick="calcPi()">π</button>
+                    <button class="calc-btn calc-btn-dms" onclick="calcDMS()">D°M'S</button>
+                </div>
+                
+                <!-- صف القوى والجذور -->
+                <div class="calc-row calc-row-powers">
+                    <button class="calc-btn calc-btn-xy" onclick="calcPow()">x<sup>y</sup></button>
+                    <button class="calc-btn calc-btn-root" onclick="calcRoot()">√</button>
+                    <button class="calc-btn calc-btn-sqr" onclick="calcSquare()">x²</button>
+                    <button class="calc-btn calc-btn-log" onclick="calcLog()">log</button>
+                    <button class="calc-btn calc-btn-ln" onclick="calcLn()">ln</button>
+                    <button class="calc-btn calc-btn-ex" onclick="calcExp()">e<sup>x</sup></button>
+                </div>
+                
+                <!-- صف الكسور والذاكرة -->
+                <div class="calc-row calc-row-frac">
+                    <button class="calc-btn calc-btn-frac" onclick="calcFrac()">a/b</button>
+                    <button class="calc-btn calc-btn-rcl" onclick="calcRCL()">RCL</button>
+                    <button class="calc-btn calc-btn-sto" onclick="calcSTO()">STO</button>
+                    <button class="calc-btn calc-btn-mplus" onclick="calcMPlus()">M+</button>
+                    <button class="calc-btn calc-btn-mminus" onclick="calcMMinus()">M−</button>
+                    <button class="calc-btn calc-btn-change" onclick="calcChange()">CHANGE</button>
+                </div>
+                
+                <!-- صف الأرقام 7/8/9 -->
+                <div class="calc-row calc-row-num">
+                    <button class="calc-btn calc-btn-num" onclick="calcDigit('7')">7</button>
+                    <button class="calc-btn calc-btn-num" onclick="calcDigit('8')">8</button>
+                    <button class="calc-btn calc-btn-num" onclick="calcDigit('9')">9</button>
+                    <button class="calc-btn calc-btn-op" onclick="calcOp('÷')">÷</button>
+                    <button class="calc-btn calc-btn-op" onclick="calcOp('×')">×</button>
+                </div>
+                
+                <!-- صف 4/5/6 -->
+                <div class="calc-row calc-row-num">
+                    <button class="calc-btn calc-btn-num" onclick="calcDigit('4')">4</button>
+                    <button class="calc-btn calc-btn-num" onclick="calcDigit('5')">5</button>
+                    <button class="calc-btn calc-btn-num" onclick="calcDigit('6')">6</button>
+                    <button class="calc-btn calc-btn-op" onclick="calcOp('−')">−</button>
+                    <button class="calc-btn calc-btn-op" onclick="calcOp('+')">+</button>
+                </div>
+                
+                <!-- صف 1/2/3 -->
+                <div class="calc-row calc-row-num">
+                    <button class="calc-btn calc-btn-num" onclick="calcDigit('1')">1</button>
+                    <button class="calc-btn calc-btn-num" onclick="calcDigit('2')">2</button>
+                    <button class="calc-btn calc-btn-num" onclick="calcDigit('3')">3</button>
+                    <button class="calc-btn calc-btn-neg" onclick="calcNeg()">(−)</button>
+                    <button class="calc-btn calc-btn-ans" onclick="calcAns()">ANS</button>
+                </div>
+                
+                <!-- صف 0 / . / = -->
+                <div class="calc-row calc-row-num">
+                    <button class="calc-btn calc-btn-num" onclick="calcDigit('0')">0</button>
+                    <button class="calc-btn calc-btn-num" onclick="calcDigit('.')">.</button>
+                    <button class="calc-btn calc-btn-exp" onclick="calcExpNotation()">EXP</button>
+                    <button class="calc-btn calc-btn-equals" onclick="calcEquals()" style="grid-column: span 2;">=</button>
+                </div>
+                
+            </div>
+        </div>
+        
+        <!-- أزرار مساعدة -->
+        <div class="mt-4 flex flex-wrap gap-2 justify-center">
+            <button onclick="calcClearHistory()" class="px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-200 transition-colors">
+                <i class="fa-solid fa-trash-can mr-1"></i> مسح السجل
+            </button>
+            <button onclick="calcHelp()" class="px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 text-xs font-bold hover:bg-blue-100 transition-colors">
+                <i class="fa-solid fa-circle-info mr-1"></i> مساعدة
+            </button>
+        </div>
+        
+        <!-- السجل -->
+        <div id="calcHistory" class="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 hidden">
+            <h4 class="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2">السجل</h4>
+            <div class="space-y-1 max-h-40 overflow-y-auto custom-scrollbar"></div>
         </div>
         
     </div>
@@ -5093,8 +5217,8 @@ function switchTab(tab) {
     }
     
     currentTab = tab;
-   ['checklist','timetable','homework','stats','tutoring','progress','results','preparation','series','notes','exams','calculator'].forEach(function(x){
-       var el = document.getElementById('tab-'+x);
+    ['checklist','timetable','homework','stats','tutoring','progress','results','preparation','series','notes','exams'].forEach(function(x){
+        var el = document.getElementById('tab-'+x);
         if (el) el.classList.toggle('hidden', x !== tab);
     });
     document.querySelectorAll('.tab-btn').forEach(function(b){
@@ -13024,312 +13148,6 @@ function spinWheel() {
         
         showToast('🎉 ' + wheelState.lastResult.item.code);
     }, 5100);
-}
-
-/* ============================================================
-   🧮 Sharp EL-W506T — JavaScript
-   ============================================================ */
-
-var calcState = {
-    expression: '', result: '0', angleMode: 'DEG',
-    memory: 0, hasMemory: false,
-    is2nd: false, isAlpha: false, isHyp: false,
-    lastAnswer: 0, history: [], justEvaluated: false
-};
-
-function calcUpdateDisplay() {
-    var exprEl = document.getElementById('calcExpression');
-    var resEl = document.getElementById('calcResult');
-    var memEl = document.getElementById('calcMemory');
-    var secondEl = document.getElementById('calc2nd');
-    var alphaEl = document.getElementById('calcAlpha');
-    var hypEl = document.getElementById('calcHyp');
-    var unitEl = document.getElementById('calcAngleUnit');
-    if (exprEl) exprEl.textContent = calcState.expression || '';
-    if (resEl) {
-        var r = calcState.result;
-        if (typeof r === 'number') {
-            if (Math.abs(r) > 1e10 || (Math.abs(r) < 1e-4 && r !== 0)) resEl.textContent = r.toExponential(8);
-            else resEl.textContent = parseFloat(r.toPrecision(12)).toString();
-        } else resEl.textContent = r;
-    }
-    if (memEl) memEl.className = calcState.hasMemory ? 'on' : '';
-    if (secondEl) secondEl.className = calcState.is2nd ? 'on' : '';
-    if (alphaEl) alphaEl.className = calcState.isAlpha ? 'on' : '';
-    if (hypEl) hypEl.className = calcState.isHyp ? 'on' : '';
-    if (unitEl) unitEl.textContent = calcState.angleMode;
-}
-
-function calcDigit(d) {
-    if (calcState.justEvaluated) { calcState.expression = ''; calcState.justEvaluated = false; }
-    calcState.expression += d;
-    calcUpdateDisplay();
-}
-function calcOp(op) {
-    if (calcState.justEvaluated) { calcState.expression = calcState.result.toString(); calcState.justEvaluated = false; }
-    calcState.expression += op;
-    calcUpdateDisplay();
-}
-function calcParenOpen() {
-    if (calcState.justEvaluated) { calcState.expression = ''; calcState.justEvaluated = false; }
-    calcState.expression += '(';
-    calcUpdateDisplay();
-}
-function calcParenClose() { calcState.expression += ')'; calcUpdateDisplay(); }
-function calcAC() { calcState.expression = ''; calcState.result = '0'; calcState.justEvaluated = false; calcUpdateDisplay(); }
-function calcDEL() {
-    if (calcState.justEvaluated) { calcAC(); return; }
-    calcState.expression = calcState.expression.slice(0, -1);
-    calcUpdateDisplay();
-}
-function calcBS() { calcState.expression = calcState.expression.slice(0, -1); calcUpdateDisplay(); }
-function calcToRad(a) {
-    if (calcState.angleMode === 'RAD') return a;
-    if (calcState.angleMode === 'GRAD') return a * Math.PI / 200;
-    return a * Math.PI / 180;
-}
-function calcFromRad(a) {
-    if (calcState.angleMode === 'RAD') return a;
-    if (calcState.angleMode === 'GRAD') return a * 200 / Math.PI;
-    return a * 180 / Math.PI;
-}
-function calcInsertFunc(n) {
-    if (calcState.justEvaluated) { calcState.expression = ''; calcState.justEvaluated = false; }
-    calcState.expression += n + '(';
-    calcUpdateDisplay();
-}
-function calcSin() { if (calcState.is2nd) { calcInsertFunc('asin'); calcState.is2nd = false; } else calcInsertFunc('sin'); }
-function calcCos() { if (calcState.is2nd) { calcInsertFunc('acos'); calcState.is2nd = false; } else calcInsertFunc('cos'); }
-function calcTan() { if (calcState.is2nd) { calcInsertFunc('atan'); calcState.is2nd = false; } else calcInsertFunc('tan'); }
-function calcLog() { if (calcState.is2nd) { calcInsertFunc('pow10'); calcState.is2nd = false; } else calcInsertFunc('log'); }
-function calcLn() { if (calcState.is2nd) { calcInsertFunc('exp'); calcState.is2nd = false; } else calcInsertFunc('ln'); }
-function calcSquare() { calcState.expression += '^2'; calcUpdateDisplay(); }
-function calcRoot() { if (calcState.is2nd) { calcInsertFunc('cbrt'); calcState.is2nd = false; } else calcInsertFunc('sqrt'); }
-function calcPow() { calcState.expression += '^'; calcUpdateDisplay(); }
-function calcExpNotation() { calcState.expression += 'E'; calcUpdateDisplay(); }
-function calcPi() {
-    if (calcState.is2nd) { calcState.expression += Math.E.toString(); calcState.is2nd = false; }
-    else calcState.expression += Math.PI.toString();
-    calcUpdateDisplay();
-}
-function calcFrac() { calcState.expression += '/'; calcUpdateDisplay(); }
-function calcNeg() {
-    var last = calcState.expression.slice(-1);
-    if (!calcState.expression || '+-×÷*/('.indexOf(last) !== -1) calcState.expression += '-';
-    else calcState.expression += '×-1';
-    calcUpdateDisplay();
-}
-function calcAns() {
-    if (calcState.justEvaluated) { calcState.expression = calcState.result.toString(); calcState.justEvaluated = false; }
-    else calcState.expression += calcState.lastAnswer.toString();
-    calcUpdateDisplay();
-}
-function calcXY() { calcState.expression += ','; calcUpdateDisplay(); }
-function calcMPlus() {
-    try {
-        var val = calcEvaluate(calcState.expression || '0');
-        calcState.memory += val; calcState.hasMemory = true;
-        calcState.expression = ''; calcState.result = val.toString();
-        calcUpdateDisplay();
-    } catch (e) { showCalcError(); }
-}
-function calcMMinus() {
-    try {
-        var val = calcEvaluate(calcState.expression || '0');
-        calcState.memory -= val; calcState.hasMemory = true;
-        calcState.expression = ''; calcState.result = val.toString();
-        calcUpdateDisplay();
-    } catch (e) { showCalcError(); }
-}
-function calcRCL() { calcState.expression += calcState.memory.toString(); calcUpdateDisplay(); }
-function calcSTO() {
-    try {
-        var val = calcEvaluate(calcState.expression || '0');
-        calcState.memory = val; calcState.hasMemory = true;
-        calcUpdateDisplay();
-    } catch (e) { showCalcError(); }
-}
-function calcToggle2nd() { calcState.is2nd = !calcState.is2nd; calcUpdateDisplay(); }
-function calcToggleAlpha() { calcState.isAlpha = !calcState.isAlpha; calcUpdateDisplay(); }
-function calcHyp() { calcState.isHyp = !calcState.isHyp; calcUpdateDisplay(); }
-function calcMode() {
-    if (calcState.angleMode === 'DEG') calcState.angleMode = 'RAD';
-    else if (calcState.angleMode === 'RAD') calcState.angleMode = 'GRAD';
-    else calcState.angleMode = 'DEG';
-    calcUpdateDisplay();
-}
-function calcSetup() {}
-function calcSolver() {}
-function calcMath() {}
-function calcD1() {}
-function calcD2() {}
-function calcD3() {}
-function calcDMS() {
-    try {
-        var val = calcEvaluate(calcState.expression || '0');
-        var deg = Math.floor(val);
-        var minF = (val - deg) * 60;
-        var min = Math.floor(minF);
-        var sec = (minF - min) * 60;
-        calcState.result = deg + '°' + min + "'" + sec.toFixed(2) + '"';
-        calcUpdateDisplay();
-    } catch (e) { showCalcError(); }
-}
-function calcChange() {}
-function calcHome() { calcAC(); }
-function calcOff() { calcState.expression = ''; calcState.result = '0'; calcUpdateDisplay(); }
-function calcUp() {}
-function calcDown() {}
-function calcLeft() {}
-function calcRight() {}
-
-function calcEvaluate(expr) {
-    if (!expr || !expr.trim()) return 0;
-    expr = expr.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
-    expr = expr.replace(/,/g, '');
-    expr = expr.replace(/E/g, '*10^');
-    var funcs = {
-        'sin': function(x){return Math.sin(calcToRad(x));},
-        'cos': function(x){return Math.cos(calcToRad(x));},
-        'tan': function(x){return Math.tan(calcToRad(x));},
-        'asin': function(x){return calcFromRad(Math.asin(x));},
-        'acos': function(x){return calcFromRad(Math.acos(x));},
-        'atan': function(x){return calcFromRad(Math.atan(x));},
-        'sqrt': function(x){return Math.sqrt(x);},
-        'cbrt': function(x){return Math.cbrt(x);},
-        'log': function(x){return Math.log10(x);},
-        'ln': function(x){return Math.log(x);},
-        'pow10': function(x){return Math.pow(10,x);},
-        'exp': function(x){return Math.exp(x);},
-        'abs': function(x){return Math.abs(x);}
-    };
-    var prev;
-    do {
-        prev = expr;
-        Object.keys(funcs).forEach(function(name) {
-            var re = new RegExp(name + '\\(([^()]+)\\)', 'g');
-            expr = expr.replace(re, function(m, inner) {
-                try { return funcs[name](calcEvaluate(inner)).toString(); }
-                catch (e) { return 'NaN'; }
-            });
-        });
-    } while (expr !== prev);
-    var open = (expr.match(/\(/g) || []).length;
-    var close = (expr.match(/\)/g) || []).length;
-    for (var i = 0; i < open - close; i++) expr += ')';
-    expr = expr.replace(/π/g, Math.PI.toString());
-    while (expr.indexOf('^') !== -1) {
-        var before = expr;
-        expr = expr.replace(/(-?\d+\.?\d*)\^(-?\d+\.?\d*)/, function(m, b, p) {
-            return Math.pow(parseFloat(b), parseFloat(p)).toString();
-        });
-        if (expr === before) break;
-    }
-    if (!/^[\d\s+\-*/().]+$/.test(expr)) throw new Error('invalid');
-    var result = Function('"use strict"; return (' + expr + ')')();
-    if (typeof result !== 'number' || !isFinite(result)) throw new Error('invalid');
-    return result;
-}
-
-function calcEquals() {
-    if (!calcState.expression) return;
-    try {
-        var result = calcEvaluate(calcState.expression);
-        calcState.history.push({ expr: calcState.expression, result: result });
-        if (calcState.history.length > 50) calcState.history.shift();
-        calcState.lastAnswer = result;
-        calcState.result = result;
-        calcState.justEvaluated = true;
-        calcUpdateDisplay();
-        renderCalcHistory();
-    } catch (e) { showCalcError(); }
-}
-
-function showCalcError() {
-    calcState.result = 'Syntax ERROR';
-    calcUpdateDisplay();
-    setTimeout(function() { calcState.result = '0'; calcUpdateDisplay(); }, 1500);
-}
-
-function renderCalcHistory() {
-    var container = document.getElementById('calcHistory');
-    if (!container) return;
-    var list = container.querySelector('.space-y-1');
-    if (!list) return;
-    if (calcState.history.length === 0) { container.classList.add('hidden'); return; }
-    container.classList.remove('hidden');
-    list.innerHTML = '';
-    calcState.history.slice().reverse().slice(0, 10).forEach(function(h) {
-        var item = document.createElement('div');
-        item.className = 'flex items-center justify-between text-xs py-1.5 px-2 rounded-lg bg-slate-50 dark:bg-slate-700/40 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700';
-        item.innerHTML = '<span class="text-slate-500 dark:text-slate-400 font-mono truncate">' + escapeHtml(h.expr) + '</span>' +
-            '<span class="font-black text-brand-600 dark:text-brand-400 ml-2">= ' + h.result + '</span>';
-        item.onclick = function() { calcState.expression = h.result.toString(); calcUpdateDisplay(); };
-        list.appendChild(item);
-    });
-}
-
-function calcClearHistory() {
-    if (calcState.history.length === 0) { if (typeof showToast === 'function') showToast('السجل فارغ'); return; }
-    if (!confirm('مسح السجل؟')) return;
-    calcState.history = [];
-    renderCalcHistory();
-}
-
-function calcHelp() {
-    alert('🧮 Sharp EL-W506T\n\n• 2ndF: تفعيل الدوال الثانوية\n• MODE: DEG/RAD/GRAD\n• M+/M−: الذاكرة\n• STO/RCL: حفظ/استرجاع\n• ANS: النتيجة السابقة\n• ON/C: مسح\n• DEL/BS: حذف حرف\n• =: الحساب');
-}
-
-document.addEventListener('keydown', function(e) {
-    var calcTab = document.getElementById('tab-calculator');
-    if (!calcTab || calcTab.classList.contains('hidden')) return;
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    if (/^[0-9]$/.test(e.key)) calcDigit(e.key);
-    else if (e.key === '.') calcDigit('.');
-    else if (e.key === '+') calcOp('+');
-    else if (e.key === '-') calcOp('−');
-    else if (e.key === '*') calcOp('×');
-    else if (e.key === '/') { e.preventDefault(); calcOp('÷'); }
-    else if (e.key === '(' || e.key === ')') calcDigit(e.key);
-    else if (e.key === 'Enter' || e.key === '=') { e.preventDefault(); calcEquals(); }
-    else if (e.key === 'Backspace') { e.preventDefault(); calcDEL(); }
-    else if (e.key === 'Escape') calcAC();
-});
-
-var _origSwitchTabForCalc = switchTab;
-switchTab = function(tab) {
-    _origSwitchTabForCalc(tab);
-    if (tab === 'calculator') setTimeout(calcUpdateDisplay, 100);
-};
-
-function openCalcApp() {
-    var packageName = 'advanced.scientific.calculator.calc991.plus';
-    var playStoreUrl = 'https://play.google.com/store/apps/details?id=' + packageName + '&pcampaignid=web_share';
-    var appStoreUrl = 'https://apps.apple.com/us/app/scientific-calculator-plus-991/id1449106995';
-    
-    var ua = navigator.userAgent || '';
-    var isAndroid = /Android/i.test(ua);
-    var isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    
-    if (isAndroid) {
-        var intentUrl = 'intent://#Intent;scheme=market;package=' + packageName + 
-                       ';S.browser_fallback_url=' + encodeURIComponent(playStoreUrl) + ';end';
-        try { window.location.href = intentUrl; }
-        catch (e) { window.location.href = playStoreUrl; }
-        setTimeout(function() {
-            if (!document.hidden) window.location.href = playStoreUrl;
-        }, 2500);
-    } else if (isIOS) {
-        var startTime = Date.now();
-        window.location.href = 'scientific-calculator-991://';
-        setTimeout(function() {
-            if (Date.now() - startTime < 2500 && !document.hidden) {
-                window.location.href = appStoreUrl;
-            }
-        }, 2000);
-    } else {
-        window.open(playStoreUrl, '_blank');
-    }
 }
 
 function closeWheelModal() {
