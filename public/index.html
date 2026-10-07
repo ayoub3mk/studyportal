@@ -1469,13 +1469,9 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 /* ============================================================ */
 
 #mobileMenuBtn {
-    display: none !important;
-}
-
-@media (max-width: 640px) {
-    #mobileMenuBtn {
-        display: flex !important;
-    }
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
 }
 
 #mobileMenu.hidden {
@@ -1490,9 +1486,147 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     background-color: #1e293b;
     border-color: #334155;
 }
+/* ============================================================
+   🎨 المظهرات (Themes) — 6 ألوان
+   ============================================================ */
+:root {
+    --brand-50:  #fff7ed;
+    --brand-100: #ffedd5;
+    --brand-200: #fed7aa;
+    --brand-300: #fdba74;
+    --brand-400: #fb923c;
+    --brand-500: #f97316;
+    --brand-600: #ea580c;
+    --brand-700: #c2410c;
+    --brand-800: #9a3412;
+    --brand-900: #7c2d12;
+}
 
+html[data-theme="blue"] {
+    --brand-50:  #eff6ff;
+    --brand-100: #dbeafe;
+    --brand-200: #bfdbfe;
+    --brand-300: #93c5fd;
+    --brand-400: #60a5fa;
+    --brand-500: #3b82f6;
+    --brand-600: #2563eb;
+    --brand-700: #1d4ed8;
+    --brand-800: #1e40af;
+    --brand-900: #1e3a8a;
+}
+
+html[data-theme="green"] {
+    --brand-50:  #ecfdf5;
+    --brand-100: #d1fae5;
+    --brand-200: #a7f3d0;
+    --brand-300: #6ee7b7;
+    --brand-400: #34d399;
+    --brand-500: #10b981;
+    --brand-600: #059669;
+    --brand-700: #047857;
+    --brand-800: #065f46;
+    --brand-900: #064e3b;
+}
+
+html[data-theme="purple"] {
+    --brand-50:  #f5f3ff;
+    --brand-100: #ede9fe;
+    --brand-200: #ddd6fe;
+    --brand-300: #c4b5fd;
+    --brand-400: #a78bfa;
+    --brand-500: #8b5cf6;
+    --brand-600: #7c3aed;
+    --brand-700: #6d28d9;
+    --brand-800: #5b21b6;
+    --brand-900: #4c1d95;
+}
+
+html[data-theme="pink"] {
+    --brand-50:  #fdf2f8;
+    --brand-100: #fce7f3;
+    --brand-200: #fbcfe8;
+    --brand-300: #f9a8d4;
+    --brand-400: #f472b6;
+    --brand-500: #ec4899;
+    --brand-600: #db2777;
+    --brand-700: #be185d;
+    --brand-800: #9d174d;
+    --brand-900: #831843;
+}
+
+html[data-theme="gray"] {
+    --brand-50:  #f8fafc;
+    --brand-100: #f1f5f9;
+    --brand-200: #e2e8f0;
+    --brand-300: #cbd5e1;
+    --brand-400: #94a3b8;
+    --brand-500: #64748b;
+    --brand-600: #475569;
+    --brand-700: #334155;
+    --brand-800: #1e293b;
+    --brand-900: #0f172a;
+}
+
+/* استبدال ألوان Tailwind brand بالمتغيرات */
+.bg-brand-50  { background-color: var(--brand-50)  !important; }
+.bg-brand-100 { background-color: var(--brand-100) !important; }
+.bg-brand-200 { background-color: var(--brand-200) !important; }
+.bg-brand-300 { background-color: var(--brand-300) !important; }
+.bg-brand-400 { background-color: var(--brand-400) !important; }
+.bg-brand-500 { background-color: var(--brand-500) !important; }
+.bg-brand-600 { background-color: var(--brand-600) !important; }
+.bg-brand-700 { background-color: var(--brand-700) !important; }
+.bg-brand-800 { background-color: var(--brand-800) !important; }
+.bg-brand-900 { background-color: var(--brand-900) !important; }
+
+.text-brand-50  { color: var(--brand-50)  !important; }
+.text-brand-100 { color: var(--brand-100) !important; }
+.text-brand-200 { color: var(--brand-200) !important; }
+.text-brand-300 { color: var(--brand-300) !important; }
+.text-brand-400 { color: var(--brand-400) !important; }
+.text-brand-500 { color: var(--brand-500) !important; }
+.text-brand-600 { color: var(--brand-600) !important; }
+.text-brand-700 { color: var(--brand-700) !important; }
+.text-brand-800 { color: var(--brand-800) !important; }
+.text-brand-900 { color: var(--brand-900) !important; }
+
+.border-brand-500 { border-color: var(--brand-500) !important; }
+.border-brand-600 { border-color: var(--brand-600) !important; }
+.border-brand-700 { border-color: var(--brand-700) !important; }
+
+.from-brand-500 { --tw-gradient-from: var(--brand-500) !important; }
+.from-brand-600 { --tw-gradient-from: var(--brand-600) !important; }
+.to-brand-600   { --tw-gradient-to:   var(--brand-600) !important; }
+
+.hover\:bg-brand-600:hover { background-color: var(--brand-600) !important; }
+.hover\:bg-brand-700:hover { background-color: var(--brand-700) !important; }
+
+/* أنماط أزرار المظهر */
+.theme-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 3px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.theme-btn:hover {
+    transform: scale(1.1);
+}
+.theme-btn.active {
+    border-color: #fff;
+    box-shadow: 0 0 0 2px #000;
+}
+
+.theme-orange { background: linear-gradient(135deg, #f97316, #ea580c); }
+.theme-blue   { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+.theme-green  { background: linear-gradient(135deg, #10b981, #059669); }
+.theme-purple { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+.theme-pink   { background: linear-gradient(135deg, #ec4899, #db2777); }
+.theme-gray   { background: linear-gradient(135deg, #64748b, #475569); }
 </style>
 </head>
+
 
 <body class="h-full font-sans antialiased text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-900">
 
@@ -1896,10 +2030,16 @@ input[type="time"]::-webkit-calendar-picker-indicator {
                             <!-- فاصل -->
                             <div class="h-px bg-slate-200 dark:bg-slate-700 my-1"></div>
                             
+                                                       <!-- المظهر (6 ألوان) -->
+                            <button onclick="openThemeModal(); toggleMobileMenu();" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                                <i class="fa-solid fa-palette text-purple-500 w-5 text-center"></i>
+                                <span>لون المظهر</span>
+                            </button>
+
                             <!-- الوضع الليلي -->
                             <button onclick="toggleDarkMode(); toggleMobileMenu();" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
                                 <i id="mobileThemeIcon" class="fa-solid fa-moon text-slate-500 w-5 text-center"></i>
-                                <span>تبديل المظهر</span>
+                                <span>تبديل الوضع الليلي</span>
                             </button>
                             
                             <!-- تسجيل الخروج -->
@@ -1917,10 +2057,15 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     <span id="userChatBadge" class="hidden absolute -top-1 -right-1 text-[9px] font-black px-1.5 py-0.5 rounded-full bg-red-500 text-white"></span>
 </button>
 
+                              <!-- المظهر -->
+                <button onclick="openThemeModal()" title="تغيير المظهر" class="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                    <i class="fa-solid fa-palette text-xs"></i>
+                </button>
+
                 <!-- الوضع الليلي -->
                 <button onclick="toggleDarkMode()" class="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
                     <i id="themeIcon" class="fa-solid fa-moon text-xs"></i>
-                </button>
+                </button> 
             </div>
         </div>
     </header>
@@ -3207,6 +3352,7 @@ function getDefaultTimetable() {
 var appState = {
     lang: "ar",
     darkMode: false,
+    theme: "orange",
     weekAStart: "2026-09-29",
     manualWeek: null,
     user: null,
@@ -3622,11 +3768,13 @@ function loadUserData() {
         appState.tutorial = (u.extras && u.extras.tutorial) || null;
         appState.notifications = (u.extras && u.extras.notifications) || null;
         appState.exams = (u.extras && u.extras.exams) || [];
+        appState.theme = (u.extras && u.extras.theme) || 'orange';
         /* Migration تلقائي للأوراق */
         try { migrateSubjectItems(); } catch (e) { console.warn('Migration error:', e); }
         CURRENT_USER = u;
         purgeOldHomework();
         applyTheme();
+        applyThemeColor();
         applyLanguage();
         renderApp();
     })
@@ -5565,12 +5713,13 @@ function saveState() {
         homework: appState.homework,
         preparation: appState.preparation,
         prepChecked: appState.prepChecked,
-                extras: { 
+                      extras: { 
             series: appState.series || [], 
             notes: appState.notes || [],
             tutorial: appState.tutorial || null,
             notifications: appState.notifications || null,
-            exams: appState.exams || []
+            exams: appState.exams || [],
+            theme: appState.theme || 'orange'
         },
         lang: appState.lang,
         darkMode: appState.darkMode
@@ -7700,7 +7849,57 @@ function submitLinkChild(e) {
         err.classList.remove('hidden');
     });
 }
-
+<!-- ===== نافذة اختيار المظهر ===== -->
+<div id="themeModal" class="fixed inset-0 z-[110] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-5 border border-slate-200 dark:border-slate-700">
+        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 dark:border-slate-700">
+            <div class="flex items-center gap-2">
+                <div class="w-9 h-9 rounded-lg bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                    <i class="fa-solid fa-palette"></i>
+                </div>
+                <h3 class="text-base font-bold text-slate-900 dark:text-white">لون المظهر</h3>
+            </div>
+            <button onclick="closeThemeModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+        
+        <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">اختر اللون الذي يناسبك</p>
+        
+        <div class="grid grid-cols-3 gap-3 mb-4">
+            <button onclick="setTheme('orange')" data-theme="orange" class="theme-option flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-transparent hover:border-slate-300 dark:hover:border-slate-600 transition-all">
+                <div class="theme-btn theme-orange"></div>
+                <span class="text-[11px] font-bold text-slate-700 dark:text-slate-200">برتقالي</span>
+            </button>
+            <button onclick="setTheme('blue')" data-theme="blue" class="theme-option flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-transparent hover:border-slate-300 dark:hover:border-slate-600 transition-all">
+                <div class="theme-btn theme-blue"></div>
+                <span class="text-[11px] font-bold text-slate-700 dark:text-slate-200">أزرق</span>
+            </button>
+            <button onclick="setTheme('green')" data-theme="green" class="theme-option flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-transparent hover:border-slate-300 dark:hover:border-slate-600 transition-all">
+                <div class="theme-btn theme-green"></div>
+                <span class="text-[11px] font-bold text-slate-700 dark:text-slate-200">أخضر</span>
+            </button>
+            <button onclick="setTheme('purple')" data-theme="purple" class="theme-option flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-transparent hover:border-slate-300 dark:hover:border-slate-600 transition-all">
+                <div class="theme-btn theme-purple"></div>
+                <span class="text-[11px] font-bold text-slate-700 dark:text-slate-200">بنفسجي</span>
+            </button>
+            <button onclick="setTheme('pink')" data-theme="pink" class="theme-option flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-transparent hover:border-slate-300 dark:hover:border-slate-600 transition-all">
+                <div class="theme-btn theme-pink"></div>
+                <span class="text-[11px] font-bold text-slate-700 dark:text-slate-200">وردي</span>
+            </button>
+            <button onclick="setTheme('gray')" data-theme="gray" class="theme-option flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-transparent hover:border-slate-300 dark:hover:border-slate-600 transition-all">
+                <div class="theme-btn theme-gray"></div>
+                <span class="text-[11px] font-bold text-slate-700 dark:text-slate-200">رمادي</span>
+            </button>
+        </div>
+        
+        <div class="flex justify-end pt-3 border-t border-slate-200 dark:border-slate-700">
+            <button onclick="closeThemeModal()" class="px-5 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+                إغلاق
+            </button>
+        </div>
+    </div>
+</div>
 /* ============================================================
    من جهة الابن - إدارة أولياء الأمور
    ============================================================ */
@@ -13051,7 +13250,51 @@ function openCalcApp() {
         window.open(playStoreUrl, '_blank');
     }
 }
+/* ============================================================
+   🎨 نظام المظهرات (Themes)
+   ============================================================ */
 
+function openThemeModal() {
+    document.getElementById('themeModal').classList.remove('hidden');
+    updateThemeModalUI();
+}
+
+function closeThemeModal() {
+    document.getElementById('themeModal').classList.add('hidden');
+}
+
+function setTheme(theme) {
+    appState.theme = theme || 'orange';
+    applyThemeColor();
+    updateThemeModalUI();
+    saveState();
+    showToast('✓ تم تغيير المظهر');
+    // إغلاق تلقائي بعد 600ms
+    setTimeout(closeThemeModal, 600);
+}
+
+function applyThemeColor() {
+    var theme = appState.theme || 'orange';
+    if (theme === 'orange') {
+        document.documentElement.removeAttribute('data-theme');
+    } else {
+        document.documentElement.setAttribute('data-theme', theme);
+    }
+}
+
+function updateThemeModalUI() {
+    var current = appState.theme || 'orange';
+    document.querySelectorAll('.theme-option').forEach(function(btn) {
+        var t = btn.getAttribute('data-theme');
+        var isActive = t === current;
+        btn.classList.toggle('border-brand-500', isActive);
+        btn.classList.toggle('bg-brand-50', isActive);
+        btn.classList.toggle('dark:bg-brand-950/30', isActive);
+        btn.classList.toggle('border-transparent', !isActive);
+    });
+}
+
+function closeWheelModal() {
 function closeWheelModal() {
     document.getElementById('wheelModal').classList.add('hidden');
     
