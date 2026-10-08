@@ -2264,6 +2264,41 @@ app.delete('/api/admin/users/:userId/badges/:badgeId', adminRequired, async func
         res.status(500).json({ error: 'server_error' });
     }
 });
+/* نسخ الشارات من مستخدم لآخر */
+app.post('/api/users/copy-badges', accountAuthRequired, async function(req, res) {
+    try {
+        var sourceUserId = parseInt(req.body.sourceUserId, 10);
+        var targetUserId = parseInt(req.body.targetUserId, 10);
+        
+        if (!sourceUserId || !targetUserId) {
+            return res.status(400).json({ error: 'missing_fields' });
+        }
+        
+        /* تحقق أن كلا المستخدمين لهذا الحساب */
+        var source = await db.findUserById(sourceUserId);
+        var target = await db.findUserById(targetUserId);
+        
+        if (!source || source.account_id !== req.accountId) {
+            return res.status(403).json({ error: 'forbidden' });
+        }
+        if (!target || target.account_id !== req.accountId) {
+            return res.status(403).json({ error: 'forbidden' });
+        }
+        
+        /* انسخ الشارات */
+        var badges = await db.getUserBadges(sourceUserId);
+        var count = 0;
+        for (var i = 0; i < badges.length; i++) {
+            var ok = await db.unlockBadge(targetUserId, badges[i].badge_id);
+            if (ok) count++;
+        }
+        
+        res.json({ ok: true, copied: count });
+    } catch (err) {
+        console.error('Copy badges error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
 
 /* ============================================================
    نهاية الإضافات
