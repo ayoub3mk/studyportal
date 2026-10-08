@@ -1114,6 +1114,14 @@ app.post('/api/stats/complete-task', userAuthRequired, async function(req, res) 
         
         var finalStats = await db.getUserStats(req.userId);
         
+                /* افحص الشارات بعد كل مهمة */
+        var newlyUnlockedBadges = [];
+        try {
+            newlyUnlockedBadges = await db.checkAndUnlockBadges(req.userId);
+        } catch (e) {
+            console.error('Badges check error:', e.message);
+        }
+        
         res.json({
             ok: true,
             pointsAdded: pointsToAdd,
@@ -1121,7 +1129,8 @@ app.post('/api/stats/complete-task', userAuthRequired, async function(req, res) 
             streakBonus: streakBonus,
             totalPoints: finalStats.points,
             currentStreak: finalStats.current_streak,
-            goalMet: goalMetNow
+            goalMet: goalMetNow,
+            newBadges: newlyUnlockedBadges
         });
     } catch (err) {
         console.error('Complete task error:', err);
@@ -2171,6 +2180,87 @@ app.delete('/api/admin/announcement', adminRequired, async function(req, res) {
         res.json({ ok: true, message: 'تم حذف الإعلان' });
     } catch (err) {
         console.error('Clear announcement error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+/* ============================================================
+   نظام الشارات (Badges) — API
+   ============================================================ */
+
+/* جلب شارات المستخدم الحالي */
+app.get('/api/badges', userAuthRequired, async function(req, res) {
+    try {
+        /* افحص وافتح أي شارات جديدة أولاً */
+        var newlyUnlocked = await db.checkAndUnlockBadges(req.userId);
+        
+        /* ثم اجلب كل الشارات */
+        var badges = await db.getUserBadges(req.userId);
+        
+        res.json({
+            ok: true,
+            badges: badges,
+            newlyUnlocked: newlyUnlocked
+        });
+    } catch (err) {
+        console.error('Get badges error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* فحص يدوي للشارات (يُستدعى بعد أي مهمة) */
+app.post('/api/badges/check', userAuthRequired, async function(req, res) {
+    try {
+        var newlyUnlocked = await db.checkAndUnlockBadges(req.userId);
+        res.json({ ok: true, newlyUnlocked: newlyUnlocked });
+    } catch (err) {
+        console.error('Check badges error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* جلب شارات أي مستخدم (للمدير) */
+app.get('/api/admin/users/:userId/badges', adminRequired, async function(req, res) {
+    try {
+        var userId = parseInt(req.params.userId, 10);
+        var badges = await db.getUserBadges(userId);
+        res.json({ ok: true, badges: badges });
+    } catch (err) {
+        console.error('Admin get badges error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* منح شارة يدوياً (للمدير) */
+app.post('/api/admin/users/:userId/badges', adminRequired, async function(req, res) {
+    try {
+        var userId = parseInt(req.params.userId, 10);
+        var badgeId = (req.body.badgeId || '').trim();
+        
+        if (!userId || !badgeId) {
+            return res.status(400).json({ error: 'missing_fields' });
+        }
+        
+        var unlocked = await db.unlockBadge(userId, badgeId);
+        res.json({ ok: true, unlocked: unlocked });
+    } catch (err) {
+        console.error('Admin grant badge error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+/* إزالة شارة (للمدير) */
+app.delete('/api/admin/users/:userId/badges/:badgeId', adminRequired, async function(req, res) {
+    try {
+        var userId = parseInt(req.params.userId, 10);
+        var badgeId = req.params.badgeId;
+        
+        await db.pool.query(
+            'DELETE FROM user_badges WHERE user_id = $1 AND badge_id = $2',
+            [userId, badgeId]
+        );
+        res.json({ ok: true });
+    } catch (err) {
+        console.error('Admin remove badge error:', err);
         res.status(500).json({ error: 'server_error' });
     }
 });
