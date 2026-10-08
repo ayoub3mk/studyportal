@@ -6239,10 +6239,13 @@ function resetPomodoro() {
 /* ============================================================
    الجزء 28: بدء التطبيق
    ============================================================ */
+console.log('=== بداية DOMContentLoaded ===');
 window.addEventListener('DOMContentLoaded', function(){
     /* استرجاع الحساب */
     try {
+        console.log('=== داخل try ===');
         var saved = localStorage.getItem('acc_token');
+        console.log('saved token:', saved ? 'موجود' : 'فارغ');
         if (saved) {
             AUTH_TOKEN = saved;
             fetch('/api/account/me', {
