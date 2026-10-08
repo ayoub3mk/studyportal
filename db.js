@@ -1193,10 +1193,7 @@ async function getTotalUnreadForAdmin() {
     `);
     return result.rows[0].n || 0;
 }
-    /* الشارات */
-    getUserBadges: getUserBadges,
-    unlockBadge: unlockBadge,
-    checkAndUnlockBadges: checkAndUnlockBadges,
+   
 /* ============================================================
    نظام الشارات (Badges)
    ============================================================ */
@@ -1322,6 +1319,10 @@ module.exports = {
     getDisabledCount: getDisabledCount,
     getTotalUnreadForAdmin: getTotalUnreadForAdmin,
     getAdminOverview: getAdminOverview,
+    /* الشارات */
+    getUserBadges: getUserBadges,
+    unlockBadge: unlockBadge,
+    checkAndUnlockBadges: checkAndUnlockBadges,
     /* البيانات */
     getUserData: getUserData,
     saveUserData: saveUserData,
