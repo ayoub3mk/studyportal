@@ -1193,6 +1193,98 @@ async function getTotalUnreadForAdmin() {
     `);
     return result.rows[0].n || 0;
 }
+    /* الشارات */
+    getUserBadges: getUserBadges,
+    unlockBadge: unlockBadge,
+    checkAndUnlockBadges: checkAndUnlockBadges,
+/* ============================================================
+   نظام الشارات (Badges)
+   ============================================================ */
+
+/* جلب شارات المستخدم */
+async function getUserBadges(userId) {
+    var result = await pool.query(
+        'SELECT badge_id, unlocked_at FROM user_badges WHERE user_id = $1 ORDER BY unlocked_at DESC',
+        [userId]
+    );
+    return result.rows;
+}
+
+/* فتح شارة (تتجاهل إذا موجودة) */
+async function unlockBadge(userId, badgeId) {
+    try {
+        var result = await pool.query(`
+            INSERT INTO user_badges (user_id, badge_id, unlocked_at)
+            VALUES ($1, $2, NOW())
+            ON CONFLICT (user_id, badge_id) DO NOTHING
+            RETURNING id
+        `, [userId, badgeId]);
+        return result.rowCount > 0; /* true إذا فُتحت الآن */
+    } catch (e) {
+        console.error('unlockBadge error:', e.message);
+        return false;
+    }
+}
+
+/* فحص كل الشارات بناءً على إحصائيات المستخدم */
+async function checkAndUnlockBadges(userId) {
+    try {
+        var stats = await getUserStats(userId);
+        var progress = await getRecentProgress(userId, 3650); /* كل الأيام */
+        
+        /* احسب الإجمالي */
+        var totalPapers = 0;
+        var perfectDays = 0;
+        progress.forEach(function(p) {
+            totalPapers += (p.current_value || 0);
+            if (p.goal_met) perfectDays++;
+        });
+        
+        /* جلسات التركيز */
+        var focusStats = await getFocusStats(userId, 3650);
+        var focusSessions = parseInt(focusStats.total_sessions, 10) || 0;
+        
+        /* الشارات المفتوحة حالياً */
+        var existing = await getUserBadges(userId);
+        var existingIds = {};
+        existing.forEach(function(b) { existingIds[b.badge_id] = true; });
+        
+        /* افحص كل شارة */
+        var newlyUnlocked = [];
+        var checks = [
+            { id: 'first_task',       ok: totalPapers >= 1 },
+            { id: 'first_paper',      ok: totalPapers >= 1 },
+            { id: 'papers_10',        ok: totalPapers >= 10 },
+            { id: 'papers_50',        ok: totalPapers >= 50 },
+            { id: 'papers_100',       ok: totalPapers >= 100 },
+            { id: 'papers_500',       ok: totalPapers >= 500 },
+            { id: 'streak_3',         ok: (stats.current_streak || 0) >= 3 || (stats.longest_streak || 0) >= 3 },
+            { id: 'streak_7',         ok: (stats.longest_streak || 0) >= 7 },
+            { id: 'streak_30',        ok: (stats.longest_streak || 0) >= 30 },
+            { id: 'streak_100',       ok: (stats.longest_streak || 0) >= 100 },
+            { id: 'points_1000',      ok: (stats.points || 0) >= 1000 },
+            { id: 'points_5000',      ok: (stats.points || 0) >= 5000 },
+            { id: 'focus_10',         ok: focusSessions >= 10 },
+            { id: 'focus_50',         ok: focusSessions >= 50 },
+            { id: 'perfect_day',      ok: perfectDays >= 1 },
+            { id: 'perfect_week',     ok: perfectDays >= 7 },
+            { id: 'perfect_month',    ok: perfectDays >= 30 }
+        ];
+        
+        for (var i = 0; i < checks.length; i++) {
+            var c = checks[i];
+            if (c.ok && !existingIds[c.id]) {
+                var unlocked = await unlockBadge(userId, c.id);
+                if (unlocked) newlyUnlocked.push(c.id);
+            }
+        }
+        
+        return newlyUnlocked;
+    } catch (e) {
+        console.error('checkAndUnlockBadges error:', e.message);
+        return [];
+    }
+}
 
 /* ============================================================
    نهاية الإضافات
