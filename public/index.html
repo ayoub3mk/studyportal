@@ -13551,10 +13551,7 @@ function renderBadges() {
     }
 });
     
-    /* حدّث التقدم */
-    var unlockedCount = Object.keys(badgesState.unlocked).length;
-    var totalCount = BADGES_LIST.length;
-    var pct = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
+   }
     
     var el;
     el = document.getElementById('badgesUnlockedCount');
