@@ -13542,28 +13542,7 @@ function renderBadges() {
     if (el) el.style.width = pct + '%';
     
     var subtitle = document.getElementById('badgesSubtitle');
-    if (subtitle) {
-        if (unlockedCount === totalCount) {
-            subtitle.textContent = '🏆 ما شاء الله! جمعت كل الشارات!';
-        } else {
-            subtitle.textContent = 'جمعت ' + unlockedCount + ' من ' + totalCount + ' شارة';
-        }
-    }
-});
-    
-   }
-    
-    var el;
-    el = document.getElementById('badgesUnlockedCount');
-    if (el) el.textContent = unlockedCount;
-    el = document.getElementById('badgesTotalCount');
-    if (el) el.textContent = totalCount;
-    el = document.getElementById('badgesProgressBar');
-    if (el) el.style.width = pct + '%';
-    
-    /* عنوان فرعي */
-    var subtitle = document.getElementById('badgesSubtitle');
-    if (subtitle) {
+       if (subtitle) {
         if (unlockedCount === totalCount) {
             subtitle.textContent = '🏆 ما شاء الله! جمعت كل الشارات!';
         } else {
