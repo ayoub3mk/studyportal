@@ -2023,16 +2023,11 @@ html[data-theme="gray"] {
     <p class="text-[10px] text-blue-600 dark:text-blue-400 mt-1 mr-6">ينسخ: المواد + الجدول + إعدادات الملف (بدون الأوراق)</p>
     
     <div id="copyOptions" class="hidden mt-3 pt-3 border-t border-blue-200 dark:border-blue-800">
-    <label class="block text-[10px] font-bold text-blue-700 dark:text-blue-300 mb-1">اختر المستخدم المصدر</label>
-    <select id="copySourceSelect" class="w-full px-3 py-2 rounded-lg border border-blue-300 dark:border-blue-800 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm mb-3">
-        <option value="">— اختر —</option>
-    </select>
-    
-    <label class="flex items-center gap-2 cursor-pointer mb-2">
-        <input type="checkbox" id="copyBadgesToo" class="w-4 h-4 rounded accent-amber-600">
-        <span class="text-xs font-bold text-amber-700 dark:text-amber-300">🏅 نسخ الشارات أيضاً</span>
-    </label>
-    <p class="text-[10px] text-amber-600 dark:text-amber-400 mr-6">انسخ كل الشارات المفتوحة من المستخدم المصدر</p>
+        <label class="block text-[10px] font-bold text-blue-700 dark:text-blue-300 mb-1">اختر المستخدم المصدر</label>
+        <select id="copySourceSelect" class="w-full px-3 py-2 rounded-lg border border-blue-300 dark:border-blue-800 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+            <option value="">— اختر —</option>
+        </select>
+    </div>
 </div>
 
 <p id="addUserError" class="text-xs font-semibold text-red-500 mt-2 text-center hidden"></p>
@@ -2107,8 +2102,8 @@ html[data-theme="gray"] {
                     </button>
                     
                     <!-- القائمة المنسدلة (للهاتف) -->
-                   <div id="mobileMenu" class="hidden fixed top-16 right-2 left-2 sm:right-4 sm:left-auto sm:w-72 z-50 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                        <div class="p-2 space-y-1 max-h-[80vh] overflow-y-auto custom-scrollbar">
+                    <div id="mobileMenu" class="hidden fixed top-16 right-2 left-2 sm:right-4 sm:left-auto sm:w-72 z-50 bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        <div class="p-2 space-y-1">
                             
                             <!-- حفظ -->
                             <button onclick="manualSave(); toggleMobileMenu();" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
@@ -3843,23 +3838,6 @@ function submitAddUser(e) {
             err.classList.remove('hidden');
             return;
         }
-               /* إذا طلب نسخ الشارات */
-        var copyBadges = document.getElementById('copyBadgesToo')?.checked;
-        if (copyBadges && copyFrom && sourceUserId) {
-            fetch('/api/users/copy-badges', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': 'Bearer ' + AUTH_TOKEN
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    sourceUserId: parseInt(sourceUserId, 10),
-                    targetUserId: res.data.userId
-                })
-            }).catch(function(e) { console.error('Copy badges error:', e); });
-        }
-        
         closeAddUserModal();
         loadUsers();
     })
@@ -3869,7 +3847,8 @@ function submitAddUser(e) {
         err.textContent = 'خطأ في الاتصال';
         err.classList.remove('hidden');
     });
-};
+}
+
 function deleteUser(userId) {
     if (!confirm('حذف المستخدم؟ سيتم حذف كل بياناته.')) return;
     fetch('/api/users/' + userId, {
@@ -5954,82 +5933,21 @@ function manualSave() {
    الجزء 24: التصدير والاستيراد
    ============================================================ */
 function exportJSON() {
-    /* افتح نافذة الاختيار */
-    openExportOptions();
-}
-
-function openExportOptions() {
-    /* املأ القائمة بكل الأقسام */
-    var options = [
-        { id: 'subjects',      label: 'المواد والأوراق',      icon: 'fa-list-check',   checked: true },
-        { id: 'timetable',     label: 'الجدول الأسبوعي',      icon: 'fa-table-cells',  checked: true },
-        { id: 'homework',      label: 'الواجبات',             icon: 'fa-book-bookmark',checked: true },
-        { id: 'preparation',   label: 'أدوات التحضير',        icon: 'fa-toolbox',      checked: true },
-        { id: 'prepChecked',   label: 'حالة التحضير اليوم',   icon: 'fa-clipboard-check', checked: false },
-        { id: 'series',        label: 'السلاسل',              icon: 'fa-pen-ruler',    checked: true },
-        { id: 'notes',         label: 'الملاحظات',            icon: 'fa-note-sticky',  checked: true },
-        { id: 'exams',         label: 'الامتحانات',           icon: 'fa-calendar-days',checked: true },
-        { id: 'badges',        label: 'الشارات',              icon: 'fa-trophy',       checked: true },
-        { id: 'results',       label: 'النتائج',              icon: 'fa-graduation-cap', checked: false },
-        { id: 'stats',         label: 'النقاط و Streak',      icon: 'fa-star',         checked: false },
-        { id: 'tutoring',      label: 'دروس خصوصية',          icon: 'fa-chalkboard-user', checked: false },
-        { id: 'settings',      label: 'الإعدادات (لغة، وضع)', icon: 'fa-gear',         checked: true }
-    ];
-    
-    var list = document.getElementById('exportOptionsList');
-    list.innerHTML = '';
-    
-    options.forEach(function(opt) {
-        var label = document.createElement('label');
-        label.className = 'flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer';
-        label.innerHTML = 
-            '<input type="checkbox" data-export-id="' + opt.id + '" ' + (opt.checked ? 'checked' : '') + ' class="w-4 h-4 rounded accent-brand-600">' +
-            '<i class="fa-solid ' + opt.icon + ' text-brand-500 w-5 text-center"></i>' +
-            '<span class="text-sm font-bold text-slate-700 dark:text-slate-200">' + opt.label + '</span>';
-        list.appendChild(label);
-    });
-    
-    document.getElementById('exportOptionsModal').classList.remove('hidden');
-}
-
-function closeExportOptions() {
-    document.getElementById('exportOptionsModal').classList.add('hidden');
-}
-
-function selectAllExport(checked) {
-    document.querySelectorAll('[data-export-id]').forEach(function(cb) {
-        cb.checked = checked;
-    });
-}
-
-function confirmExport() {
-    var selected = {};
-    document.querySelectorAll('[data-export-id]').forEach(function(cb) {
-        selected[cb.getAttribute('data-export-id')] = cb.checked;
-    });
-    
     var data = {
-        version: 3,
+        version: 2,
         exportedAt: new Date().toISOString(),
         name: CURRENT_USER ? CURRENT_USER.name : 'User',
-        sections: selected
+        subjects: appState.subjects,
+        timetable: appState.timetable,
+        homework: appState.homework,
+        preparation: appState.preparation,
+        extras: {
+            series: appState.series || [],
+            notes: appState.notes || []
+        },
+        lang: appState.lang,
+        darkMode: appState.darkMode
     };
-    
-    if (selected.subjects)      data.subjects = appState.subjects;
-    if (selected.timetable)     data.timetable = appState.timetable;
-    if (selected.homework)      data.homework = appState.homework;
-    if (selected.preparation)   data.preparation = appState.preparation;
-    if (selected.prepChecked)   data.prepChecked = appState.prepChecked;
-    if (selected.series)        data.series = appState.series || [];
-    if (selected.notes)         data.notes = appState.notes || [];
-    if (selected.exams)         data.exams = appState.exams || [];
-    if (selected.badges)        data.badges = badgesState.unlocked || {};
-    if (selected.settings) {
-        data.lang = appState.lang;
-        data.darkMode = appState.darkMode;
-        data.theme = appState.theme;
-    }
-    
     var blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
     var url = URL.createObjectURL(blob);
     var a = document.createElement('a');
@@ -6039,9 +5957,6 @@ function confirmExport() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
-    closeExportOptions();
-    showToast('✓ تم التصدير');
 }
 function importJSON() {
     var inp = document.createElement('input');
@@ -6239,13 +6154,10 @@ function resetPomodoro() {
 /* ============================================================
    الجزء 28: بدء التطبيق
    ============================================================ */
-console.log('=== بداية DOMContentLoaded ===');
 window.addEventListener('DOMContentLoaded', function(){
     /* استرجاع الحساب */
     try {
-        console.log('=== داخل try ===');
         var saved = localStorage.getItem('acc_token');
-        console.log('saved token:', saved ? 'موجود' : 'فارغ');
         if (saved) {
             AUTH_TOKEN = saved;
             fetch('/api/account/me', {
@@ -13321,85 +13233,125 @@ if ('serviceWorker' in navigator) {
 
 /* قائمة كل الشارات المتاحة */
 var BADGES_LIST = [
-    /* ===== نقاط ===== */
-    { id: 'points_100',      name: '100 نقطة',    desc: 'اجمع 100 نقطة',      icon: 'fa-star', color: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
-      type: 'points', target: 100 },
-    { id: 'points_500',      name: '500 نقطة',    desc: 'اجمع 500 نقطة',      icon: 'fa-star-half-stroke', color: 'linear-gradient(135deg, #f59e0b, #d97706)',
-      type: 'points', target: 500 },
-    { id: 'points_1000',     name: '1000 نقطة',   desc: 'اجمع 1000 نقطة',     icon: 'fa-star-of-life', color: 'linear-gradient(135deg, #fbbf24, #d97706)',
-      type: 'points', target: 1000 },
-    { id: 'points_5000',     name: '5000 نقطة',   desc: 'اجمع 5000 نقطة',     icon: 'fa-crown', color: 'linear-gradient(135deg, #f59e0b, #b45309)',
-      type: 'points', target: 5000 },
-    { id: 'points_10000',    name: '10000 نقطة',  desc: 'اجمع 10000 نقطة',    icon: 'fa-gem', color: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
-      type: 'points', target: 10000 },
-    
-    /* ===== أوراق ===== */
-    { id: 'first_task',      name: 'البداية',     desc: 'أنهِ مهمة واحدة',    icon: 'fa-seedling', color: 'linear-gradient(135deg, #22c55e, #16a34a)',
-      type: 'papers', target: 1 },
-    { id: 'first_paper',     name: 'أول ورقة',    desc: 'أنهِ ورقة واحدة',    icon: 'fa-file-lines', color: 'linear-gradient(135deg, #06b6d4, #0891b2)',
-      type: 'papers', target: 1 },
-    { id: 'papers_10',       name: '10 أوراق',    desc: 'أنجز 10 أوراق',      icon: 'fa-layer-group', color: 'linear-gradient(135deg, #3b82f6, #2563eb)',
-      type: 'papers', target: 10 },
-    { id: 'papers_50',       name: '50 ورقة',     desc: 'أنجز 50 ورقة',       icon: 'fa-book', color: 'linear-gradient(135deg, #8b5cf6, #7c3aed)',
-      type: 'papers', target: 50 },
-    { id: 'papers_100',      name: '100 ورقة',    desc: 'أنجز 100 ورقة',      icon: 'fa-book-open', color: 'linear-gradient(135deg, #ec4899, #db2777)',
-      type: 'papers', target: 100 },
-    { id: 'papers_500',      name: '500 ورقة',    desc: 'أنجز 500 ورقة',      icon: 'fa-scroll', color: 'linear-gradient(135deg, #f59e0b, #d97706)',
-      type: 'papers', target: 500 },
-    { id: 'papers_1000',     name: '1000 ورقة',   desc: 'أنجز 1000 ورقة',     icon: 'fa-trophy', color: 'linear-gradient(135deg, #fbbf24, #b45309)',
-      type: 'papers', target: 1000 },
-    
-    /* ===== Streak ===== */
-    { id: 'streak_3',        name: '3 أيام',      desc: 'Streak 3 أيام',      icon: 'fa-fire', color: 'linear-gradient(135deg, #f97316, #ea580c)',
-      type: 'streak', target: 3 },
-    { id: 'streak_7',        name: 'أسبوع',       desc: 'Streak أسبوع',       icon: 'fa-fire-flame-curved', color: 'linear-gradient(135deg, #ef4444, #dc2626)',
-      type: 'streak', target: 7 },
-    { id: 'streak_14',       name: 'أسبوعان',     desc: 'Streak 14 يوم',      icon: 'fa-fire-flame-simple', color: 'linear-gradient(135deg, #dc2626, #b91c1c)',
-      type: 'streak', target: 14 },
-    { id: 'streak_30',       name: 'شهر',         desc: 'Streak 30 يوم',      icon: 'fa-fire-flame-simple', color: 'linear-gradient(135deg, #dc2626, #991b1b)',
-      type: 'streak', target: 30 },
-    { id: 'streak_60',       name: 'شهران',       desc: 'Streak 60 يوم',      icon: 'fa-fire-flame-curved', color: 'linear-gradient(135deg, #b91c1c, #7f1d1d)',
-      type: 'streak', target: 60 },
-    { id: 'streak_100',      name: '100 يوم',     desc: 'Streak 100 يوم',     icon: 'fa-dragon', color: 'linear-gradient(135deg, #7c3aed, #4c1d95)',
-      type: 'streak', target: 100 },
-    { id: 'streak_365',      name: 'سنة',         desc: 'Streak سنة كاملة',   icon: 'fa-infinity', color: 'linear-gradient(135deg, #6366f1, #3730a3)',
-      type: 'streak', target: 365 },
-    
-    /* ===== جلسات تركيز ===== */
-    { id: 'focus_first',     name: 'جلسة تركيز',  desc: 'أكمل جلسة واحدة',    icon: 'fa-hourglass-start', color: 'linear-gradient(135deg, #14b8a6, #0d9488)',
-      type: 'focus', target: 1 },
-    { id: 'focus_10',        name: '10 جلسات',    desc: 'أكمل 10 جلسات',      icon: 'fa-hourglass-half', color: 'linear-gradient(135deg, #14b8a6, #0d9488)',
-      type: 'focus', target: 10 },
-    { id: 'focus_50',        name: '50 جلسة',     desc: 'أكمل 50 جلسة',       icon: 'fa-hourglass-end', color: 'linear-gradient(135deg, #0891b2, #155e75)',
-      type: 'focus', target: 50 },
-    { id: 'focus_100',       name: '100 جلسة',    desc: 'أكمل 100 جلسة',      icon: 'fa-stopwatch', color: 'linear-gradient(135deg, #06b6d4, #0e7490)',
-      type: 'focus', target: 100 },
-    
-    /* ===== أيام كاملة ===== */
-    { id: 'perfect_day',     name: 'يوم كامل',    desc: 'حقق هدف يوم',        icon: 'fa-bullseye', color: 'linear-gradient(135deg, #10b981, #059669)',
-      type: 'perfect_days', target: 1 },
-    { id: 'perfect_week',    name: 'أسبوع كامل',  desc: 'حقق هدف 7 أيام',     icon: 'fa-calendar-check', color: 'linear-gradient(135deg, #059669, #065f46)',
-      type: 'perfect_days', target: 7 },
-    { id: 'perfect_month',   name: 'شهر كامل',    desc: 'حقق هدف 30 يوم',     icon: 'fa-medal', color: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-      type: 'perfect_days', target: 30 },
-    { id: 'perfect_100',     name: '100 يوم كامل', desc: 'حقق هدف 100 يوم',   icon: 'fa-award', color: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
-      type: 'perfect_days', target: 100 },
-    
-    /* ===== واجبات ===== */
-    { id: 'hw_first',        name: 'أول واجب',    desc: 'أنجز واجباً واحداً', icon: 'fa-clipboard-check', color: 'linear-gradient(135deg, #f97316, #ea580c)',
-      type: 'homework', target: 1 },
-    { id: 'hw_10',           name: '10 واجبات',   desc: 'أنجز 10 واجبات',     icon: 'fa-clipboard-list', color: 'linear-gradient(135deg, #ea580c, #c2410c)',
-      type: 'homework', target: 10 },
-    { id: 'hw_50',           name: '50 واجب',     desc: 'أنجز 50 واجباً',     icon: 'fa-list-check', color: 'linear-gradient(135deg, #c2410c, #9a3412)',
-      type: 'homework', target: 50 },
-    
-    /* ===== سلاسل ===== */
-    { id: 'series_first',    name: 'أول سلسلة',   desc: 'أنهِ سلسلة كاملة',   icon: 'fa-pen-ruler', color: 'linear-gradient(135deg, #22c55e, #15803d)',
-      type: 'series', target: 1 },
-    { id: 'series_10',       name: '10 سلاسل',    desc: 'أنهِ 10 سلاسل',      icon: 'fa-list-ol', color: 'linear-gradient(135deg, #16a34a, #166534)',
-      type: 'series', target: 10 },
-    { id: 'series_50',       name: '50 سلسلة',    desc: 'أنهِ 50 سلسلة',      icon: 'fa-layer-group', color: 'linear-gradient(135deg, #15803d, #14532d)',
-      type: 'series', target: 50 }
+    {
+        id: 'first_task',
+        name: 'البداية',
+        desc: 'أنجز أول مهمة',
+        icon: 'fa-seedling',
+        color: 'linear-gradient(135deg, #22c55e, #16a34a)'
+    },
+    {
+        id: 'first_paper',
+        name: 'أول ورقة',
+        desc: 'أنهِ ورقة واحدة',
+        icon: 'fa-file-lines',
+        color: 'linear-gradient(135deg, #06b6d4, #0891b2)'
+    },
+    {
+        id: 'papers_10',
+        name: 'عشرة',
+        desc: 'أنجز 10 أوراق',
+        icon: 'fa-layer-group',
+        color: 'linear-gradient(135deg, #3b82f6, #2563eb)'
+    },
+    {
+        id: 'papers_50',
+        name: 'خمسون',
+        desc: 'أنجز 50 ورقة',
+        icon: 'fa-book',
+        color: 'linear-gradient(135deg, #8b5cf6, #7c3aed)'
+    },
+    {
+        id: 'papers_100',
+        name: 'مئة',
+        desc: 'أنجز 100 ورقة',
+        icon: 'fa-book-open',
+        color: 'linear-gradient(135deg, #ec4899, #db2777)'
+    },
+    {
+        id: 'papers_500',
+        name: 'خمسمئة',
+        desc: 'أنجز 500 ورقة',
+        icon: 'fa-crown',
+        color: 'linear-gradient(135deg, #f59e0b, #d97706)'
+    },
+    {
+        id: 'streak_3',
+        name: '3 أيام',
+        desc: 'حافظ على Streak لـ 3 أيام',
+        icon: 'fa-fire',
+        color: 'linear-gradient(135deg, #f97316, #ea580c)'
+    },
+    {
+        id: 'streak_7',
+        name: 'أسبوع',
+        desc: 'حافظ على Streak لأسبوع',
+        icon: 'fa-fire-flame-curved',
+        color: 'linear-gradient(135deg, #ef4444, #dc2626)'
+    },
+    {
+        id: 'streak_30',
+        name: 'شهر',
+        desc: 'حافظ على Streak لشهر',
+        icon: 'fa-fire-flame-simple',
+        color: 'linear-gradient(135deg, #dc2626, #991b1b)'
+    },
+    {
+        id: 'streak_100',
+        name: 'مئة يوم',
+        desc: 'حافظ على Streak 100 يوم',
+        icon: 'fa-dragon',
+        color: 'linear-gradient(135deg, #7c3aed, #4c1d95)'
+    },
+    {
+        id: 'points_1000',
+        name: '1000 نقطة',
+        desc: 'اجمع 1000 نقطة',
+        icon: 'fa-star',
+        color: 'linear-gradient(135deg, #fbbf24, #f59e0b)'
+    },
+    {
+        id: 'points_5000',
+        name: '5000 نقطة',
+        desc: 'اجمع 5000 نقطة',
+        icon: 'fa-star-of-life',
+        color: 'linear-gradient(135deg, #f59e0b, #d97706)'
+    },
+    {
+        id: 'focus_10',
+        name: '10 جلسات',
+        desc: 'أكمل 10 جلسات تركيز',
+        icon: 'fa-hourglass-half',
+        color: 'linear-gradient(135deg, #14b8a6, #0d9488)'
+    },
+    {
+        id: 'focus_50',
+        name: '50 جلسة',
+        desc: 'أكمل 50 جلسة تركيز',
+        icon: 'fa-hourglass-end',
+        color: 'linear-gradient(135deg, #0891b2, #155e75)'
+    },
+    {
+        id: 'perfect_day',
+        name: 'يوم كامل',
+        desc: 'حقق هدف يوم كامل',
+        icon: 'fa-bullseye',
+        color: 'linear-gradient(135deg, #10b981, #059669)'
+    },
+    {
+        id: 'perfect_week',
+        name: 'أسبوع كامل',
+        desc: 'حقق هدف 7 أيام',
+        icon: 'fa-calendar-check',
+        color: 'linear-gradient(135deg, #059669, #065f46)'
+    },
+    {
+        id: 'perfect_month',
+        name: 'شهر كامل',
+        desc: 'حقق هدف 30 يوم',
+        icon: 'fa-medal',
+        color: 'linear-gradient(135deg, #6366f1, #4f46e5)'
+    }
 ];
 
 /* حالة الشارات الحالية */
@@ -13459,72 +13411,20 @@ function renderBadges() {
     
     grid.innerHTML = '';
     
-    /* احسب تقدم كل نوع */
-    var totalPapers = 0, perfectDays = 0;
-    var recent = (CURRENT_STATS && CURRENT_STATS.recent) || [];
-    recent.forEach(function(p) {
-        totalPapers += (p.current_value || 0);
-        if (p.goal_met) perfectDays++;
-    });
-    
-    var currentPoints = (CURRENT_STATS && CURRENT_STATS.points) || 0;
-    var currentStreak = (CURRENT_STATS && CURRENT_STATS.longestStreak) || 0;
-    var focusSessions = 0; /* نحتاج جلبها من API */
-    var completedHw = (appState.homework || []).filter(function(h){ return h.completed; }).length;
-    var completedSeries = 0;
-    (appState.series || []).forEach(function(s) {
-        var items = s.items || [];
-        if (items.length > 0 && items.every(function(it){ return it.checked; })) completedSeries++;
-    });
-    
-    /* قيم التقدم حسب النوع */
-    var progressValues = {
-        points: currentPoints,
-        papers: totalPapers,
-        streak: currentStreak,
-        focus: focusSessions,
-        perfect_days: perfectDays,
-        homework: completedHw,
-        series: completedSeries
-    };
-    
     BADGES_LIST.forEach(function(badge) {
         var isUnlocked = !!badgesState.unlocked[badge.id];
-        var current = progressValues[badge.type] || 0;
-        var target = badge.target || 1;
-        var pct = Math.min(100, Math.round((current / target) * 100));
-        
         var card = document.createElement('div');
         card.className = 'badge-card ' + (isUnlocked ? 'unlocked' : 'locked');
         
-        /* دائرة تقدم (SVG) */
-        var circ = 2 * Math.PI * 26; /* r=26 */
-        var offset = circ * (1 - pct / 100);
-        
         var html = '';
-        html += '<div class="relative w-16 h-16 mx-auto mb-1.5">';
-        html += '<svg class="w-16 h-16 -rotate-90" viewBox="0 0 56 56">';
-        html += '<circle cx="28" cy="28" r="26" stroke="currentColor" stroke-width="3" fill="transparent" class="text-slate-200 dark:text-slate-600"></circle>';
-        html += '<circle cx="28" cy="28" r="26" stroke="currentColor" stroke-width="3" fill="transparent" stroke-linecap="round" class="' + (isUnlocked ? 'text-amber-400' : 'text-brand-500') + ' transition-all duration-700" stroke-dasharray="' + circ.toFixed(2) + '" stroke-dashoffset="' + offset.toFixed(2) + '"></circle>';
-        html += '</svg>';
-        html += '<div class="absolute inset-0 flex items-center justify-center">';
-        html += '<div class="w-10 h-10 rounded-full flex items-center justify-center ' + (isUnlocked ? '' : 'opacity-50') + '" style="' + (isUnlocked ? 'background:' + badge.color : 'background: linear-gradient(135deg, #94a3b8, #64748b)') + '">';
-        html += '<i class="fa-solid ' + badge.icon + ' text-white text-sm"></i>';
+        html += '<div class="badge-icon" style="' + (isUnlocked ? 'background:' + badge.color + ';' : '') + '">';
+        html += '<i class="fa-solid ' + badge.icon + '"></i>';
         html += '</div>';
-        html += '</div>';
-        /* نسبة مئوية صغيرة */
-        if (!isUnlocked && pct > 0) {
-            html += '<div class="absolute -bottom-0.5 left-1/2 -translate-x-1/2 text-[9px] font-black text-brand-600 dark:text-brand-400 bg-white dark:bg-slate-800 px-1.5 rounded-full border border-slate-200 dark:border-slate-600">' + pct + '%</div>';
-        }
-        html += '</div>';
-        
         html += '<p class="badge-name">' + badge.name + '</p>';
         html += '<p class="badge-desc">' + badge.desc + '</p>';
         
         if (!isUnlocked) {
-            html += '<p class="text-[9px] font-bold text-slate-500 dark:text-slate-400 mt-1">' + current + ' / ' + target + '</p>';
-        } else {
-            html += '<p class="text-[9px] font-black text-emerald-600 dark:text-emerald-400 mt-1">✓ تم</p>';
+            html += '<div class="absolute top-1.5 left-1.5 text-slate-400 text-[10px]"><i class="fa-solid fa-lock"></i></div>';
         }
         
         card.innerHTML = html;
@@ -13544,8 +13444,9 @@ function renderBadges() {
     el = document.getElementById('badgesProgressBar');
     if (el) el.style.width = pct + '%';
     
+    /* عنوان فرعي */
     var subtitle = document.getElementById('badgesSubtitle');
-       if (subtitle) {
+    if (subtitle) {
         if (unlockedCount === totalCount) {
             subtitle.textContent = '🏆 ما شاء الله! جمعت كل الشارات!';
         } else {
@@ -14479,41 +14380,6 @@ function closeWheelModal() {
         </div>
     </div>
 </div>
-    <!-- ============================================================
-     نافذة خيارات التصدير
-     ============================================================ -->
-<div id="exportOptionsModal" class="fixed inset-0 z-[110] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 hidden overflow-y-auto">
-    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-5 border border-slate-200 dark:border-slate-700 my-8">
-        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 dark:border-slate-700">
-            <div class="flex items-center gap-2">
-                <div class="w-9 h-9 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                    <i class="fa-solid fa-file-export"></i>
-                </div>
-                <h3 class="text-base font-bold text-slate-900 dark:text-white">تصدير البيانات</h3>
-            </div>
-            <button onclick="closeExportOptions()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
-                <i class="fa-solid fa-xmark text-lg"></i>
-            </button>
-        </div>
-        
-        <p class="text-xs text-slate-500 dark:text-slate-400 mb-3">اختر ما تريد تصديره:</p>
-        
-        <div class="flex gap-2 mb-3">
-            <button onclick="selectAllExport(true)" class="flex-1 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-bold hover:bg-slate-200 dark:hover:bg-slate-600">تحديد الكل</button>
-            <button onclick="selectAllExport(false)" class="flex-1 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-[11px] font-bold hover:bg-slate-200 dark:hover:bg-slate-600">إلغاء الكل</button>
-        </div>
-        
-        <div id="exportOptionsList" class="space-y-1 max-h-[50vh] overflow-y-auto custom-scrollbar mb-4"></div>
-        
-        <div class="flex gap-2 justify-end pt-3 border-t border-slate-200 dark:border-slate-700">
-            <button onclick="closeExportOptions()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold">إلغاء</button>
-            <button onclick="confirmExport()" class="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">
-                <i class="fa-solid fa-download mr-1"></i> تصدير
-            </button>
-        </div>
-    </div>
-</div>
-
 <!-- ============================================================
      نافذة ربط ابن
      ============================================================ -->
