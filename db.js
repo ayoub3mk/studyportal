@@ -4,7 +4,11 @@
    ============================================================ */
 
 var { Pool } = require('pg');
-
+function parseJsonField(value, fallback) {
+    if (value == null) return fallback;
+    if (typeof value === 'object') return value;
+    try { return JSON.parse(value); } catch (e) { return fallback; }
+}
 var DATABASE_URL = process.env.DATABASE_URL;
 
 if (!DATABASE_URL) {
@@ -1227,9 +1231,8 @@ async function unlockBadge(userId, badgeId) {
 async function checkAndUnlockBadges(userId) {
     try {
         var stats = await getUserStats(userId);
-        var progress = await getRecentProgress(userId, 3650); /* كل الأيام */
+        var progress = await getRecentProgress(userId, 3650);
         
-        /* احسب الإجمالي */
         var totalPapers = 0;
         var perfectDays = 0;
         progress.forEach(function(p) {
@@ -1241,33 +1244,72 @@ async function checkAndUnlockBadges(userId) {
         var focusStats = await getFocusStats(userId, 3650);
         var focusSessions = parseInt(focusStats.total_sessions, 10) || 0;
         
-        /* الشارات المفتوحة حالياً */
+        /* الواجبات المنجزة */
+        var userData = await getUserData(userId);
+        var homework = [];
+        try { homework = JSON.parse(userData.homework || '[]'); } catch (e) {}
+        var completedHw = homework.filter(function(h){ return h.completed; }).length;
+        
+        /* السلاسل المكتملة */
+        var extras = parseJsonField(userData.extras, {});
+        var series = extras.series || [];
+        var completedSeries = 0;
+        series.forEach(function(s) {
+            var items = s.items || [];
+            if (items.length > 0 && items.every(function(it){ return it.checked; })) completedSeries++;
+        });
+        
         var existing = await getUserBadges(userId);
         var existingIds = {};
         existing.forEach(function(b) { existingIds[b.badge_id] = true; });
         
-        /* افحص كل شارة */
-        var newlyUnlocked = [];
+        var currentPoints = stats.points || 0;
+        var longestStreak = stats.longest_streak || 0;
+        
         var checks = [
-            { id: 'first_task',       ok: totalPapers >= 1 },
-            { id: 'first_paper',      ok: totalPapers >= 1 },
-            { id: 'papers_10',        ok: totalPapers >= 10 },
-            { id: 'papers_50',        ok: totalPapers >= 50 },
-            { id: 'papers_100',       ok: totalPapers >= 100 },
-            { id: 'papers_500',       ok: totalPapers >= 500 },
-            { id: 'streak_3',         ok: (stats.current_streak || 0) >= 3 || (stats.longest_streak || 0) >= 3 },
-            { id: 'streak_7',         ok: (stats.longest_streak || 0) >= 7 },
-            { id: 'streak_30',        ok: (stats.longest_streak || 0) >= 30 },
-            { id: 'streak_100',       ok: (stats.longest_streak || 0) >= 100 },
-            { id: 'points_1000',      ok: (stats.points || 0) >= 1000 },
-            { id: 'points_5000',      ok: (stats.points || 0) >= 5000 },
-            { id: 'focus_10',         ok: focusSessions >= 10 },
-            { id: 'focus_50',         ok: focusSessions >= 50 },
-            { id: 'perfect_day',      ok: perfectDays >= 1 },
-            { id: 'perfect_week',     ok: perfectDays >= 7 },
-            { id: 'perfect_month',    ok: perfectDays >= 30 }
+            /* نقاط */
+            { id: 'points_100',      ok: currentPoints >= 100 },
+            { id: 'points_500',      ok: currentPoints >= 500 },
+            { id: 'points_1000',     ok: currentPoints >= 1000 },
+            { id: 'points_5000',     ok: currentPoints >= 5000 },
+            { id: 'points_10000',    ok: currentPoints >= 10000 },
+            /* أوراق */
+            { id: 'first_task',      ok: totalPapers >= 1 },
+            { id: 'first_paper',     ok: totalPapers >= 1 },
+            { id: 'papers_10',       ok: totalPapers >= 10 },
+            { id: 'papers_50',       ok: totalPapers >= 50 },
+            { id: 'papers_100',      ok: totalPapers >= 100 },
+            { id: 'papers_500',      ok: totalPapers >= 500 },
+            { id: 'papers_1000',     ok: totalPapers >= 1000 },
+            /* Streak */
+            { id: 'streak_3',        ok: longestStreak >= 3 },
+            { id: 'streak_7',        ok: longestStreak >= 7 },
+            { id: 'streak_14',       ok: longestStreak >= 14 },
+            { id: 'streak_30',       ok: longestStreak >= 30 },
+            { id: 'streak_60',       ok: longestStreak >= 60 },
+            { id: 'streak_100',      ok: longestStreak >= 100 },
+            { id: 'streak_365',      ok: longestStreak >= 365 },
+            /* تركيز */
+            { id: 'focus_first',     ok: focusSessions >= 1 },
+            { id: 'focus_10',        ok: focusSessions >= 10 },
+            { id: 'focus_50',        ok: focusSessions >= 50 },
+            { id: 'focus_100',       ok: focusSessions >= 100 },
+            /* أيام كاملة */
+            { id: 'perfect_day',     ok: perfectDays >= 1 },
+            { id: 'perfect_week',    ok: perfectDays >= 7 },
+            { id: 'perfect_month',   ok: perfectDays >= 30 },
+            { id: 'perfect_100',     ok: perfectDays >= 100 },
+            /* واجبات */
+            { id: 'hw_first',        ok: completedHw >= 1 },
+            { id: 'hw_10',           ok: completedHw >= 10 },
+            { id: 'hw_50',           ok: completedHw >= 50 },
+            /* سلاسل */
+            { id: 'series_first',    ok: completedSeries >= 1 },
+            { id: 'series_10',       ok: completedSeries >= 10 },
+            { id: 'series_50',       ok: completedSeries >= 50 }
         ];
         
+        var newlyUnlocked = [];
         for (var i = 0; i < checks.length; i++) {
             var c = checks[i];
             if (c.ok && !existingIds[c.id]) {
@@ -1282,7 +1324,6 @@ async function checkAndUnlockBadges(userId) {
         return [];
     }
 }
-
 /* ============================================================
    نهاية الإضافات
    ============================================================ */
