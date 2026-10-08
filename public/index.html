@@ -2575,7 +2575,22 @@ html[data-theme="gray"] {
 
     <!-- تبويب التقدم -->
     <section id="tab-progress" class="hidden">
-        
+        <!-- زر عرض الشارات -->
+<button onclick="openBadgesModal()" class="w-full mb-4 p-4 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-lg hover:shadow-xl transition-all flex items-center justify-between">
+    <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center">
+            <i class="fa-solid fa-trophy text-xl"></i>
+        </div>
+        <div class="text-right">
+            <p class="font-black text-base">🏅 شاراتك</p>
+            <p class="text-[11px] text-amber-100">شاهد إنجازاتك</p>
+        </div>
+    </div>
+    <div class="flex items-center gap-2">
+        <span id="progressBadgesCount" class="text-2xl font-black">0</span>
+        <i class="fa-solid fa-chevron-left text-sm opacity-75"></i>
+    </div>
+</button>
         <!-- بطاقات الإحصائيات -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
             
@@ -12100,22 +12115,7 @@ function renderExamsList() {
     
     if (upcoming.length === 0) {
         container.innerHTML = 
-            <!-- زر عرض الشارات -->
-<button onclick="openBadgesModal()" class="w-full mb-4 p-4 rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-lg hover:shadow-xl transition-all flex items-center justify-between">
-    <div class="flex items-center gap-3">
-        <div class="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center">
-            <i class="fa-solid fa-trophy text-xl"></i>
-        </div>
-        <div class="text-right">
-            <p class="font-black text-base">🏅 شاراتك</p>
-            <p class="text-[11px] text-amber-100">شاهد إنجازاتك</p>
-        </div>
-    </div>
-    <div class="flex items-center gap-2">
-        <span id="progressBadgesCount" class="text-2xl font-black">0</span>
-        <i class="fa-solid fa-chevron-left text-sm opacity-75"></i>
-    </div>
-</button>
+    
 
             '<div class="text-center py-10 bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700">' +
                 '<i class="fa-solid fa-calendar-check text-4xl text-slate-300 dark:text-slate-600 mb-3"></i>' +
