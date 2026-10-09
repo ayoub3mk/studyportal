@@ -1258,6 +1258,77 @@ async function checkAndUnlockBadges(userId) {
             var items = s.items || [];
             if (items.length > 0 && items.every(function(it){ return it.checked; })) completedSeries++;
         });
+
+        /* الملاحظات */
+        var notes = extras.notes || [];
+        var notesCount = notes.length;
+
+        /* الامتحانات (exams) — اختياري، حساب نتائج الموضوع */
+        var examsCount = 0;
+        try {
+            var subjects = JSON.parse(userData.subjects || '[]');
+            examsCount = subjects.filter(function(s) { return !!s.examDate; }).length;
+        } catch (e) {}
+
+        /* ═══════════ النتائج ═══════════ */
+        var results = [];
+        try {
+            var r = await pool.query(
+                'SELECT * FROM exam_results WHERE user_id = $1',
+                [userId]
+            );
+            results = r.rows;
+        } catch (e) { results = []; }
+
+        var resultsCount = results.length;
+        
+        /* المعدل الموزون */
+        var average = 0;
+        if (results.length > 0) {
+            var totalScore = 0, totalWeight = 0;
+            results.forEach(function(r) {
+                var norm = (parseFloat(r.score) / parseFloat(r.max_score)) * 20;
+                var coef = parseFloat(r.coefficient) || 1;
+                totalScore += norm * coef;
+                totalWeight += coef;
+            });
+            if (totalWeight > 0) average = totalScore / totalWeight;
+        }
+
+        /* علامة كاملة */
+        var hasPerfectScore = results.some(function(r) {
+            return parseFloat(r.score) >= parseFloat(r.max_score);
+        });
+
+        /* عدد المواد التي سُجلت فيها نتائج */
+        var resultSubjects = {};
+        results.forEach(function(r) { resultSubjects[r.subject_id] = true; });
+        var resultSubjectsCount = Object.keys(resultSubjects).length;
+
+        /* ═══════════ دروس خصوصية ═══════════ */
+        var tutoringSessions = [];
+        try {
+            var ts = await pool.query(
+                'SELECT * FROM tutoring_sessions WHERE user_id = $1',
+                [userId]
+            );
+            tutoringSessions = ts.rows;
+        } catch (e) { tutoringSessions = []; }
+        var tutoringCount = tutoringSessions.length;
+
+        /* تمارين التدارك المنجزة */
+        var tutoringItemsDone = 0;
+        if (tutoringCount > 0) {
+            try {
+                var ti = await pool.query(`
+                    SELECT COUNT(*)::int AS n
+                    FROM tutoring_items ti
+                    JOIN tutoring_sessions ts ON ts.id = ti.session_id
+                    WHERE ts.user_id = $1 AND ti.checked = 1
+                `, [userId]);
+                tutoringItemsDone = ti.rows[0].n || 0;
+            } catch (e) { tutoringItemsDone = 0; }
+        }
         
         var existing = await getUserBadges(userId);
         var existingIds = {};
@@ -1267,46 +1338,72 @@ async function checkAndUnlockBadges(userId) {
         var longestStreak = stats.longest_streak || 0;
         
         var checks = [
-            /* نقاط */
-            { id: 'points_100',      ok: currentPoints >= 100 },
-            { id: 'points_500',      ok: currentPoints >= 500 },
-            { id: 'points_1000',     ok: currentPoints >= 1000 },
-            { id: 'points_5000',     ok: currentPoints >= 5000 },
-            { id: 'points_10000',    ok: currentPoints >= 10000 },
-            /* أوراق */
-            { id: 'first_task',      ok: totalPapers >= 1 },
-            { id: 'first_paper',     ok: totalPapers >= 1 },
-            { id: 'papers_10',       ok: totalPapers >= 10 },
-            { id: 'papers_50',       ok: totalPapers >= 50 },
-            { id: 'papers_100',      ok: totalPapers >= 100 },
-            { id: 'papers_500',      ok: totalPapers >= 500 },
-            { id: 'papers_1000',     ok: totalPapers >= 1000 },
-            /* Streak */
-            { id: 'streak_3',        ok: longestStreak >= 3 },
-            { id: 'streak_7',        ok: longestStreak >= 7 },
-            { id: 'streak_14',       ok: longestStreak >= 14 },
-            { id: 'streak_30',       ok: longestStreak >= 30 },
-            { id: 'streak_60',       ok: longestStreak >= 60 },
-            { id: 'streak_100',      ok: longestStreak >= 100 },
-            { id: 'streak_365',      ok: longestStreak >= 365 },
-            /* تركيز */
-            { id: 'focus_first',     ok: focusSessions >= 1 },
-            { id: 'focus_10',        ok: focusSessions >= 10 },
-            { id: 'focus_50',        ok: focusSessions >= 50 },
-            { id: 'focus_100',       ok: focusSessions >= 100 },
-            /* أيام كاملة */
-            { id: 'perfect_day',     ok: perfectDays >= 1 },
-            { id: 'perfect_week',    ok: perfectDays >= 7 },
-            { id: 'perfect_month',   ok: perfectDays >= 30 },
-            { id: 'perfect_100',     ok: perfectDays >= 100 },
-            /* واجبات */
-            { id: 'hw_first',        ok: completedHw >= 1 },
-            { id: 'hw_10',           ok: completedHw >= 10 },
-            { id: 'hw_50',           ok: completedHw >= 50 },
-            /* سلاسل */
-            { id: 'series_first',    ok: completedSeries >= 1 },
-            { id: 'series_10',       ok: completedSeries >= 10 },
-            { id: 'series_50',       ok: completedSeries >= 50 }
+            /* ════════ المهام الأساسية ════════ */
+            { id: 'first_task',          ok: totalPapers >= 1 },
+            { id: 'first_paper',         ok: totalPapers >= 1 },
+            
+            /* ════════ الأوراق ════════ */
+            { id: 'papers_10',           ok: totalPapers >= 10 },
+            { id: 'papers_50',           ok: totalPapers >= 50 },
+            { id: 'papers_100',          ok: totalPapers >= 100 },
+            { id: 'papers_500',          ok: totalPapers >= 500 },
+            { id: 'papers_1000',         ok: totalPapers >= 1000 },
+            
+            /* ════════ Streak ════════ */
+            { id: 'streak_3',            ok: longestStreak >= 3 },
+            { id: 'streak_7',            ok: longestStreak >= 7 },
+            { id: 'streak_14',           ok: longestStreak >= 14 },
+            { id: 'streak_30',           ok: longestStreak >= 30 },
+            { id: 'streak_60',           ok: longestStreak >= 60 },
+            { id: 'streak_100',          ok: longestStreak >= 100 },
+            { id: 'streak_365',          ok: longestStreak >= 365 },
+            
+            /* ════════ النقاط ════════ */
+            { id: 'points_100',          ok: currentPoints >= 100 },
+            { id: 'points_1000',         ok: currentPoints >= 1000 },
+            { id: 'points_5000',         ok: currentPoints >= 5000 },
+            { id: 'points_10000',        ok: currentPoints >= 10000 },
+            
+            /* ════════ جلسات التركيز ════════ */
+            { id: 'focus_first',         ok: focusSessions >= 1 },
+            { id: 'focus_10',            ok: focusSessions >= 10 },
+            { id: 'focus_50',            ok: focusSessions >= 50 },
+            { id: 'focus_100',           ok: focusSessions >= 100 },
+            
+            /* ════════ الأيام الكاملة ════════ */
+            { id: 'perfect_day',         ok: perfectDays >= 1 },
+            { id: 'perfect_week',        ok: perfectDays >= 7 },
+            { id: 'perfect_month',       ok: perfectDays >= 30 },
+            { id: 'perfect_100',         ok: perfectDays >= 100 },
+            
+            /* ════════ الواجبات ════════ */
+            { id: 'hw_first',            ok: completedHw >= 1 },
+            { id: 'hw_10',               ok: completedHw >= 10 },
+            { id: 'hw_50',               ok: completedHw >= 50 },
+            { id: 'hw_100',              ok: completedHw >= 100 },
+            
+            /* ════════ السلاسل ════════ */
+            { id: 'series_first',        ok: completedSeries >= 1 },
+            { id: 'series_10',           ok: completedSeries >= 10 },
+            { id: 'series_50',           ok: completedSeries >= 50 },
+            
+            /* ════════ الملاحظات ════════ */
+            { id: 'notes_10',            ok: notesCount >= 10 },
+            { id: 'notes_50',            ok: notesCount >= 50 },
+            
+            /* ════════ النتائج ════════ */
+            { id: 'results_first',       ok: resultsCount >= 1 },
+            { id: 'results_10',          ok: resultsCount >= 10 },
+            { id: 'results_50',          ok: resultsCount >= 50 },
+            { id: 'avg_14',              ok: average >= 14 },
+            { id: 'avg_16',              ok: average >= 16 },
+            { id: 'avg_18',              ok: average >= 18 },
+            { id: 'perfect_score',       ok: hasPerfectScore },
+            { id: 'subjects_10_results', ok: resultSubjectsCount >= 10 },
+            
+            /* ════════ دروس خصوصية ════════ */
+            { id: 'tutoring_first',      ok: tutoringCount >= 1 },
+            { id: 'tutoring_10_items',   ok: tutoringItemsDone >= 10 }
         ];
         
         var newlyUnlocked = [];
