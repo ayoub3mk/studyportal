@@ -6204,6 +6204,152 @@ function confirmExport() {
 function exportJSON() {
     openExportModal();
 }
+ /* ============================================================
+   نظام التصدير بخيارات
+   ============================================================ */
+
+var EXPORT_OPTIONS = [
+    { id: 'subjects',      label: 'المواد والأوراق',      icon: 'fa-list-check',   default: true,  source: function() { return appState.subjects || []; } },
+    { id: 'timetable',     label: 'الجدول الأسبوعي',       icon: 'fa-table-cells',  default: true,  source: function() { return appState.timetable || {}; } },
+    { id: 'homework',      label: 'الواجبات',              icon: 'fa-book-bookmark',default: true,  source: function() { return appState.homework || []; } },
+    { id: 'preparation',   label: 'التحضير والأدوات',      icon: 'fa-clipboard-check', default: true, source: function() { return appState.preparation || {}; } },
+    { id: 'prepChecked',   label: 'حالة التحضير اليومية', icon: 'fa-check-square', default: false, source: function() { return appState.prepChecked || {}; } },
+    { id: 'series',        label: 'السلاسل',               icon: 'fa-pen-ruler',    default: true,  source: function() { return appState.series || []; } },
+    { id: 'notes',         label: 'الملاحظات',             icon: 'fa-note-sticky',  default: true,  source: function() { return appState.notes || []; } },
+    { id: 'exams',         label: 'الامتحانات',            icon: 'fa-calendar-days',default: true,  source: function() { return appState.exams || []; } },
+    { id: 'results',       label: 'النتائج والمعاملات',    icon: 'fa-graduation-cap', default: true, source: function() { return { results: CURRENT_RESULTS, coefficients: CURRENT_COEFFICIENTS }; } },
+    { id: 'stats',         label: 'النقاط والإحصائيات',    icon: 'fa-star',         default: true,  source: function() { return { points: CURRENT_STATS.points, currentStreak: CURRENT_STATS.currentStreak, longestStreak: CURRENT_STATS.longestStreak }; } },
+    { id: 'badges',        label: 'الشارات',               icon: 'fa-trophy',       default: true,  source: function() { return (typeof badgesState !== 'undefined' ? badgesState.unlocked : {}) || {}; } },
+    { id: 'tutoring',      label: 'دروس خصوصية',           icon: 'fa-chalkboard-user', default: true, source: function() { return CURRENT_TUTORING || []; } },
+    { id: 'settings',      label: 'الإعدادات (لغة، مظهر)', icon: 'fa-gear',        default: true,  source: function() { return { lang: appState.lang, darkMode: appState.darkMode, theme: appState.theme, weekAStart: appState.weekAStart }; } },
+    { id: 'profile',       label: 'الملف الشخصي',          icon: 'fa-user',         default: true,  source: function() { return { name: CURRENT_USER ? CURRENT_USER.name : '', grade: CURRENT_USER ? CURRENT_USER.grade : '', term: CURRENT_USER ? CURRENT_USER.term : '', examType: CURRENT_USER ? CURRENT_USER.examType : '', schoolYear: CURRENT_USER ? CURRENT_USER.schoolYear : '', avatar: CURRENT_USER ? CURRENT_USER.avatar : '' }; } }
+];
+
+var exportSelected = {};
+
+function openExportModal() {
+    exportSelected = {};
+    EXPORT_OPTIONS.forEach(function(opt) { exportSelected[opt.id] = opt.default; });
+    renderExportOptions();
+    updateExportSizeEstimate();
+    document.getElementById('exportModal').classList.remove('hidden');
+}
+
+function closeExportModal() {
+    document.getElementById('exportModal').classList.add('hidden');
+}
+
+function renderExportOptions() {
+    var container = document.getElementById('exportOptions');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    EXPORT_OPTIONS.forEach(function(opt) {
+        var isChecked = !!exportSelected[opt.id];
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.onclick = function() { toggleExportOption(opt.id); };
+        btn.className = 'w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-colors text-right ' + 
+            (isChecked 
+                ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800' 
+                : 'bg-slate-50 dark:bg-slate-700/40 border-slate-200 dark:border-slate-600');
+        
+        btn.innerHTML = 
+            '<div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ' +
+                (isChecked ? 'bg-emerald-500 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-400') + '">' +
+                '<i class="fa-solid ' + (isChecked ? 'fa-check' : opt.icon) + ' text-sm"></i>' +
+            '</div>' +
+            '<div class="flex-1 min-w-0">' +
+                '<p class="text-sm font-bold ' + (isChecked ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-700 dark:text-slate-200') + '">' + opt.label + '</p>' +
+                '<p class="text-[10px] ' + (isChecked ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400') + '">' + getExportCount(opt.id) + '</p>' +
+            '</div>';
+        
+        container.appendChild(btn);
+    });
+}
+
+function getExportCount(optId) {
+    try {
+        var data = EXPORT_OPTIONS.find(function(o) { return o.id === optId; }).source();
+        if (Array.isArray(data)) return data.length + ' عنصر';
+        if (data && typeof data === 'object') return Object.keys(data).length + ' عنصر';
+        return '0 عنصر';
+    } catch(e) { return '—'; }
+}
+
+function toggleExportOption(optId) {
+    exportSelected[optId] = !exportSelected[optId];
+    renderExportOptions();
+    updateExportSizeEstimate();
+}
+
+function toggleExportAll(value) {
+    EXPORT_OPTIONS.forEach(function(opt) { exportSelected[opt.id] = value; });
+    renderExportOptions();
+    updateExportSizeEstimate();
+}
+
+function updateExportSizeEstimate() {
+    var el = document.getElementById('exportSizeEstimate');
+    if (!el) return;
+    var preview = buildExportData();
+    var size = new Blob([JSON.stringify(preview)]).size;
+    if (size < 1024) el.textContent = size + ' B';
+    else if (size < 1024 * 1024) el.textContent = (size / 1024).toFixed(1) + ' KB';
+    else el.textContent = (size / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+function buildExportData() {
+    var data = {
+        version: 3,
+        exportedAt: new Date().toISOString(),
+        exportedBy: CURRENT_USER ? CURRENT_USER.name : 'User',
+        selectedOptions: Object.keys(exportSelected).filter(function(k) { return exportSelected[k]; })
+    };
+    
+    EXPORT_OPTIONS.forEach(function(opt) {
+        if (!exportSelected[opt.id]) return;
+        try { data[opt.id] = opt.source(); }
+        catch(e) { console.warn('Export error for', opt.id, e); data[opt.id] = null; }
+    });
+    
+    return data;
+}
+
+function confirmExport() {
+    var selected = Object.keys(exportSelected).filter(function(k) { return exportSelected[k]; });
+    if (selected.length === 0) {
+        showToast('⚠️ اختر عنصراً واحداً على الأقل');
+        return;
+    }
+    
+    var btn = document.getElementById('exportConfirmBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري التحضير...';
+    
+    setTimeout(function() {
+        try {
+            var data = buildExportData();
+            var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            var userName = (CURRENT_USER && CURRENT_USER.name) ? CURRENT_USER.name.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, '_') : 'user';
+            a.download = 'study_portal_' + userName + '_' + new Date().toISOString().slice(0, 10) + '.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            closeExportModal();
+            showToast('✓ تم تصدير ' + selected.length + ' قسم');
+        } catch(e) {
+            console.error('Export error:', e);
+            showToast('❌ فشل التصدير');
+        }
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-download mr-1"></i> تصدير';
+    }, 100);
+}   
 function importJSON() {
     var inp = document.createElement('input');
     inp.type = 'file';
@@ -15694,6 +15840,53 @@ function closeWheelModal() {
         <div id="exportOptions" class="space-y-2 mb-4">
             <!-- سيتم تعبئتها بـ JavaScript -->
         </div>
+
+        <div class="bg-slate-50 dark:bg-slate-700/40 rounded-xl p-3 mb-4">
+            <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-600 dark:text-slate-300 font-bold">الحجم المتوقع:</span>
+                <span id="exportSizeEstimate" class="font-black text-slate-900 dark:text-white">0 KB</span>
+            </div>
+        </div>
+
+        <div class="flex gap-2 justify-end pt-3 border-t border-slate-200 dark:border-slate-700">
+            <button onclick="closeExportModal()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold">إلغاء</button>
+            <button onclick="confirmExport()" id="exportConfirmBtn" class="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">
+                <i class="fa-solid fa-download mr-1"></i> تصدير
+            </button>
+        </div>
+    </div>
+</div>
+    <!-- ============================================================
+     نافذة تصدير JSON بخيارات
+     ============================================================ -->
+<div id="exportModal" class="fixed inset-0 z-[130] bg-slate-900/70 backdrop-blur-sm hidden overflow-y-auto" style="padding: 16px;">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full p-5 border border-slate-200 dark:border-slate-700 mx-auto" style="margin-top: 20px; margin-bottom: 20px;">
+    
+        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 dark:border-slate-700">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center">
+                    <i class="fa-solid fa-file-export"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white">تصدير البيانات</h3>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">اختر ما تريد تصديره</p>
+                </div>
+            </div>
+            <button onclick="closeExportModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <div class="flex gap-2 mb-3">
+            <button onclick="toggleExportAll(true)" class="flex-1 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+                <i class="fa-solid fa-check-double mr-1"></i> تحديد الكل
+            </button>
+            <button onclick="toggleExportAll(false)" class="flex-1 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+                <i class="fa-solid fa-xmark mr-1"></i> إلغاء الكل
+            </button>
+        </div>
+
+        <div id="exportOptions" class="space-y-2 mb-4"></div>
 
         <div class="bg-slate-50 dark:bg-slate-700/40 rounded-xl p-3 mb-4">
             <div class="flex items-center justify-between text-xs">
