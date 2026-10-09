@@ -13609,11 +13609,115 @@ if ('serviceWorker' in navigator) {
     });
 }
 /* ============================================================
-   🏅 نظام الشارات (Badges)
+   🏅 نظام الشارات (Badges) — النسخة الكاملة
    ============================================================ */
 
-/* قائمة كل الشارات المتاحة */
+/* قائمة كل الشارات (44 شارة) */
+var BADGES_LIST = [
+    /* ════════ المهام الأساسية ════════ */
+    { id: 'first_task', name: 'البداية', desc: 'أنجز أول مهمة', icon: 'fa-seedling', color: 'linear-gradient(135deg, #22c55e, #16a34a)', metric: 'papers', target: 1 },
+    { id: 'first_paper', name: 'أول ورقة', desc: 'أنهِ ورقة واحدة', icon: 'fa-file-lines', color: 'linear-gradient(135deg, #06b6d4, #0891b2)', metric: 'papers', target: 1 },
+    
+    /* ════════ الأوراق ════════ */
+    { id: 'papers_10', name: 'عشرة', desc: 'أنجز 10 أوراق', icon: 'fa-layer-group', color: 'linear-gradient(135deg, #3b82f6, #2563eb)', metric: 'papers', target: 10 },
+    { id: 'papers_50', name: 'خمسون', desc: 'أنجز 50 ورقة', icon: 'fa-book', color: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', metric: 'papers', target: 50 },
+    { id: 'papers_100', name: 'مئة', desc: 'أنجز 100 ورقة', icon: 'fa-book-open', color: 'linear-gradient(135deg, #ec4899, #db2777)', metric: 'papers', target: 100 },
+    { id: 'papers_500', name: 'خمسمئة', desc: 'أنجز 500 ورقة', icon: 'fa-crown', color: 'linear-gradient(135deg, #f59e0b, #d97706)', metric: 'papers', target: 500 },
+    { id: 'papers_1000', name: 'ألف ورقة', desc: 'أنجز 1000 ورقة', icon: 'fa-gem', color: 'linear-gradient(135deg, #facc15, #eab308)', metric: 'papers', target: 1000 },
+    
+    /* ════════ Streak ════════ */
+    { id: 'streak_3', name: '3 أيام', desc: 'حافظ على Streak لـ 3 أيام', icon: 'fa-fire', color: 'linear-gradient(135deg, #f97316, #ea580c)', metric: 'streak', target: 3 },
+    { id: 'streak_7', name: 'أسبوع', desc: 'حافظ على Streak لأسبوع', icon: 'fa-fire-flame-curved', color: 'linear-gradient(135deg, #ef4444, #dc2626)', metric: 'streak', target: 7 },
+    { id: 'streak_14', name: 'أسبوعان', desc: 'حافظ على Streak لأسبوعين', icon: 'fa-bolt', color: 'linear-gradient(135deg, #f43f5e, #e11d48)', metric: 'streak', target: 14 },
+    { id: 'streak_30', name: 'شهر', desc: 'حافظ على Streak لشهر', icon: 'fa-fire-flame-simple', color: 'linear-gradient(135deg, #dc2626, #991b1b)', metric: 'streak', target: 30 },
+    { id: 'streak_60', name: 'شهران', desc: 'حافظ على Streak لشهرين', icon: 'fa-meteor', color: 'linear-gradient(135deg, #b91c1c, #7f1d1d)', metric: 'streak', target: 60 },
+    { id: 'streak_100', name: 'مئة يوم', desc: 'حافظ على Streak 100 يوم', icon: 'fa-dragon', color: 'linear-gradient(135deg, #7c3aed, #4c1d95)', metric: 'streak', target: 100 },
+    { id: 'streak_365', name: 'سنة كاملة', desc: 'حافظ على Streak لسنة', icon: 'fa-infinity', color: 'linear-gradient(135deg, #1e293b, #0f172a)', metric: 'streak', target: 365 },
+    
+    /* ════════ النقاط ════════ */
+    { id: 'points_100', name: '100 نقطة', desc: 'اجمع 100 نقطة', icon: 'fa-star-half-stroke', color: 'linear-gradient(135deg, #fde047, #facc15)', metric: 'points', target: 100 },
+    { id: 'points_1000', name: '1000 نقطة', desc: 'اجمع 1000 نقطة', icon: 'fa-star', color: 'linear-gradient(135deg, #fbbf24, #f59e0b)', metric: 'points', target: 1000 },
+    { id: 'points_5000', name: '5000 نقطة', desc: 'اجمع 5000 نقطة', icon: 'fa-star-of-life', color: 'linear-gradient(135deg, #f59e0b, #d97706)', metric: 'points', target: 5000 },
+    { id: 'points_10000', name: '10000 نقطة', desc: 'اجمع 10000 نقطة', icon: 'fa-sun', color: 'linear-gradient(135deg, #ea580c, #c2410c)', metric: 'points', target: 10000 },
+    
+    /* ════════ جلسات التركيز ════════ */
+    { id: 'focus_first', name: 'أول جلسة', desc: 'أكمل أول جلسة تركيز', icon: 'fa-play-circle', color: 'linear-gradient(135deg, #14b8a6, #0d9488)', metric: 'focus', target: 1 },
+    { id: 'focus_10', name: '10 جلسات', desc: 'أكمل 10 جلسات تركيز', icon: 'fa-hourglass-half', color: 'linear-gradient(135deg, #14b8a6, #0d9488)', metric: 'focus', target: 10 },
+    { id: 'focus_50', name: '50 جلسة', desc: 'أكمل 50 جلسة تركيز', icon: 'fa-hourglass-end', color: 'linear-gradient(135deg, #0891b2, #155e75)', metric: 'focus', target: 50 },
+    { id: 'focus_100', name: '100 جلسة', desc: 'أكمل 100 جلسة تركيز', icon: 'fa-clock', color: 'linear-gradient(135deg, #0e7490, #164e63)', metric: 'focus', target: 100 },
+    
+    /* ════════ الأيام الكاملة ════════ */
+    { id: 'perfect_day', name: 'يوم كامل', desc: 'حقق هدف يوم كامل', icon: 'fa-bullseye', color: 'linear-gradient(135deg, #10b981, #059669)', metric: 'perfectDays', target: 1 },
+    { id: 'perfect_week', name: 'أسبوع كامل', desc: 'حقق هدف 7 أيام', icon: 'fa-calendar-check', color: 'linear-gradient(135deg, #059669, #065f46)', metric: 'perfectDays', target: 7 },
+    { id: 'perfect_month', name: 'شهر كامل', desc: 'حقق هدف 30 يوم', icon: 'fa-medal', color: 'linear-gradient(135deg, #6366f1, #4f46e5)', metric: 'perfectDays', target: 30 },
+    { id: 'perfect_100', name: '100 يوم كامل', desc: 'حقق هدف 100 يوم', icon: 'fa-shield-halved', color: 'linear-gradient(135deg, #4f46e5, #3730a3)', metric: 'perfectDays', target: 100 },
+    
+    /* ════════ الواجبات ════════ */
+    { id: 'hw_first', name: 'أول واجب', desc: 'أنجز أول واجب', icon: 'fa-check', color: 'linear-gradient(135deg, #84cc16, #65a30d)', metric: 'homework', target: 1 },
+    { id: 'hw_10', name: '10 واجبات', desc: 'أنجز 10 واجبات', icon: 'fa-clipboard-check', color: 'linear-gradient(135deg, #84cc16, #4d7c0f)', metric: 'homework', target: 10 },
+    { id: 'hw_50', name: '50 واجب', desc: 'أنجز 50 واجب', icon: 'fa-clipboard-list', color: 'linear-gradient(135deg, #65a30d, #3f6212)', metric: 'homework', target: 50 },
+    { id: 'hw_100', name: '100 واجب', desc: 'أنجز 100 واجب', icon: 'fa-award', color: 'linear-gradient(135deg, #4d7c0f, #365314)', metric: 'homework', target: 100 },
+    
+    /* ════════ السلاسل ════════ */
+    { id: 'series_first', name: 'أول سلسلة', desc: 'أكمل أول سلسلة', icon: 'fa-pen-ruler', color: 'linear-gradient(135deg, #10b981, #14b8a6)', metric: 'series', target: 1 },
+    { id: 'series_10', name: '10 سلاسل', desc: 'أكمل 10 سلاسل', icon: 'fa-list-ol', color: 'linear-gradient(135deg, #059669, #0d9488)', metric: 'series', target: 10 },
+    { id: 'series_50', name: '50 سلسلة', desc: 'أكمل 50 سلسلة', icon: 'fa-layer-group', color: 'linear-gradient(135deg, #047857, #115e59)', metric: 'series', target: 50 },
+    
+    /* ════════ الملاحظات ════════ */
+    { id: 'notes_10', name: '10 ملاحظات', desc: 'أضف 10 ملاحظات', icon: 'fa-note-sticky', color: 'linear-gradient(135deg, #f59e0b, #ea580c)', metric: 'notes', target: 10 },
+    { id: 'notes_50', name: '50 ملاحظة', desc: 'أضف 50 ملاحظة', icon: 'fa-pen-fancy', color: 'linear-gradient(135deg, #d97706, #c2410c)', metric: 'notes', target: 50 },
+    
+    /* ════════ النتائج ════════ */
+    { id: 'results_first', name: 'أول نتيجة', desc: 'سجّل أول نتيجة', icon: 'fa-pen-to-square', color: 'linear-gradient(135deg, #0891b2, #06b6d4)', metric: 'results', target: 1 },
+    { id: 'results_10', name: '10 نتائج', desc: 'سجّل 10 نتائج', icon: 'fa-list', color: 'linear-gradient(135deg, #0e7490, #0891b2)', metric: 'results', target: 10 },
+    { id: 'results_50', name: '50 نتيجة', desc: 'سجّل 50 نتيجة', icon: 'fa-graduation-cap', color: 'linear-gradient(135deg, #155e75, #0e7490)', metric: 'results', target: 50 },
+    { id: 'avg_14', name: 'معدل 14', desc: 'حقق معدل 14/20', icon: 'fa-arrow-trend-up', color: 'linear-gradient(135deg, #22c55e, #16a34a)', metric: 'average', target: 14 },
+    { id: 'avg_16', name: 'معدل 16', desc: 'حقق معدل 16/20', icon: 'fa-chart-line', color: 'linear-gradient(135deg, #10b981, #059669)', metric: 'average', target: 16 },
+    { id: 'avg_18', name: 'معدل 18', desc: 'حقق معدل 18/20 — امتياز!', icon: 'fa-crown', color: 'linear-gradient(135deg, #fbbf24, #f59e0b)', metric: 'average', target: 18 },
+    { id: 'perfect_score', name: 'علامة كاملة', desc: 'احصل على 20/20 في امتحان', icon: 'fa-trophy', color: 'linear-gradient(135deg, #f59e0b, #d97706)', metric: 'perfectScore', target: 1 },
+    { id: 'subjects_10_results', name: 'متعدد النجاحات', desc: 'سجّل نتائج في 10 مواد', icon: 'fa-book-atlas', color: 'linear-gradient(135deg, #6366f1, #4f46e5)', metric: 'resultSubjects', target: 10 },
+    
+    /* ════════ دروس خصوصية ════════ */
+    { id: 'tutoring_first', name: 'أول درس', desc: 'أضف أول درس خصوصي', icon: 'fa-chalkboard-user', color: 'linear-gradient(135deg, #ec4899, #db2777)', metric: 'tutoring', target: 1 },
+    { id: 'tutoring_10_items', name: '10 تمارين', desc: 'أنجز 10 تمارين تدارك', icon: 'fa-list-check', color: 'linear-gradient(135deg, #db2777, #be185d)', metric: 'tutoringItems', target: 10 }
+];
 
+/* حالة الشارات الحالية */
+var badgesState = {
+    unlocked: {},       /* badge_id → unlocked_at */
+    loaded: false
+};
+
+/* فتح / إغلاق النافذة */
+function openBadgesModal() {
+    document.getElementById('badgesModal').classList.remove('hidden');
+    loadBadges();
+}
+function closeBadgesModal() {
+    document.getElementById('badgesModal').classList.add('hidden');
+}
+
+/* تحميل الشارات من السيرفر */
+function loadBadges() {
+    fetch('/api/badges', { credentials: 'include', cache: 'no-store' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (!data || !data.ok) return;
+            badgesState.unlocked = {};
+            (data.badges || []).forEach(function(b) {
+                badgesState.unlocked[b.badge_id] = b.unlocked_at;
+            });
+            badgesState.loaded = true;
+            renderBadges();
+            updateBadgesCounters();
+            if (data.newlyUnlocked && data.newlyUnlocked.length > 0) {
+                showBadgeUnlockToast(data.newlyUnlocked);
+            }
+        })
+        .catch(function(err) { console.error('Load badges error:', err); });
+}
+
+/* عرض الشارات (مع Progress Ring) */
 function renderBadges() {
     var grid = document.getElementById('badgesGrid');
     if (!grid) return;
@@ -13648,13 +13752,11 @@ function renderBadges() {
         html += '<div class="badge-ring-inner" style="' + (isUnlocked ? 'background:' + badge.color + ';' : '') + '">';
         html += '<i class="fa-solid ' + badge.icon + '"></i>';
         html += '</div>';
-        
         if (!isUnlocked && target > 1) {
             html += '<div class="badge-progress-text">' + current + '/' + target + '</div>';
         } else if (isUnlocked) {
             html += '<div class="badge-progress-text" style="background: #22c55e;">✓</div>';
         }
-        
         html += '</div>';
         html += '<p class="badge-name">' + badge.name + '</p>';
         html += '<p class="badge-desc">' + badge.desc + '</p>';
@@ -13671,51 +13773,109 @@ function renderBadges() {
     el = document.getElementById('badgesTotalCount'); if (el) el.textContent = totalCount;
     el = document.getElementById('badgesProgressBar'); if (el) el.style.width = pct + '%';
     var subtitle = document.getElementById('badgesSubtitle');
-    if (subtitle) { subtitle.textContent = (unlockedCount === totalCount) ? '🏆 ما شاء الله! جمعت كل الشارات!' : 'جمعت ' + unlockedCount + ' من ' + totalCount + ' شارة'; }
+    if (subtitle) {
+        subtitle.textContent = (unlockedCount === totalCount)
+            ? '🏆 ما شاء الله! جمعت كل الشارات!'
+            : 'جمعت ' + unlockedCount + ' من ' + totalCount + ' شارة';
+    }
 }
 
-/* ═══════════════════════════════════════════════════════
-   حساب القيمة الحالية لكل متريك
-   ═══════════════════════════════════════════════════════ */
+/* تحديث العدادات */
+function updateBadgesCounters() {
+    var count = Object.keys(badgesState.unlocked).length;
+    var total = BADGES_LIST.length;
+    var el;
+    el = document.getElementById('badgesCountHeader'); if (el) el.textContent = count;
+    el = document.getElementById('mobileBadgesCount'); if (el) el.textContent = count;
+    el = document.getElementById('progressBadgesCount'); if (el) el.textContent = count + '/' + total;
+}
+
+/* إشعار فتح شارة جديدة */
+function showBadgeUnlockToast(badgeIds) {
+    badgeIds.forEach(function(badgeId, index) {
+        var badge = BADGES_LIST.find(function(b) { return b.id === badgeId; });
+        if (!badge) return;
+        setTimeout(function() {
+            var toast = document.createElement('div');
+            toast.className = 'badge-unlock-toast fixed top-4 left-1/2 -translate-x-1/2 z-[500] flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl';
+            toast.style.background = badge.color;
+            toast.style.color = '#fff';
+            toast.style.minWidth = '280px';
+            toast.style.maxWidth = '90vw';
+            toast.innerHTML = 
+                '<div class="w-11 h-11 rounded-full bg-white/25 flex items-center justify-center flex-shrink-0">' +
+                    '<i class="fa-solid ' + badge.icon + ' text-white text-lg"></i>' +
+                '</div>' +
+                '<div class="flex-1 min-w-0">' +
+                    '<p class="text-[10px] font-bold uppercase tracking-wider opacity-90">🎉 شارة جديدة!</p>' +
+                    '<p class="text-sm font-black truncate">' + badge.name + '</p>' +
+                    '<p class="text-[10px] opacity-90 truncate">' + badge.desc + '</p>' +
+                '</div>';
+            document.body.appendChild(toast);
+            setTimeout(function() {
+                toast.style.transition = 'opacity 0.4s';
+                toast.style.opacity = '0';
+                setTimeout(function() { toast.remove(); }, 400);
+            }, 4000);
+        }, index * 800);
+    });
+    try { playBadgeSound(); } catch(e) {}
+}
+
+/* صوت احتفالي */
+function playBadgeSound() {
+    try {
+        var ctx = new (window.AudioContext || window.webkitAudioContext)();
+        [523.25, 659.25, 783.99, 1046.50].forEach(function(freq, i) {
+            var osc = ctx.createOscillator(); var gain = ctx.createGain();
+            osc.type = 'sine'; osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.15, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.start(ctx.currentTime + i * 0.1);
+            osc.stop(ctx.currentTime + i * 0.1 + 0.3);
+        });
+    } catch (e) {}
+}
+
+/* فحص الشارات بعد أي مهمة */
+function refreshBadgesAfterTask() {
+    fetch('/api/badges/check', { method: 'POST', credentials: 'include' })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) {
+            if (data && data.ok && data.newlyUnlocked && data.newlyUnlocked.length > 0) {
+                data.newlyUnlocked.forEach(function(id) { badgesState.unlocked[id] = new Date().toISOString(); });
+                showBadgeUnlockToast(data.newlyUnlocked);
+                updateBadgesCounters();
+            }
+        })
+        .catch(function(err) { console.error('Refresh badges error:', err); });
+}
+
+/* ============================================================
+   حساب القيمة الحالية لكل مقياس
+   ============================================================ */
 function getBadgeCurrentValue(metric) {
     try {
         switch(metric) {
-            case 'papers':
-                return getTotalCompletedPapers();
-            case 'streak':
-                return CURRENT_STATS.longestStreak || 0;
-            case 'points':
-                return CURRENT_STATS.points || 0;
-            case 'focus':
-                return (CURRENT_STATS.focusSessions || 0);
-            case 'perfectDays':
-                return getPerfectDaysCount();
-            case 'homework':
-                return (appState.homework || []).filter(function(h) { return h.completed; }).length;
-            case 'series':
-                return getCompletedSeriesCount();
-            case 'notes':
-                return (appState.notes || []).length;
-            case 'results':
-                return (CURRENT_RESULTS || []).length;
-            case 'average':
-                return calculateWeightedAverage(CURRENT_RESULTS || []) || 0;
-            case 'perfectScore':
-                return (CURRENT_RESULTS || []).filter(function(r) {
-                    return parseFloat(r.score) >= parseFloat(r.max_score);
-                }).length > 0 ? 1 : 0;
+            case 'papers': return getTotalCompletedPapers();
+            case 'streak': return CURRENT_STATS.longestStreak || 0;
+            case 'points': return CURRENT_STATS.points || 0;
+            case 'focus': return (CURRENT_STATS.focusSessions || 0);
+            case 'perfectDays': return getPerfectDaysCount();
+            case 'homework': return (appState.homework || []).filter(function(h) { return h.completed; }).length;
+            case 'series': return getCompletedSeriesCount();
+            case 'notes': return (appState.notes || []).length;
+            case 'results': return (CURRENT_RESULTS || []).length;
+            case 'average': return calculateWeightedAverage(CURRENT_RESULTS || []) || 0;
+            case 'perfectScore': return (CURRENT_RESULTS || []).filter(function(r) { return parseFloat(r.score) >= parseFloat(r.max_score); }).length > 0 ? 1 : 0;
             case 'resultSubjects':
-                var subjSet = {};
-                (CURRENT_RESULTS || []).forEach(function(r) { subjSet[r.subject_id] = true; });
-                return Object.keys(subjSet).length;
-            case 'tutoring':
-                return (CURRENT_TUTORING || []).length;
-            case 'tutoringItems':
-                return (CURRENT_TUTORING || []).reduce(function(sum, s) {
-                    return sum + ((s.items || []).filter(function(it) { return it.checked; }).length);
-                }, 0);
-            default:
-                return 0;
+                var s = {};
+                (CURRENT_RESULTS || []).forEach(function(r) { s[r.subject_id] = true; });
+                return Object.keys(s).length;
+            case 'tutoring': return (CURRENT_TUTORING || []).length;
+            case 'tutoringItems': return (CURRENT_TUTORING || []).reduce(function(sum, t) { return sum + ((t.items || []).filter(function(it) { return it.checked; }).length); }, 0);
+            default: return 0;
         }
     } catch(e) { return 0; }
 }
@@ -13724,9 +13884,7 @@ function getTotalCompletedPapers() {
     var total = 0;
     (appState.subjects || []).forEach(function(s) {
         if (s.sections) {
-            s.sections.forEach(function(sec) {
-                (sec.items || []).forEach(function(it) { if (it.checked) total++; });
-            });
+            s.sections.forEach(function(sec) { (sec.items || []).forEach(function(it) { if (it.checked) total++; }); });
         } else if (s.items) {
             s.items.forEach(function(it) { if (it.checked) total++; });
         }
@@ -13747,222 +13905,8 @@ function getCompletedSeriesCount() {
     });
     return count;
 }
-   /* حالة الشارات الحالية */
-var badgesState = {
-    unlocked: {},       /* badge_id → unlocked_at */
-    loaded: false
-};
 
-/* ============================================================
-   فتح / إغلاق النافذة
-   ============================================================ */
-
-function openBadgesModal() {
-    document.getElementById('badgesModal').classList.remove('hidden');
-    loadBadges();
-}
-
-function closeBadgesModal() {
-    document.getElementById('badgesModal').classList.add('hidden');
-}
-
-/* ============================================================
-   تحميل الشارات من السيرفر
-   ============================================================ */
-
-function loadBadges() {
-    fetch('/api/badges', { credentials: 'include', cache: 'no-store' })
-        .then(function(r) { return r.ok ? r.json() : null; })
-        .then(function(data) {
-            if (!data || !data.ok) return;
-            
-            /* ابنِ الخريطة */
-            badgesState.unlocked = {};
-            (data.badges || []).forEach(function(b) {
-                badgesState.unlocked[b.badge_id] = b.unlocked_at;
-            });
-            badgesState.loaded = true;
-            
-            renderBadges();
-            updateBadgesCounters();
-            
-            /* إذا فُتحت شارات جديدة، اعرض إشعاراً */
-            if (data.newlyUnlocked && data.newlyUnlocked.length > 0) {
-                showBadgeUnlockToast(data.newlyUnlocked);
-            }
-        })
-        .catch(function(err) { console.error('Load badges error:', err); });
-}
-
-/* ============================================================
-   عرض الشارات
-   ============================================================ */
-
-function renderBadges() {
-    var grid = document.getElementById('badgesGrid');
-    if (!grid) return;
-    
-    grid.innerHTML = '';
-    
-    BADGES_LIST.forEach(function(badge) {
-        var isUnlocked = !!badgesState.unlocked[badge.id];
-        var card = document.createElement('div');
-        card.className = 'badge-card ' + (isUnlocked ? 'unlocked' : 'locked');
-        
-        var html = '';
-        html += '<div class="badge-icon" style="' + (isUnlocked ? 'background:' + badge.color + ';' : '') + '">';
-        html += '<i class="fa-solid ' + badge.icon + '"></i>';
-        html += '</div>';
-        html += '<p class="badge-name">' + badge.name + '</p>';
-        html += '<p class="badge-desc">' + badge.desc + '</p>';
-        
-        if (!isUnlocked) {
-            html += '<div class="absolute top-1.5 left-1.5 text-slate-400 text-[10px]"><i class="fa-solid fa-lock"></i></div>';
-        }
-        
-        card.innerHTML = html;
-        grid.appendChild(card);
-    });
-    
-    /* حدّث التقدم */
-    var unlockedCount = Object.keys(badgesState.unlocked).length;
-    var totalCount = BADGES_LIST.length;
-    var pct = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
-    
-    var el;
-    el = document.getElementById('badgesUnlockedCount');
-    if (el) el.textContent = unlockedCount;
-    el = document.getElementById('badgesTotalCount');
-    if (el) el.textContent = totalCount;
-    el = document.getElementById('badgesProgressBar');
-    if (el) el.style.width = pct + '%';
-    
-    /* عنوان فرعي */
-    var subtitle = document.getElementById('badgesSubtitle');
-    if (subtitle) {
-        if (unlockedCount === totalCount) {
-            subtitle.textContent = '🏆 ما شاء الله! جمعت كل الشارات!';
-        } else {
-            subtitle.textContent = 'جمعت ' + unlockedCount + ' من ' + totalCount + ' شارة';
-        }
-    }
-}
-
-/* ============================================================
-   تحديث العدادات في الواجهة
-   ============================================================ */
-
-function updateBadgesCounters() {
-    var count = Object.keys(badgesState.unlocked).length;
-    var total = BADGES_LIST.length;
-    
-    var el;
-    el = document.getElementById('badgesCountHeader');
-    if (el) el.textContent = count;
-    el = document.getElementById('mobileBadgesCount');
-    if (el) el.textContent = count;
-    el = document.getElementById('progressBadgesCount');
-    if (el) el.textContent = count + '/' + total;
-}
-
-/* ============================================================
-   إشعار فتح شارة جديدة
-   ============================================================ */
-
-function showBadgeUnlockToast(badgeIds) {
-    badgeIds.forEach(function(badgeId, index) {
-        var badge = null;
-        for (var i = 0; i < BADGES_LIST.length; i++) {
-            if (BADGES_LIST[i].id === badgeId) { badge = BADGES_LIST[i]; break; }
-        }
-        if (!badge) return;
-        
-        /* تأخير بين الشارات المتعددة */
-        setTimeout(function() {
-            var toast = document.createElement('div');
-            toast.className = 'badge-unlock-toast fixed top-4 left-1/2 -translate-x-1/2 z-[500] flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl';
-            toast.style.background = badge.color;
-            toast.style.color = '#fff';
-            toast.style.minWidth = '280px';
-            toast.style.maxWidth = '90vw';
-            
-            toast.innerHTML = 
-                '<div class="w-11 h-11 rounded-full bg-white/25 flex items-center justify-center flex-shrink-0">' +
-                    '<i class="fa-solid ' + badge.icon + ' text-white text-lg"></i>' +
-                '</div>' +
-                '<div class="flex-1 min-w-0">' +
-                    '<p class="text-[10px] font-bold uppercase tracking-wider opacity-90">🎉 شارة جديدة!</p>' +
-                    '<p class="text-sm font-black truncate">' + badge.name + '</p>' +
-                    '<p class="text-[10px] opacity-90 truncate">' + badge.desc + '</p>' +
-                '</div>';
-            
-            document.body.appendChild(toast);
-            
-            /* اختفِ بعد 4 ثواني */
-            setTimeout(function() {
-                toast.style.transition = 'opacity 0.4s';
-                toast.style.opacity = '0';
-                setTimeout(function() { toast.remove(); }, 400);
-            }, 4000);
-        }, index * 800); /* تأخير 800ms بين كل شارة */
-    });
-    
-    /* صوت بسيط */
-    try { playBadgeSound(); } catch(e) {}
-}
-
-/* صوت احتفالي بسيط */
-function playBadgeSound() {
-    try {
-        var ctx = new (window.AudioContext || window.webkitAudioContext)();
-        var notes = [523.25, 659.25, 783.99, 1046.50]; /* C, E, G, C */
-        
-        notes.forEach(function(freq, i) {
-            var osc = ctx.createOscillator();
-            var gain = ctx.createGain();
-            osc.type = 'sine';
-            osc.frequency.value = freq;
-            gain.gain.setValueAtTime(0.15, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start(ctx.currentTime + i * 0.1);
-            osc.stop(ctx.currentTime + i * 0.1 + 0.3);
-        });
-    } catch (e) {}
-}
-
-/* ============================================================
-   فحص الشارات بعد أي مهمة
-   ============================================================ */
-
-function refreshBadgesAfterTask() {
-    fetch('/api/badges/check', {
-        method: 'POST',
-        credentials: 'include'
-    })
-    .then(function(r) { return r.ok ? r.json() : null; })
-    .then(function(data) {
-        if (data && data.ok && data.newlyUnlocked && data.newlyUnlocked.length > 0) {
-            /* أضف للقائمة المحلية */
-            data.newlyUnlocked.forEach(function(id) {
-                badgesState.unlocked[id] = new Date().toISOString();
-            });
-            
-            /* اعرض الإشعارات */
-            showBadgeUnlockToast(data.newlyUnlocked);
-            
-            /* حدّث العدادات */
-            updateBadgesCounters();
-        }
-    })
-    .catch(function(err) { console.error('Refresh badges error:', err); });
-}
-
-/* ============================================================
-   إغلاق بمفتاح Escape
-   ============================================================ */
-
+/* إغلاق بمفتاح Escape */
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
         var modal = document.getElementById('badgesModal');
@@ -13971,7 +13915,6 @@ document.addEventListener('keydown', function(e) {
         }
     }
 });
-
 /* ============================================================
    عجلة الحظ (Wheel of Fortune)
    ============================================================ */
