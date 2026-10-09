@@ -1689,6 +1689,88 @@ html[data-theme="gray"] {
     position: relative;
     z-index: 1;
 }
+/* ═══════════════════════════════════════════════════════
+   Progress Ring لكل شارة
+   ═══════════════════════════════════════════════════════ */
+.badge-ring-wrapper {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 8px;
+}
+
+.badge-ring-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.badge-ring-bg {
+    fill: none;
+    stroke: rgba(148, 163, 184, 0.25);
+    stroke-width: 6;
+}
+
+.badge-ring-fill {
+    fill: none;
+    stroke: #f59e0b;
+    stroke-width: 6;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.6s ease-out;
+}
+
+.badge-card.unlocked .badge-ring-fill {
+    stroke: #22c55e;
+}
+
+.badge-ring-inner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+    z-index: 2;
+}
+
+.badge-card.locked .badge-ring-inner {
+    background: linear-gradient(135deg, #94a3b8, #64748b);
+    box-shadow: none;
+}
+
+.badge-progress-text {
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 8px;
+    font-weight: 900;
+    background: #0f172a;
+    color: #fff;
+    padding: 1px 5px;
+    border-radius: 8px;
+    z-index: 3;
+    white-space: nowrap;
+    min-width: 30px;
+    text-align: center;
+}
+
+@media (max-width: 640px) {
+    .badge-ring-wrapper { width: 64px; height: 64px; }
+    .badge-ring-inner { width: 46px; height: 46px; font-size: 18px; }
+    .badge-progress-text { font-size: 7px; padding: 1px 4px; }
+}
 .badge-card.locked .badge-icon {
     background: linear-gradient(135deg, #94a3b8, #64748b);
     box-shadow: none;
@@ -5953,66 +6035,300 @@ function manualSave() {
 /* ============================================================
    الجزء 24: التصدير والاستيراد
    ============================================================ */
-function exportJSON() {
+/* ============================================================
+   نظام التصدير بخيارات
+   ============================================================ */
+
+var EXPORT_OPTIONS = [
+    { id: 'subjects',      label: 'المواد والأوراق',      icon: 'fa-list-check',   default: true,  source: function() { return appState.subjects || []; } },
+    { id: 'timetable',     label: 'الجدول الأسبوعي',       icon: 'fa-table-cells',  default: true,  source: function() { return appState.timetable || {}; } },
+    { id: 'homework',      label: 'الواجبات',              icon: 'fa-book-bookmark',default: true,  source: function() { return appState.homework || []; } },
+    { id: 'preparation',   label: 'التحضير والأدوات',      icon: 'fa-clipboard-check', default: true, source: function() { return appState.preparation || {}; } },
+    { id: 'prepChecked',   label: 'حالة التحضير اليومية', icon: 'fa-check-square', default: false, source: function() { return appState.prepChecked || {}; } },
+    { id: 'series',        label: 'السلاسل',               icon: 'fa-pen-ruler',    default: true,  source: function() { return appState.series || []; } },
+    { id: 'notes',         label: 'الملاحظات',             icon: 'fa-note-sticky',  default: true,  source: function() { return appState.notes || []; } },
+    { id: 'exams',         label: 'الامتحانات',            icon: 'fa-calendar-days',default: true,  source: function() { return appState.exams || []; } },
+    { id: 'results',       label: 'النتائج والمعاملات',    icon: 'fa-graduation-cap', default: true, source: function() { return { results: CURRENT_RESULTS, coefficients: CURRENT_COEFFICIENTS }; } },
+    { id: 'stats',         label: 'النقاط والإحصائيات',    icon: 'fa-star',         default: true,  source: function() { return { points: CURRENT_STATS.points, currentStreak: CURRENT_STATS.currentStreak, longestStreak: CURRENT_STATS.longestStreak }; } },
+    { id: 'badges',        label: 'الشارات',               icon: 'fa-trophy',       default: true,  source: function() { return badgesState.unlocked || {}; } },
+    { id: 'tutoring',      label: 'دروس خصوصية',           icon: 'fa-chalkboard-user', default: true, source: function() { return CURRENT_TUTORING || []; } },
+    { id: 'settings',      label: 'الإعدادات (لغة، مظهر)', icon: 'fa-gear',        default: true,  source: function() { return { lang: appState.lang, darkMode: appState.darkMode, theme: appState.theme, weekAStart: appState.weekAStart }; } },
+    { id: 'profile',       label: 'الملف الشخصي',          icon: 'fa-user',         default: true,  source: function() { return { name: CURRENT_USER ? CURRENT_USER.name : '', grade: CURRENT_USER ? CURRENT_USER.grade : '', term: CURRENT_USER ? CURRENT_USER.term : '', examType: CURRENT_USER ? CURRENT_USER.examType : '', schoolYear: CURRENT_USER ? CURRENT_USER.schoolYear : '', avatar: CURRENT_USER ? CURRENT_USER.avatar : '' }; } }
+];
+
+var exportSelected = {};
+
+function openExportModal() {
+    /* إعادة تعيين الاختيارات للافتراضي */
+    exportSelected = {};
+    EXPORT_OPTIONS.forEach(function(opt) { exportSelected[opt.id] = opt.default; });
+    
+    renderExportOptions();
+    updateExportSizeEstimate();
+    
+    document.getElementById('exportModal').classList.remove('hidden');
+}
+
+function closeExportModal() {
+    document.getElementById('exportModal').classList.add('hidden');
+}
+
+function renderExportOptions() {
+    var container = document.getElementById('exportOptions');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    EXPORT_OPTIONS.forEach(function(opt) {
+        var isChecked = !!exportSelected[opt.id];
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.onclick = function() { toggleExportOption(opt.id); };
+        btn.className = 'w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-colors text-right ' + 
+            (isChecked 
+                ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800' 
+                : 'bg-slate-50 dark:bg-slate-700/40 border-slate-200 dark:border-slate-600');
+        
+        btn.innerHTML = 
+            '<div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ' +
+                (isChecked ? 'bg-emerald-500 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-400') + '">' +
+                '<i class="fa-solid ' + (isChecked ? 'fa-check' : opt.icon) + ' text-sm"></i>' +
+            '</div>' +
+            '<div class="flex-1 min-w-0">' +
+                '<p class="text-sm font-bold ' + (isChecked ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-700 dark:text-slate-200') + '">' + opt.label + '</p>' +
+                '<p class="text-[10px] ' + (isChecked ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400') + '">' + getExportCount(opt.id) + '</p>' +
+            '</div>';
+        
+        container.appendChild(btn);
+    });
+}
+
+function getExportCount(optId) {
+    try {
+        var data = EXPORT_OPTIONS.find(function(o) { return o.id === optId; }).source();
+        if (Array.isArray(data)) return data.length + ' عنصر';
+        if (data && typeof data === 'object') {
+            var keys = Object.keys(data);
+            return keys.length + ' عنصر';
+        }
+        return '0 عنصر';
+    } catch(e) { return '—'; }
+}
+
+function toggleExportOption(optId) {
+    exportSelected[optId] = !exportSelected[optId];
+    renderExportOptions();
+    updateExportSizeEstimate();
+}
+
+function toggleExportAll(value) {
+    EXPORT_OPTIONS.forEach(function(opt) { exportSelected[opt.id] = value; });
+    renderExportOptions();
+    updateExportSizeEstimate();
+}
+
+function updateExportSizeEstimate() {
+    var el = document.getElementById('exportSizeEstimate');
+    if (!el) return;
+    
+    var preview = buildExportData();
+    var size = new Blob([JSON.stringify(preview)]).size;
+    
+    if (size < 1024) {
+        el.textContent = size + ' B';
+    } else if (size < 1024 * 1024) {
+        el.textContent = (size / 1024).toFixed(1) + ' KB';
+    } else {
+        el.textContent = (size / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+}
+
+function buildExportData() {
     var data = {
-        version: 2,
+        version: 3,
         exportedAt: new Date().toISOString(),
-        name: CURRENT_USER ? CURRENT_USER.name : 'User',
-        subjects: appState.subjects,
-        timetable: appState.timetable,
-        homework: appState.homework,
-        preparation: appState.preparation,
-        extras: {
-            series: appState.series || [],
-            notes: appState.notes || []
-        },
-        lang: appState.lang,
-        darkMode: appState.darkMode
+        exportedBy: CURRENT_USER ? CURRENT_USER.name : 'User',
+        selectedOptions: Object.keys(exportSelected).filter(function(k) { return exportSelected[k]; })
     };
-    var blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = 'study_backup_' + new Date().toISOString().slice(0,10) + '.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    
+    EXPORT_OPTIONS.forEach(function(opt) {
+        if (!exportSelected[opt.id]) return;
+        try {
+            data[opt.id] = opt.source();
+        } catch(e) {
+            console.warn('Export error for', opt.id, e);
+            data[opt.id] = null;
+        }
+    });
+    
+    return data;
+}
+
+function confirmExport() {
+    var selected = Object.keys(exportSelected).filter(function(k) { return exportSelected[k]; });
+    if (selected.length === 0) {
+        showToast('⚠️ اختر عنصراً واحداً على الأقل');
+        return;
+    }
+    
+    var btn = document.getElementById('exportConfirmBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> جاري التحضير...';
+    
+    setTimeout(function() {
+        try {
+            var data = buildExportData();
+            var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            var userName = (CURRENT_USER && CURRENT_USER.name) ? CURRENT_USER.name.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, '_') : 'user';
+            a.download = 'study_portal_' + userName + '_' + new Date().toISOString().slice(0, 10) + '.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            closeExportModal();
+            showToast('✓ تم تصدير ' + selected.length + ' قسم');
+        } catch(e) {
+            console.error('Export error:', e);
+            showToast('❌ فشل التصدير');
+        }
+        
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-download mr-1"></i> تصدير';
+    }, 100);
+}
+
+/* الحفاظ على التوافق مع الكود القديم */
+function exportJSON() {
+    openExportModal();
 }
 function importJSON() {
     var inp = document.createElement('input');
     inp.type = 'file';
-    inp.accept = 'application/json';
-    inp.onchange = function(e){
+    inp.accept = 'application/json,.json';
+    inp.onchange = function(e) {
         var f = e.target.files[0];
         if (!f) return;
+        
+        /* تحقق من الحجم */
+        if (f.size > 10 * 1024 * 1024) {
+            alert('❌ الملف كبير جداً (الحد الأقصى 10 MB)');
+            return;
+        }
+        
         var r = new FileReader();
-        r.onload = function(ev){
+        r.onload = function(ev) {
             try {
                 var parsed = JSON.parse(ev.target.result);
-                if (parsed.subjects) appState.subjects = parsed.subjects;
-                if (parsed.timetable) appState.timetable = parsed.timetable;
-                if (parsed.homework) appState.homework = parsed.homework;
-                if (parsed.preparation) appState.preparation = parsed.preparation;
-                if (parsed.extras) {
-                    if (parsed.extras.series) appState.series = parsed.extras.series;
-                    if (parsed.extras.notes) appState.notes = parsed.extras.notes;
+                
+                /* --- استيراد بالبنية الجديدة (v3) --- */
+                var imported = [];
+                var skipped = [];
+                
+                /* المواد */
+                if (parsed.subjects) {
+                    appState.subjects = parsed.subjects;
+                    imported.push('المواد (' + parsed.subjects.length + ')');
                 }
+                /* الجدول */
+                if (parsed.timetable) {
+                    appState.timetable = parsed.timetable;
+                    imported.push('الجدول');
+                }
+                /* الواجبات */
+                if (parsed.homework) {
+                    appState.homework = parsed.homework;
+                    imported.push('الواجبات (' + parsed.homework.length + ')');
+                }
+                /* التحضير */
+                if (parsed.preparation) {
+                    appState.preparation = parsed.preparation;
+                    imported.push('التحضير');
+                }
+                if (parsed.prepChecked) {
+                    appState.prepChecked = parsed.prepChecked;
+                }
+                /* السلاسل */
+                if (parsed.series) {
+                    appState.series = parsed.series;
+                    imported.push('السلاسل (' + parsed.series.length + ')');
+                } else if (parsed.extras && parsed.extras.series) {
+                    appState.series = parsed.extras.series;
+                    imported.push('السلاسل (' + parsed.extras.series.length + ')');
+                }
+                /* الملاحظات */
+                if (parsed.notes) {
+                    appState.notes = parsed.notes;
+                    imported.push('الملاحظات (' + parsed.notes.length + ')');
+                } else if (parsed.extras && parsed.extras.notes) {
+                    appState.notes = parsed.extras.notes;
+                    imported.push('الملاحظات (' + parsed.extras.notes.length + ')');
+                }
+                /* الامتحانات */
+                if (parsed.exams) {
+                    appState.exams = parsed.exams;
+                    imported.push('الامتحانات (' + parsed.exams.length + ')');
+                }
+                /* النتائج */
+                if (parsed.results && Array.isArray(parsed.results)) {
+                    CURRENT_RESULTS = parsed.results;
+                    imported.push('النتائج (' + parsed.results.length + ')');
+                }
+                if (parsed.coefficients) {
+                    CURRENT_COEFFICIENTS = parsed.coefficients;
+                }
+                /* الشارات */
+                if (parsed.badges && typeof parsed.badges === 'object') {
+                    badgesState.unlocked = parsed.badges;
+                    imported.push('الشارات (' + Object.keys(parsed.badges).length + ')');
+                }
+                /* الإعدادات */
+                if (parsed.settings) {
+                    if (parsed.settings.lang) appState.lang = parsed.settings.lang;
+                    if (typeof parsed.settings.darkMode !== 'undefined') appState.darkMode = parsed.settings.darkMode;
+                    if (parsed.settings.theme) appState.theme = parsed.settings.theme;
+                    if (parsed.settings.weekAStart) appState.weekAStart = parsed.settings.weekAStart;
+                    imported.push('الإعدادات');
+                }
+                /* دعم البنية القديمة */
                 if (parsed.lang) appState.lang = parsed.lang;
                 if (typeof parsed.darkMode !== 'undefined') appState.darkMode = parsed.darkMode;
                 
-                /* Migration بعد الاستيراد */
+                /* Migration */
                 try { migrateSubjectItems(); } catch (e) {}
+                try { if (typeof migrateSeriesItems === 'function') migrateSeriesItems(); } catch (e) {}
                 
+                /* إعادة العرض */
+                applyTheme();
+                applyThemeColor();
+                applyLanguage();
                 renderApp();
+                
+                /* حفظ على السيرفر */
                 saveState();
-                alert('✅ تم الاستيراد بنجاح!\n\n' + 
-                      'المواد: ' + (appState.subjects?.length || 0) + '\n' +
-                      'الحصص: ' + Object.keys(appState.timetable || {}).length + '\n' +
-                      'الواجبات: ' + (appState.homework?.length || 0));
-            } catch (err) { 
-                console.error(err);
-                alert('❌ ملف غير صالح: ' + err.message); 
+                
+                /* رسالة نجاح */
+                var msg = '✅ تم الاستيراد بنجاح!\n\n';
+                if (imported.length > 0) {
+                    msg += '📦 العناصر المُستوردة:\n' + imported.map(function(x) { return '  • ' + x; }).join('\n');
+                } else {
+                    msg += '⚠️ لم يتم استيراد أي عنصر جديد.';
+                }
+                
+                alert(msg);
+                
+                /* حدّث الشارات إذا كانت مستوردة */
+                if (parsed.badges) {
+                    setTimeout(function() {
+                        if (typeof updateBadgesCounters === 'function') updateBadgesCounters();
+                    }, 500);
+                }
+                
+            } catch (err) {
+                console.error('Import error:', err);
+                alert('❌ ملف غير صالح\n\n' + err.message);
             }
         };
         r.readAsText(f);
@@ -13297,129 +13613,141 @@ if ('serviceWorker' in navigator) {
    ============================================================ */
 
 /* قائمة كل الشارات المتاحة */
-var BADGES_LIST = [
-    {
-        id: 'first_task',
-        name: 'البداية',
-        desc: 'أنجز أول مهمة',
-        icon: 'fa-seedling',
-        color: 'linear-gradient(135deg, #22c55e, #16a34a)'
-    },
-    {
-        id: 'first_paper',
-        name: 'أول ورقة',
-        desc: 'أنهِ ورقة واحدة',
-        icon: 'fa-file-lines',
-        color: 'linear-gradient(135deg, #06b6d4, #0891b2)'
-    },
-    {
-        id: 'papers_10',
-        name: 'عشرة',
-        desc: 'أنجز 10 أوراق',
-        icon: 'fa-layer-group',
-        color: 'linear-gradient(135deg, #3b82f6, #2563eb)'
-    },
-    {
-        id: 'papers_50',
-        name: 'خمسون',
-        desc: 'أنجز 50 ورقة',
-        icon: 'fa-book',
-        color: 'linear-gradient(135deg, #8b5cf6, #7c3aed)'
-    },
-    {
-        id: 'papers_100',
-        name: 'مئة',
-        desc: 'أنجز 100 ورقة',
-        icon: 'fa-book-open',
-        color: 'linear-gradient(135deg, #ec4899, #db2777)'
-    },
-    {
-        id: 'papers_500',
-        name: 'خمسمئة',
-        desc: 'أنجز 500 ورقة',
-        icon: 'fa-crown',
-        color: 'linear-gradient(135deg, #f59e0b, #d97706)'
-    },
-    {
-        id: 'streak_3',
-        name: '3 أيام',
-        desc: 'حافظ على Streak لـ 3 أيام',
-        icon: 'fa-fire',
-        color: 'linear-gradient(135deg, #f97316, #ea580c)'
-    },
-    {
-        id: 'streak_7',
-        name: 'أسبوع',
-        desc: 'حافظ على Streak لأسبوع',
-        icon: 'fa-fire-flame-curved',
-        color: 'linear-gradient(135deg, #ef4444, #dc2626)'
-    },
-    {
-        id: 'streak_30',
-        name: 'شهر',
-        desc: 'حافظ على Streak لشهر',
-        icon: 'fa-fire-flame-simple',
-        color: 'linear-gradient(135deg, #dc2626, #991b1b)'
-    },
-    {
-        id: 'streak_100',
-        name: 'مئة يوم',
-        desc: 'حافظ على Streak 100 يوم',
-        icon: 'fa-dragon',
-        color: 'linear-gradient(135deg, #7c3aed, #4c1d95)'
-    },
-    {
-        id: 'points_1000',
-        name: '1000 نقطة',
-        desc: 'اجمع 1000 نقطة',
-        icon: 'fa-star',
-        color: 'linear-gradient(135deg, #fbbf24, #f59e0b)'
-    },
-    {
-        id: 'points_5000',
-        name: '5000 نقطة',
-        desc: 'اجمع 5000 نقطة',
-        icon: 'fa-star-of-life',
-        color: 'linear-gradient(135deg, #f59e0b, #d97706)'
-    },
-    {
-        id: 'focus_10',
-        name: '10 جلسات',
-        desc: 'أكمل 10 جلسات تركيز',
-        icon: 'fa-hourglass-half',
-        color: 'linear-gradient(135deg, #14b8a6, #0d9488)'
-    },
-    {
-        id: 'focus_50',
-        name: '50 جلسة',
-        desc: 'أكمل 50 جلسة تركيز',
-        icon: 'fa-hourglass-end',
-        color: 'linear-gradient(135deg, #0891b2, #155e75)'
-    },
-    {
-        id: 'perfect_day',
-        name: 'يوم كامل',
-        desc: 'حقق هدف يوم كامل',
-        icon: 'fa-bullseye',
-        color: 'linear-gradient(135deg, #10b981, #059669)'
-    },
-    {
-        id: 'perfect_week',
-        name: 'أسبوع كامل',
-        desc: 'حقق هدف 7 أيام',
-        icon: 'fa-calendar-check',
-        color: 'linear-gradient(135deg, #059669, #065f46)'
-    },
-    {
-        id: 'perfect_month',
-        name: 'شهر كامل',
-        desc: 'حقق هدف 30 يوم',
-        icon: 'fa-medal',
-        color: 'linear-gradient(135deg, #6366f1, #4f46e5)'
-    }
-];
 
-/* حالة الشارات الحالية */
+function renderBadges() {
+    var grid = document.getElementById('badgesGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    
+    BADGES_LIST.forEach(function(badge) {
+        var isUnlocked = !!badgesState.unlocked[badge.id];
+        var card = document.createElement('div');
+        card.className = 'badge-card ' + (isUnlocked ? 'unlocked' : 'locked');
+        
+        /* احسب التقدم */
+        var current = getBadgeCurrentValue(badge.metric);
+        var target = badge.target || 1;
+        var progress = Math.min(100, Math.round((current / target) * 100));
+        if (isUnlocked) progress = 100;
+        
+        /* دائرة SVG */
+        var radius = 30;
+        var circumference = 2 * Math.PI * radius;
+        var offset = circumference * (1 - progress / 100);
+        
+        var html = '';
+        html += '<div class="badge-ring-wrapper">';
+        html += '<svg class="badge-ring-svg" viewBox="0 0 72 72">';
+        html += '<circle class="badge-ring-bg" cx="36" cy="36" r="' + radius + '"></circle>';
+        html += '<circle class="badge-ring-fill" cx="36" cy="36" r="' + radius + '" ';
+        html += 'stroke-dasharray="' + circumference.toFixed(2) + '" ';
+        html += 'stroke-dashoffset="' + offset.toFixed(2) + '" ';
+        if (isUnlocked) html += 'style="stroke: #22c55e;"';
+        html += '></circle>';
+        html += '</svg>';
+        html += '<div class="badge-ring-inner" style="' + (isUnlocked ? 'background:' + badge.color + ';' : '') + '">';
+        html += '<i class="fa-solid ' + badge.icon + '"></i>';
+        html += '</div>';
+        
+        if (!isUnlocked && target > 1) {
+            html += '<div class="badge-progress-text">' + current + '/' + target + '</div>';
+        } else if (isUnlocked) {
+            html += '<div class="badge-progress-text" style="background: #22c55e;">✓</div>';
+        }
+        
+        html += '</div>';
+        html += '<p class="badge-name">' + badge.name + '</p>';
+        html += '<p class="badge-desc">' + badge.desc + '</p>';
+        
+        card.innerHTML = html;
+        grid.appendChild(card);
+    });
+    
+    var unlockedCount = Object.keys(badgesState.unlocked).length;
+    var totalCount = BADGES_LIST.length;
+    var pct = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
+    var el;
+    el = document.getElementById('badgesUnlockedCount'); if (el) el.textContent = unlockedCount;
+    el = document.getElementById('badgesTotalCount'); if (el) el.textContent = totalCount;
+    el = document.getElementById('badgesProgressBar'); if (el) el.style.width = pct + '%';
+    var subtitle = document.getElementById('badgesSubtitle');
+    if (subtitle) { subtitle.textContent = (unlockedCount === totalCount) ? '🏆 ما شاء الله! جمعت كل الشارات!' : 'جمعت ' + unlockedCount + ' من ' + totalCount + ' شارة'; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   حساب القيمة الحالية لكل متريك
+   ═══════════════════════════════════════════════════════ */
+function getBadgeCurrentValue(metric) {
+    try {
+        switch(metric) {
+            case 'papers':
+                return getTotalCompletedPapers();
+            case 'streak':
+                return CURRENT_STATS.longestStreak || 0;
+            case 'points':
+                return CURRENT_STATS.points || 0;
+            case 'focus':
+                return (CURRENT_STATS.focusSessions || 0);
+            case 'perfectDays':
+                return getPerfectDaysCount();
+            case 'homework':
+                return (appState.homework || []).filter(function(h) { return h.completed; }).length;
+            case 'series':
+                return getCompletedSeriesCount();
+            case 'notes':
+                return (appState.notes || []).length;
+            case 'results':
+                return (CURRENT_RESULTS || []).length;
+            case 'average':
+                return calculateWeightedAverage(CURRENT_RESULTS || []) || 0;
+            case 'perfectScore':
+                return (CURRENT_RESULTS || []).filter(function(r) {
+                    return parseFloat(r.score) >= parseFloat(r.max_score);
+                }).length > 0 ? 1 : 0;
+            case 'resultSubjects':
+                var subjSet = {};
+                (CURRENT_RESULTS || []).forEach(function(r) { subjSet[r.subject_id] = true; });
+                return Object.keys(subjSet).length;
+            case 'tutoring':
+                return (CURRENT_TUTORING || []).length;
+            case 'tutoringItems':
+                return (CURRENT_TUTORING || []).reduce(function(sum, s) {
+                    return sum + ((s.items || []).filter(function(it) { return it.checked; }).length);
+                }, 0);
+            default:
+                return 0;
+        }
+    } catch(e) { return 0; }
+}
+
+function getTotalCompletedPapers() {
+    var total = 0;
+    (appState.subjects || []).forEach(function(s) {
+        if (s.sections) {
+            s.sections.forEach(function(sec) {
+                (sec.items || []).forEach(function(it) { if (it.checked) total++; });
+            });
+        } else if (s.items) {
+            s.items.forEach(function(it) { if (it.checked) total++; });
+        }
+    });
+    return total;
+}
+
+function getPerfectDaysCount() {
+    if (!CURRENT_STATS.recent) return 0;
+    return CURRENT_STATS.recent.filter(function(r) { return r.goal_met; }).length;
+}
+
+function getCompletedSeriesCount() {
+    var count = 0;
+    (appState.series || []).forEach(function(s) {
+        var items = s.items || [];
+        if (items.length > 0 && items.every(function(it) { return it.checked; })) count++;
+    });
+    return count;
+}
+   /* حالة الشارات الحالية */
 var badgesState = {
     unlocked: {},       /* badge_id → unlocked_at */
     loaded: false
@@ -15387,6 +15715,56 @@ function closeWheelModal() {
             </button>
         </form>
         
+    </div>
+</div>
+<!-- ============================================================
+     نافذة تصدير JSON بخيارات
+     ============================================================ -->
+<div id="exportModal" class="fixed inset-0 z-[130] bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 hidden overflow-y-auto">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-lg w-full p-5 border border-slate-200 dark:border-slate-700 my-8">
+        
+        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-200 dark:border-slate-700">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center">
+                    <i class="fa-solid fa-file-export"></i>
+                </div>
+                <div>
+                    <h3 class="text-base font-bold text-slate-900 dark:text-white">تصدير البيانات</h3>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">اختر ما تريد تصديره</p>
+                </div>
+            </div>
+            <button onclick="closeExportModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <!-- اختيار الكل / لا شيء -->
+        <div class="flex gap-2 mb-3">
+            <button onclick="toggleExportAll(true)" class="flex-1 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+                <i class="fa-solid fa-check-double mr-1"></i> تحديد الكل
+            </button>
+            <button onclick="toggleExportAll(false)" class="flex-1 py-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+                <i class="fa-solid fa-xmark mr-1"></i> إلغاء الكل
+            </button>
+        </div>
+
+        <div id="exportOptions" class="space-y-2 mb-4">
+            <!-- سيتم تعبئتها بـ JavaScript -->
+        </div>
+
+        <div class="bg-slate-50 dark:bg-slate-700/40 rounded-xl p-3 mb-4">
+            <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-600 dark:text-slate-300 font-bold">الحجم المتوقع:</span>
+                <span id="exportSizeEstimate" class="font-black text-slate-900 dark:text-white">0 KB</span>
+            </div>
+        </div>
+
+        <div class="flex gap-2 justify-end pt-3 border-t border-slate-200 dark:border-slate-700">
+            <button onclick="closeExportModal()" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-xs font-semibold">إلغاء</button>
+            <button onclick="confirmExport()" id="exportConfirmBtn" class="px-5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">
+                <i class="fa-solid fa-download mr-1"></i> تصدير
+            </button>
+        </div>
     </div>
 </div>
 <!-- عجلة الحظ -->
