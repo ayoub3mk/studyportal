@@ -1480,8 +1480,23 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
 #mobileMenu:not(.hidden) {
     display: block !important;
+    max-height: calc(100vh - 80px);
+    max-height: calc(100dvh - 80px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
 }
 
+#mobileMenu::-webkit-scrollbar {
+    width: 6px;
+}
+#mobileMenu::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+.dark #mobileMenu::-webkit-scrollbar-thumb {
+    background: #475569;
+}
 .dark #mobileMenu {
     background-color: #1e293b;
     border-color: #334155;
@@ -2022,11 +2037,19 @@ html[data-theme="gray"] {
     </label>
     <p class="text-[10px] text-blue-600 dark:text-blue-400 mt-1 mr-6">ينسخ: المواد + الجدول + إعدادات الملف (بدون الأوراق)</p>
     
-    <div id="copyOptions" class="hidden mt-3 pt-3 border-t border-blue-200 dark:border-blue-800">
-        <label class="block text-[10px] font-bold text-blue-700 dark:text-blue-300 mb-1">اختر المستخدم المصدر</label>
-        <select id="copySourceSelect" class="w-full px-3 py-2 rounded-lg border border-blue-300 dark:border-blue-800 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
-            <option value="">— اختر —</option>
-        </select>
+    <div id="copyOptions" class="hidden mt-3 pt-3 border-t border-blue-200 dark:border-blue-800 space-y-3">
+        <div>
+            <label class="block text-[10px] font-bold text-blue-700 dark:text-blue-300 mb-1">اختر المستخدم المصدر</label>
+            <select id="copySourceSelect" class="w-full px-3 py-2 rounded-lg border border-blue-300 dark:border-blue-800 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-sm">
+                <option value="">— اختر —</option>
+            </select>
+        </div>
+        
+        <label class="flex items-center gap-2 cursor-pointer bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-lg p-2">
+            <input type="checkbox" id="copyBadgesToo" class="w-4 h-4 rounded accent-amber-600">
+            <span class="text-xs font-bold text-amber-700 dark:text-amber-300">🏅 نسخ الشارات أيضاً</span>
+        </label>
+        <p class="text-[10px] text-amber-600 dark:text-amber-400 mr-6">انسخ كل الشارات المفتوحة من المستخدم المصدر</p>
     </div>
 </div>
 
@@ -2399,16 +2422,14 @@ html[data-theme="gray"] {
                         <option value="pending" data-i18n="filterPending">غير مكتمل</option>
                         <option value="completed" data-i18n="filterCompleted">مكتمل</option>
                     </select>
-                    <button onclick="exportJSON()" class="px-2 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold" title="تصدير">
-                        <i class="fa-solid fa-file-export"></i>
-                    </button>
-                    <button onclick="importJSON()" class="px-2 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold" title="استيراد">
-                        <i class="fa-solid fa-file-import"></i>
-                    </button>
-                    <button onclick="openAddSubjectModal()" class="px-2 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold flex items-center justify-center gap-1" title="إضافة مادة">
-                        <i class="fa-solid fa-plus"></i>
-                        <span class="hidden sm:inline" data-i18n="addSubject">إضافة</span>
-                    </button>
+                    <button onclick="openExportModal()" class="px-2 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center justify-center gap-1" title="تصدير JSON">
+    <i class="fa-solid fa-file-export"></i>
+    <span class="hidden sm:inline">تصدير</span>
+</button>
+<button onclick="importJSON()" class="px-2 py-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-xs font-semibold flex items-center justify-center gap-1" title="استيراد JSON">
+    <i class="fa-solid fa-file-import"></i>
+    <span class="hidden sm:inline">استيراد</span>
+</button>
                 </div>
             </div>
             <div id="subjectsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
@@ -6256,6 +6277,7 @@ openAddUserModal = function() {
 };
 
 /* تعديل submitAddUser لدعم النسخ */
+/* تعديل submitAddUser لدعم النسخ + نسخ الشارات */
 var _originalSubmitAddUser = submitAddUser;
 submitAddUser = function(e) {
     e.preventDefault();
@@ -6272,9 +6294,16 @@ submitAddUser = function(e) {
     
     var copyFrom = document.getElementById('copyFromExisting').checked;
     var sourceUserId = document.getElementById('copySourceSelect').value;
+    var copyBadges = document.getElementById('copyBadgesToo') && document.getElementById('copyBadgesToo').checked;
     
     if (copyFrom && !sourceUserId) {
         err.textContent = 'اختر المستخدم المصدر';
+        err.classList.remove('hidden');
+        return;
+    }
+    
+    if (copyBadges && !sourceUserId) {
+        err.textContent = 'اختر المستخدم المصدر لنسخ الشارات';
         err.classList.remove('hidden');
         return;
     }
@@ -6298,24 +6327,60 @@ submitAddUser = function(e) {
     })
     .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, data: j }; }); })
     .then(function(res) {
-        btn.disabled = false;
-        btn.innerHTML = 'إضافة';
         if (!res.ok) {
+            btn.disabled = false;
+            btn.innerHTML = 'إضافة';
             err.textContent = res.data.message || 'خطأ';
             err.classList.remove('hidden');
             return;
         }
+        
+        var newUserId = res.data.userId;
+        
+        /* إذا طُلب نسخ الشارات */
+        if (copyBadges && sourceUserId && newUserId) {
+            return fetch('/api/users/copy-badges', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer ' + AUTH_TOKEN
+                },
+                credentials: 'include',
+                body: JSON.stringify({ sourceUserId: sourceUserId, targetUserId: newUserId })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(badgeRes) {
+                btn.disabled = false;
+                btn.innerHTML = 'إضافة';
+                closeAddUserModal();
+                loadUsers();
+                if (badgeRes.ok && badgeRes.copied > 0) {
+                    showToast('✓ تم نسخ ' + badgeRes.copied + ' شارة');
+                }
+            });
+        }
+        
+        btn.disabled = false;
+        btn.innerHTML = 'إضافة';
         closeAddUserModal();
         loadUsers();
     })
-    .catch(function() {
+    .catch(function(err2) {
         btn.disabled = false;
         btn.innerHTML = 'إضافة';
         err.textContent = 'خطأ في الاتصال';
         err.classList.remove('hidden');
+        console.error(err2);
     });
 };
 
+/* إعادة تعيين checkbox نسخ الشارات عند فتح المودال */
+var _originalOpenAddUserModal2 = openAddUserModal;
+openAddUserModal = function() {
+    _originalOpenAddUserModal2();
+    var cb = document.getElementById('copyBadgesToo');
+    if (cb) cb.checked = false;
+};
 /* ============================================================
    الجزء 31: دوال دروس خصوصية (التدارك)
    ============================================================ */
