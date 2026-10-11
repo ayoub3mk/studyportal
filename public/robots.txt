@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+
+Sitemap: https://studyportal-78tv.onrender.com/sitemap.xml
