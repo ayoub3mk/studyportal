@@ -59,6 +59,10 @@ tailwind.config = {
 <meta name="mobile-web-app-capable" content="yes">
 <style>
 <link rel="stylesheet" href="/css/main.css">
+
+<!-- ملفات JS الأساسية -->
+<script src="/js/utils.js"></script>
+<script src="/js/data.js"></script>
 </style>
 </head>
 
@@ -1548,328 +1552,20 @@ tailwind.config = {
         </form>
     </div>
 </div>
-<script>
-/* ============================================================
-   بوابة المساعد الدراسي — JavaScript
+    <!-- ملفات JS للاتصال بالسيرفر والمصادقة -->
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    
+    <script>
+    /* ============================================================
+       بوابة المساعد الدراسي — JavaScript
    نظام: حساب واحد فيه عدة مستخدمين
    ============================================================ */
 
 /* ============================================================
    الجزء 1: الترجمات
    ============================================================ */
-var UI = {
-ar: {
-    pageTitle: "بوابة المساعد الدراسي",
-    tabChecklist: "قائمة المراجعة",
-    tabTimetable: "جدول الأوقات",
-    tabHomework: "الواجبات",
-    tabStats: "الإحصائيات",
-    addSubject: "إضافة",
-    filterAll: "الكل",
-    filterPending: "غير مكتمل",
-    filterCompleted: "مكتمل",
-    hwTitle: "الواجبات المنزلية",
-    hwNew: "واجب جديد",
-    hwAll: "الكل",
-    hwPending: "غير مكتمل",
-    hwCompleted: "مكتمل",
-    ttTitle: "جدول الأوقات",
-    ttReset: "استعادة",
-    statTotal: "إجمالي",
-    statDone: "منجزة",
-    statActiveHw: "نشطة",
-    statBySubject: "تقدم كل مادة",
-    countdown: "أقرب امتحان",
-    overallProgress: "التقدم",
-    dayToday: "اليوم!",
-    dayTomorrow: "غداً",
-    dayCount: "يوم",
-    notSet: "لا يوجد",
-    addExamDateHint: "أضف تواريخ الامتحانات",
-    notePlaceholder: "ملاحظة...",
-    addPaper: "إضافة ورقة",
-    sectionControl1: "المراقبة 1",
-    sectionControl2: "المراقبة 2",
-    saGreeting: "مرحباً",
-    saToday: "📅 اليوم",
-    saTomorrow: "📆 غداً",
-    saNoClasses: "لا حصص",
-    saNoHw: "لا واجبات معلقة",
-    saHw: "واجبات غداً",
-    tutoringTitle: "دروس خصوصية",
-    tutoringSubtitle: "أضف دروسك الخصوصية وتابع تمارينها",
-    tutoringNew: "درس جديد",
-},
-fr: {
-    pageTitle: "Portail Assistant",
-    tabChecklist: "Liste",
-    tabTimetable: "Emploi",
-    tabHomework: "Devoirs",
-    tabStats: "Stats",
-    addSubject: "Ajouter",
-    filterAll: "Tous",
-    filterPending: "En attente",
-    filterCompleted: "Terminé",
-    hwTitle: "Devoirs",
-    hwNew: "Nouveau",
-    hwAll: "Tous",
-    hwPending: "En attente",
-    hwCompleted: "Terminé",
-    ttTitle: "Emploi du temps",
-    ttReset: "Restaurer",
-    statTotal: "Total",
-    statDone: "Fait",
-    statActiveHw: "Actifs",
-    statBySubject: "Par matière",
-    countdown: "Examen proche",
-    overallProgress: "Progression",
-    dayToday: "Aujourd'hui!",
-    dayTomorrow: "Demain",
-    dayCount: "jours",
-    notSet: "Aucun",
-    addExamDateHint: "Ajoutez les dates",
-    notePlaceholder: "Note...",
-    addPaper: "Ajouter",
-    sectionControl1: "Contrôle 1",
-    sectionControl2: "Contrôle 2",
-    saGreeting: "Bonjour",
-    saToday: "📅 Aujourd'hui",
-    saTomorrow: "📆 Demain",
-    saNoClasses: "Aucun cours",
-    saNoHw: "Aucun devoir",
-    saHw: "Devoirs demain",
-    tutoringTitle: "Cours privés",
-    tutoringSubtitle: "Ajoutez vos cours privés et suivez vos exercices",
-    tutoringNew: "Nouveau cours",
-},
-en: {
-    pageTitle: "Study Assistant",
-    tabChecklist: "Checklist",
-    tabTimetable: "Timetable",
-    tabHomework: "Homework",
-    tabStats: "Stats",
-    addSubject: "Add",
-    filterAll: "All",
-    filterPending: "Pending",
-    filterCompleted: "Done",
-    hwTitle: "Homework",
-    hwNew: "New",
-    hwAll: "All",
-    hwPending: "Pending",
-    hwCompleted: "Done",
-    ttTitle: "Timetable",
-    ttReset: "Reset",
-    statTotal: "Total",
-    statDone: "Done",
-    statActiveHw: "Active",
-    statBySubject: "By subject",
-    countdown: "Nearest exam",
-    overallProgress: "Progress",
-    dayToday: "Today!",
-    dayTomorrow: "Tomorrow",
-    dayCount: "days",
-    notSet: "None",
-    addExamDateHint: "Add exam dates",
-    notePlaceholder: "Note...",
-    addPaper: "Add paper",
-    sectionControl1: "Control 1",
-    sectionControl2: "Control 2",
-    saGreeting: "Hello",
-    saToday: "📅 Today",
-    saTomorrow: "📆 Tomorrow",
-    saNoClasses: "No classes",
-    saNoHw: "No pending homework",
-    saHw: "Homework tomorrow",
-    tutoringTitle: "Tutoring",
-    tutoringSubtitle: "Add your private lessons and track exercises",
-    tutoringNew: "New lesson",
-}
-};
 
-var DICTIONARY = [
-    ["رياضيات", "Mathématiques", "Mathematics"],
-    ["العلوم الفيزيائية", "Physique", "Physics"],
-    ["علوم الحياة والأرض", "SVT", "Science of Life & Earth"],
-    ["الفرنسية", "Français", "French"],
-    ["التاريخ", "Histoire", "History"],
-    ["العربية", "Arabe", "Arabic"],
-    ["الجغرافيا", "Géographie", "Geography"],
-    ["التربية المدنية", "Éducation civique", "Civic Education"],
-    ["التكنولوجيا", "Technologie", "Technology"],
-    ["الإنجليزية", "Anglais", "English"],
-    ["التربية الإسلامية", "Éducation islamique", "Islamic Studies"],
-    ["ق28", "S28", "R28"], ["ق18", "S18", "R18"], ["ق12", "S12", "R12"],
-    ["ق14", "S14", "R14"], ["ق11", "S11", "R11"], ["ق09", "S09", "R09"],
-    ["ق10", "S10", "R10"], ["ق20", "S20", "R20"], ["ق21", "S21", "R21"],
-    ["ق23", "S23", "R23"], ["تب3", "Lab3", "Lab3"], ["إع5", "Info5", "Info5"],
-    ["إع1", "Info1", "Info1"], ["ع1", "At1", "At1"], ["ع2", "At2", "At2"],
-    ["ملعب1", "Terrain1", "Field1"], ["تق1", "Tech1", "Tech1"]
-];
-
-/* ============================================================
-   الجزء 2: البيانات الافتراضية
-   ============================================================ */
-function getDefaultSubjects() {
-    return [
-        { id: "subj_math", name: { ar: "رياضيات", fr: "Mathématiques", en: "Mathematics" }, examDate: "", sections: [
-            { key: "1", labelKey: "sectionControl1", badgeKey: "1", items: [
-                {code:"2025",checked:false,note:"",link:""},{code:"2025",checked:false,note:"",link:""},
-                {code:"2023",checked:false,note:"",link:""},{code:"2022",checked:false,note:"",link:""},
-                {code:"2021C",checked:false,note:"",link:""},{code:"2019C",checked:false,note:"",link:""},
-                {code:"2009C",checked:false,note:"",link:""},{code:"2015C",checked:false,note:"",link:""},
-                {code:"2012C",checked:false,note:"",link:""},{code:"2018P2",checked:false,note:"",link:""},
-                {code:"2019P2",checked:false,note:"",link:""},{code:"2021P2",checked:false,note:"",link:""},
-                {code:"2024E",checked:false,note:"",link:""}
-            ]},
-            { key: "2", labelKey: "sectionControl2", badgeKey: "2", items: [
-                {code:"2015C",checked:false,note:"",link:""},{code:"2014C",checked:false,note:"",link:""},
-                {code:"2013C",checked:false,note:"",link:""},{code:"2012C",checked:false,note:"",link:""},
-                {code:"2017C",checked:false,note:"",link:""},{code:"2021C",checked:false,note:"",link:""},
-                {code:"2025",checked:false,note:"",link:""},{code:"2023",checked:false,note:"",link:""},
-                {code:"2021P2",checked:false,note:"",link:""},{code:"2019P2",checked:false,note:"",link:""},
-                {code:"2024E",checked:false,note:"",link:""}
-            ]}
-        ]},
-        { id: "subj_phy", name: { ar: "العلوم الفيزيائية", fr: "Physique", en: "Physics" }, examDate: "", items: [
-            {code:"2011C",checked:false,note:"",link:""},{code:"2010C",checked:false,note:"",link:""},
-            {code:"2012C",checked:false,note:"",link:""},{code:"2013C",checked:false,note:"",link:""},
-            {code:"2014C",checked:false,note:"",link:""},{code:"2015C",checked:false,note:"",link:""},
-            {code:"2017C",checked:false,note:"",link:""},{code:"2020C",checked:false,note:"",link:""},
-            {code:"2021C",checked:false,note:"",link:""},{code:"2023C",checked:false,note:"",link:""},
-            {code:"2025C",checked:false,note:"",link:""},{code:"2024E",checked:false,note:"",link:""}
-        ]},
-        { id: "subj_svt", name: { ar: "علوم الحياة والأرض", fr: "SVT", en: "Science of Life & Earth" }, examDate: "", items: [
-            {code:"2020C",checked:false,note:"",link:""},{code:"2020",checked:false,note:"",link:""},
-            {code:"2017C",checked:false,note:"",link:""},{code:"2017",checked:false,note:"",link:""},
-            {code:"2024E",checked:false,note:"",link:""}
-        ]},
-        { id: "subj_fr", name: { ar: "الفرنسية", fr: "Français", en: "French" }, examDate: "", items: [
-            {code:"2015",checked:false,note:"",link:""},{code:"2016",checked:false,note:"",link:""},
-            {code:"2024E",checked:false,note:"",link:""}
-        ]},
-        { id: "subj_his", name: { ar: "التاريخ", fr: "Histoire", en: "History" }, examDate: "", items: [
-            {code:"2018",checked:false,note:"",link:""},{code:"2024E",checked:false,note:"",link:""}
-        ]},
-        { id: "subj_ar", name: { ar: "العربية", fr: "Arabe", en: "Arabic" }, examDate: "", items: [
-            {code:"2018GF",checked:false,note:"",link:""},{code:"2024E",checked:false,note:"",link:""}
-        ]},
-        { id: "subj_geo", name: { ar: "الجغرافيا", fr: "Géographie", en: "Geography" }, examDate: "", items: [
-            {code:"2018",checked:false,note:"",link:""},{code:"2024E",checked:false,note:"",link:""}
-        ]},
-        { id: "subj_civ", name: { ar: "التربية المدنية", fr: "Éducation civique", en: "Civic Education" }, examDate: "", items: [
-            {code:"2018",checked:false,note:"",link:""},{code:"2024E",checked:false,note:"",link:""}
-        ]},
-        { id: "subj_tech", name: { ar: "التكنولوجيا", fr: "Technologie", en: "Technology" }, examDate: "", items: [
-            {code:"2021",checked:false,note:"",link:""},{code:"2024EC",checked:false,note:"",link:""}
-        ]},
-        { id: "subj_eng", name: { ar: "الإنجليزية", fr: "Anglais", en: "English" }, examDate: "", items: [
-            {code:"?",checked:false,note:"",link:""},{code:"2024EC",checked:false,note:"",link:""}
-        ]},
-        { id: "subj_isl", name: { ar: "التربية الإسلامية", fr: "Éducation islamique", en: "Islamic Studies" }, examDate: "", items: [
-            {code:"2018",checked:false,note:"",link:""}
-        ]}
-    ];
-}
-
-function getDefaultTimetable() {
-    return {
-        monday: [
-            {subjectId:"subj_math", room:"ق28", start:"08:00", end:"10:00", week:"AB"},
-            {subjectId:"subj_svt", room:"تب3", start:"10:00", end:"11:00", week:"AB"},
-            {subjectId:"subj_fr", room:"إع5", start:"11:00", end:"12:00", week:"AB"},
-            {subjectId:"subj_his", room:"ق09", start:"13:00", end:"14:00", week:"AB"},
-            {subjectId:"subj_ar", room:"ق11", start:"14:00", end:"15:00", week:"AB"}
-        ],
-        tuesday: [
-            {subjectId:"subj_eng", room:"ق12", start:"09:00", end:"10:00", week:"AB"},
-            {subjectId:"subj_math", room:"ق28", start:"10:00", end:"12:00", week:"AB"},
-            {subjectId:"subj_phy", room:"ق14", start:"13:00", end:"14:00", week:"AB"},
-            {subjectId:"subj_fr", room:"إع5", start:"14:00", end:"16:00", week:"AB"}
-        ],
-        wednesday: [
-            {subjectId:"subj_phy", room:"ق18", start:"08:00", end:"10:00", week:"AB"},
-            {subjectId:"subj_fr", room:"إع5", start:"10:00", end:"12:00", week:"AB"},
-            {subjectId:"subj_math", room:"ق18", start:"14:00", end:"16:00", week:"AB"}
-        ],
-        thursday: [
-            {subjectId:"subj_svt", room:"ق18", start:"08:00", end:"09:00", week:"AB"},
-            {subjectId:"subj_phy", room:"ع1", start:"08:00", end:"09:00", week:"AB"},
-            {subjectId:"subj_tech", room:"إع1", start:"09:00", end:"11:00", week:"AB"},
-            {subjectId:"subj_svt", room:"تب3", start:"11:00", end:"12:00", week:"AB"},
-            {subjectId:"subj_ar", room:"ق14", start:"13:00", end:"14:00", week:"AB"},
-            {subjectId:"subj_eng", room:"ق20", start:"15:00", end:"16:00", week:"AB"},
-            {subjectId:"subj_isl", room:"ق18", start:"16:00", end:"17:00", week:"AB"}
-        ],
-        friday: [
-            {subjectId:"subj_tech", room:"تق1", start:"08:00", end:"13:00", week:"AB"},
-            {subjectId:"subj_phy", room:"ع1", start:"08:00", end:"13:00", week:"AB"},
-            {subjectId:"subj_svt", room:"ع2", start:"08:00", end:"13:00", week:"AB"}
-        ],
-        saturday: [
-            {subjectId:"subj_civ", room:"ق18", start:"08:00", end:"09:00", week:"AB"},
-            {subjectId:"subj_isl", room:"ق10", start:"08:00", end:"09:00", week:"AB"},
-            {subjectId:"subj_eng", room:"ق21", start:"09:00", end:"10:00", week:"AB"},
-            {subjectId:"subj_ar", room:"ق23", start:"10:00", end:"11:00", week:"AB"},
-            {subjectId:"subj_his", room:"ق11", start:"11:00", end:"12:00", week:"AB"}
-        ]
-    };
-}
-
-/* ============================================================
-   الجزء 3: الحالة العامة
-   ============================================================ */
-var appState = {
-    lang: "ar",
-    darkMode: false,
-    theme: "orange",
-    weekAStart: "2026-09-29",
-    manualWeek: null,
-    user: null,
-    subjects: [],
-    timetable: {},
-    homework: [],
-    preparation: {},        /* أدوات كل مادة (ثابتة) */
-     prepChecked: {          /* حالة الـ checkbox اليومية */
-        date: null,
-        checked: {}
-    },
-    tutorial: null,         /* حالة الإرشادات */
-    notifications: null,    /* إعدادات الإشعارات */
-    exams: []               /* الامتحانات المخصصة */
-};
-
-var AUTH_TOKEN = null;
-var CURRENT_ACCOUNT = null;
-var CURRENT_USER = null;
-var CURRENT_USERS = [];
-var API_BASE = '';
-var selectedUserId = null;
-var editingSubjectId = null;
-var addingItemSubjectId = null;
-var addingItemSectionKey = null;
-var linkItemSubjectId = null;
-var linkItemSectionKey = null;
-var linkItemIndex = null;
-var editingSlot = { day: null, index: null };
-var editingHomeworkId = null;
-var currentTab = "checklist";
-var hwFilter = "all";
-
-var pomodoroInterval = null;
-var pomodoroSeconds = 25 * 60;
-var pomodoroRunning = false;
-var pomodoroMode = "focus";
-var countdownTicker = null;
-var assistantClockTicker = null;
-
-var DAY_KEYS = ["monday","tuesday","wednesday","thursday","friday","saturday"];
-var TIME_COLUMNS = ["08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00"];
-var DEFAULT_AVATAR = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23ea580c'/><circle cx='50' cy='38' r='20' fill='%23ffffff'/><path d='M20 85 C20 65, 35 55, 50 55 C65 55, 80 65, 80 85 Z' fill='%23ffffff'/></svg>";
-var DAY_LABELS = {
-    ar: {monday:"الإثنين",tuesday:"الثلاثاء",wednesday:"الأربعاء",thursday:"الخميس",friday:"الجمعة",saturday:"السبت"},
-    fr: {monday:"Lundi",tuesday:"Mardi",wednesday:"Mercredi",thursday:"Jeudi",friday:"Vendredi",saturday:"Samedi"},
-    en: {monday:"Monday",tuesday:"Tuesday",wednesday:"Wednesday",thursday:"Thursday",friday:"Friday",saturday:"Saturday"}
-};
 
 /* ============================================================
    الجزء 4: دوال مساعدة
@@ -14370,5 +14066,9 @@ function closeWheelModal() {
     }
 }
 </style>
+    <script src="/js/api.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/app.js"></script>
+</body>
 </body>
 </html>
