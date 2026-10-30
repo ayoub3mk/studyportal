@@ -1,6 +1,6 @@
 {
   "name": "study-portal",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Smart Study Assistant Portal with account+users system",
   "main": "server.js",
   "scripts": {
@@ -12,10 +12,11 @@
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.11.3",
     "cookie-parser": "^1.4.6",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "cloudinary": "^1.41.0",
+    "multer": "^1.4.5-lts.1"
   },
   "engines": {
     "node": "20.x"
   }
 }
-
