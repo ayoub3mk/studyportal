@@ -910,34 +910,34 @@ app.get('/api/stats', userAuthRequired, async function(req, res) {
         /* هل اليوم محقق؟ */
         var todayProgress = await db.getDailyProgress(req.userId, todayStr);
         
-        /* احسب الأيام الفائتة */
+                /* احسب الأيام الفائتة — استعلام مباشر من DB */
         var missedDays = [];
         var repairCostTotal = 0;
         var repairCost = stats.repair_cost || 20;
         
-        if (lastCompletedDay) {
-            var yesterday = new Date(today);
-            yesterday.setDate(yesterday.getDate() - 1);
-            var yesterdayStr = yesterday.getFullYear() + '-' + 
-                              String(yesterday.getMonth() + 1).padStart(2, '0') + '-' + 
-                              String(yesterday.getDate()).padStart(2, '0');
-            
-            var lastDate = new Date(lastCompletedDay);
-            var dayAfterLast = new Date(lastDate);
-            dayAfterLast.setDate(dayAfterLast.getDate() + 1);
-            
-            var checkMissedDate = new Date(dayAfterLast);
-            while (checkMissedDate <= yesterday) {
-                var checkMissedStr = checkMissedDate.getFullYear() + '-' + 
-                              String(checkMissedDate.getMonth() + 1).padStart(2, '0') + '-' + 
-                              String(checkMissedDate.getDate()).padStart(2, '0');
-                
-                var dayProgress = await db.getDailyProgress(req.userId, checkMissedStr);
-                if (!dayProgress || !dayProgress.goal_met) {
-                    missedDays.push(checkMissedStr);
-                }
-                checkMissedDate.setDate(checkMissedDate.getDate() + 1);
+        try {
+            var missedResult = await db.pool.query(`
+                SELECT TO_CHAR(day, 'YYYY-MM-DD') AS day_str
+                FROM daily_progress
+                WHERE user_id = $1 
+                  AND day < CURRENT_DATE
+                  AND goal_met = 0
+                  AND current_value > 0
+                ORDER BY day ASC
+            `, [req.userId]);
+            missedDays = missedResult.rows.map(function(r) { return r.day_str; });
+        } catch (e) {
+            console.error('missedDays query error:', e.message);
+            missedDays = [];
+        }
+        
+        if (missedDays.length > 0) {
+            var cost = repairCost;
+            for (var i = 0; i < missedDays.length; i++) {
+                repairCostTotal += cost;
+                cost += 10;
             }
+        }
         }
         
         /* إذا كانت هناك أيام فائتة، احسب التكلفة */
