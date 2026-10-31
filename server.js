@@ -939,14 +939,6 @@ app.get('/api/stats', userAuthRequired, async function(req, res) {
             }
         }
       
-        /* إذا كانت هناك أيام فائتة، احسب التكلفة */
-        if (missedDays.length > 0) {
-            var cost = repairCost;
-            for (var i = 0; i < missedDays.length; i++) {
-                repairCostTotal += cost;
-                cost += 10;
-            }
-        }
         
         res.json({
             ok: true,
