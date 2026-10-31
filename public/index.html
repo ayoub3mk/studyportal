@@ -6895,27 +6895,38 @@ function renderRecentDays() {
             cell.className += ' bg-emerald-500 text-white';
             cell.innerHTML = '<i class="fa-solid fa-check"></i>';
             cell.title = item.date + ' — محقق ✓';
-        } else if (isMissed) {
-            /* 🔧 فائت — قابل للنقر للترميم */
-            var hasActivity = r && r.current_value > 0;
-            cell.className += hasActivity
-                ? ' bg-red-500 text-white cursor-pointer hover:scale-110 hover:shadow-lg hover:shadow-red-500/50 ring-1 ring-red-700'
-                : ' bg-red-400 dark:bg-red-700 text-white cursor-pointer hover:scale-110 hover:shadow-lg hover:shadow-red-500/40 ring-1 ring-red-500';
+                } else if (isMissed || (r && r.current_value > 0)) {
+            /* 🔴 أو 🟡 (فائت أو فيه نشاط) — كلاهما قابل للترميم */
+            var isRed = isMissed;
+            cell.className += isRed 
+                ? ' bg-red-500 text-white cursor-pointer hover:scale-110 hover:shadow-lg hover:shadow-red-500/50 ring-1 ring-red-700' 
+                : ' bg-amber-500 text-white cursor-pointer hover:scale-110 hover:shadow-lg hover:shadow-amber-500/50';
             cell.innerHTML = '<i class="fa-solid fa-wrench"></i>';
             var dd = item.day.toLocaleDateString('ar-TN', { day: 'numeric', month: 'short' });
-            cell.title = 'انقر لترميم ' + dd + ' — ' + currentCost + ' نقطة';
+            cell.title = dd + ' — انقر للترميم (' + currentCost + ' نقطة)';
             cell.onclick = (function(dateStr) {
                 return function() { repairSpecificDay(dateStr); };
             })(item.date);
-        } else if (r && r.current_value > 0) {
-            /* نشاط لكن ليس فائت (لا يؤثر على الستريك) */
-            cell.className += ' bg-amber-500 text-white';
-            cell.innerHTML = '<i class="fa-solid fa-circle-notch"></i>';
-            cell.title = item.date + ' — لا يؤثر على الستريك';
         } else {
             /* ⚪ لا نشاط */
-            cell.className += ' bg-slate-200 dark:bg-slate-700 text-slate-400';
-            cell.textContent = item.day.getDate();
+            var todayStrLocal = new Date();
+            todayStrLocal.setHours(0,0,0,0);
+            var todayStrYMD = todayStrLocal.getFullYear() + '-' + String(todayStrLocal.getMonth() + 1).padStart(2, '0') + '-' + String(todayStrLocal.getDate()).padStart(2, '0');
+            
+            if (item.date < todayStrYMD) {
+                /* يوم ماضي رمادي -> نجعله قابلاً للترميم (بأيقونة 🔧) */
+                cell.className += ' bg-slate-300 dark:bg-slate-600 text-slate-600 dark:text-slate-300 cursor-pointer hover:scale-110 hover:shadow-lg ring-1 ring-slate-400';
+                cell.innerHTML = '<i class="fa-solid fa-wrench"></i>';
+                var dd2 = item.day.toLocaleDateString('ar-TN', { day: 'numeric', month: 'short' });
+                cell.title = dd2 + ' — انقر للترميم (' + currentCost + ' نقطة)';
+                cell.onclick = (function(dateStr) {
+                    return function() { repairSpecificDay(dateStr); };
+                })(item.date);
+            } else {
+                /* اليوم الحالي */
+                cell.className += ' bg-slate-200 dark:bg-slate-700 text-slate-400';
+                cell.textContent = item.day.getDate();
+            }
         }
         grid.appendChild(cell);
     });
