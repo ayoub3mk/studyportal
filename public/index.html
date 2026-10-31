@@ -6866,12 +6866,21 @@ function renderRecentDays() {
         days.push({ date: str, day: d });
     }
     
-    /* أنشئ خريطة */
+    /* خريطة الأيام المسجّلة */
     var map = {};
     (CURRENT_STATS.recent || []).forEach(function(r) {
         var dayStr = typeof r.day === 'string' ? r.day.slice(0,10) : '';
         map[dayStr] = r;
     });
+    
+    /* خريطة الأيام الفائتة (القابلة للترميم) */
+    var missedSet = {};
+    (CURRENT_STATS.missedDays || []).forEach(function(d) {
+        var dayStr = typeof d === 'string' ? d.slice(0,10) : '';
+        if (dayStr) missedSet[dayStr] = true;
+    });
+    
+    var currentCost = CURRENT_STATS.repairCost || 20;
     
     days.forEach(function(item) {
         var cell = document.createElement('div');
@@ -6879,20 +6888,98 @@ function renderRecentDays() {
         cell.title = item.date;
         
         var r = map[item.date];
+        var isMissed = !!missedSet[item.date];
+        
         if (r && r.goal_met) {
+            /* ✅ محقق */
             cell.className += ' bg-emerald-500 text-white';
             cell.innerHTML = '<i class="fa-solid fa-check"></i>';
+            cell.title = item.date + ' — محقق ✓';
+        } else if (isMissed) {
+            /* 🔧 فائت — قابل للنقر للترميم */
+            var hasActivity = r && r.current_value > 0;
+            cell.className += hasActivity
+                ? ' bg-red-500 text-white cursor-pointer hover:scale-110 hover:shadow-lg hover:shadow-red-500/50 ring-1 ring-red-700'
+                : ' bg-red-400 dark:bg-red-700 text-white cursor-pointer hover:scale-110 hover:shadow-lg hover:shadow-red-500/40 ring-1 ring-red-500';
+            cell.innerHTML = '<i class="fa-solid fa-wrench"></i>';
+            var dd = item.day.toLocaleDateString('ar-TN', { day: 'numeric', month: 'short' });
+            cell.title = 'انقر لترميم ' + dd + ' — ' + currentCost + ' نقطة';
+            cell.onclick = (function(dateStr) {
+                return function() { repairSpecificDay(dateStr); };
+            })(item.date);
         } else if (r && r.current_value > 0) {
-            cell.className += ' bg-red-500 text-white';
-            cell.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+            /* نشاط لكن ليس فائت (لا يؤثر على الستريك) */
+            cell.className += ' bg-amber-500 text-white';
+            cell.innerHTML = '<i class="fa-solid fa-circle-notch"></i>';
+            cell.title = item.date + ' — لا يؤثر على الستريك';
         } else {
+            /* ⚪ لا نشاط */
             cell.className += ' bg-slate-200 dark:bg-slate-700 text-slate-400';
             cell.textContent = item.day.getDate();
         }
         grid.appendChild(cell);
     });
-}
-
+                }
+    /* ═══════════════════════════════════════════════════════
+   ترميم يوم واحد محدد بالنقر عليه
+   ═══════════════════════════════════════════════════════ */
+function repairSpecificDay(dateStr) {
+    var cost = CURRENT_STATS.repairCost || 20;
+    var points = CURRENT_STATS.points || 0;
+    
+    /* هل لديه نقاط كافية؟ */
+    if (points < cost) {
+        showToast('❌ نقاطك غير كافية (' + points + '/' + cost + ' نقطة)');
+        return;
+    }
+    
+    /* تنسيق التاريخ للعرض */
+    var d = new Date(dateStr);
+    var displayDate = d.toLocaleDateString('ar-TN', { 
+        weekday: 'long', day: 'numeric', month: 'long' 
+    });
+    
+    var msg = '🔧 ترميم يوم\n\n' +
+              displayDate + '\n\n' +
+              '💰 التكلفة: ' + cost + ' نقطة\n' +
+              '⭐ نقاطك: ' + points + ' نقطة\n' +
+              '📊 بعد الترميم: ' + (points - cost) + ' نقطة\n\n' +
+              'ملاحظة: السعر يرتفع بـ 10 نقاط بعد كل ترميم.';
+    
+    if (!confirm(msg)) return;
+    
+    fetch('/api/stats/repair', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ days: [dateStr] })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (!data.ok) {
+            var errMsg = data.message || 'خطأ';
+            if (data.error === 'not_enough_points') {
+                errMsg = 'نقاطك غير كافية (' + data.have + '/' + data.needed + ' نقطة)';
+            }
+            alert('❌ ' + errMsg);
+            return;
+        }
+        
+        var successMsg = '✅ تم الترميم بنجاح!\n\n' +
+                        '💰 دفعت: ' + data.costPaid + ' نقطة\n' +
+                        '⭐ رصيدك: ' + data.newPoints + ' نقطة\n' +
+                        '🔥 الستريك: ' + data.newStreak + ' يوم\n' +
+                        '💵 السعر القادم: ' + data.newRepairCost + ' نقطة';
+        alert(successMsg);
+        
+        /* إعادة تحميل الإحصائيات */
+        loadStats();
+    })
+    .catch(function(err) {
+        console.error('Repair specific day error:', err);
+        alert('❌ خطأ في الاتصال');
+    });
+    }
 /* تعيين الهدف اليومي */
 function openGoalModal() {
     var progress = CURRENT_STATS.todayProgress || {};
