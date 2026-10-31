@@ -938,8 +938,7 @@ app.get('/api/stats', userAuthRequired, async function(req, res) {
                 cost += 10;
             }
         }
-        }
-        
+      
         /* إذا كانت هناك أيام فائتة، احسب التكلفة */
         if (missedDays.length > 0) {
             var cost = repairCost;
