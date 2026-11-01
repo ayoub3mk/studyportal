@@ -10209,7 +10209,7 @@ enterAccountPanel = function() {
     _origEnterAccountPanel();
     var b = document.getElementById('adminBtn');
     if (b) {
-        var isAdmin = !!CURRENT_ACCOUNT && CURRENT_ACCOUNT.username === ADMIN_USERNAME_CLIENT;
+        var isAdmin = !!CURRENT_ACCOUNT && CURRENT_ACCOUNT.role === 'admin';
         b.classList.toggle('hidden', !isAdmin);
     }
 };
