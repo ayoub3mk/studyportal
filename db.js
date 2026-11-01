@@ -53,7 +53,10 @@ async function findAccountById(id) {
     var result = await pool.query('SELECT * FROM accounts WHERE id = $1', [id]);
     return result.rows[0] || null;
 }
-
+async function findAccountByIdWithRole(id) {
+    var result = await pool.query('SELECT id, username, role FROM accounts WHERE id = $1', [id]);
+    return result.rows[0] || null;
+}
 /* ============================================================
    دوال المستخدمين (Users)
    ============================================================ */
@@ -1430,6 +1433,7 @@ module.exports = {
     createAccount: createAccount,
     findAccountByUsername: findAccountByUsername,
     findAccountById: findAccountById,
+    findAccountByIdWithRole: findAccountByIdWithRole,
     getAdminOverview: getAdminOverview,
     /* المستخدمون */
     createUser: createUser,
