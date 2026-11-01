@@ -573,11 +573,17 @@ app.put('/api/tutoring/items/:itemId', userAuthRequired, async function(req, res
     try {
         var itemId = parseInt(req.params.itemId, 10);
         var body = req.body || {};
-        await db.updateTutoringItem(itemId, {
+        var updated = await db.updateTutoringItem(itemId, req.userId, {
             label: body.label,
             checked: body.checked,
             note: body.note
         });
+        if (!updated) {
+            return res.status(404).json({ 
+                error: 'not_found', 
+                message: 'العنصر غير موجود أو لا يخصك' 
+            });
+        }
         res.json({ ok: true });
     } catch (err) {
         console.error('Update tutoring item error:', err);
@@ -589,7 +595,13 @@ app.put('/api/tutoring/items/:itemId', userAuthRequired, async function(req, res
 app.delete('/api/tutoring/items/:itemId', userAuthRequired, async function(req, res) {
     try {
         var itemId = parseInt(req.params.itemId, 10);
-        await db.deleteTutoringItem(itemId);
+        var deleted = await db.deleteTutoringItem(itemId, req.userId);
+        if (!deleted) {
+            return res.status(404).json({ 
+                error: 'not_found', 
+                message: 'العنصر غير موجود أو لا يخصك' 
+            });
+        }
         res.json({ ok: true });
     } catch (err) {
         console.error('Delete tutoring item error:', err);
