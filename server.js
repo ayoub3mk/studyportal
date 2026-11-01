@@ -38,12 +38,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 /* رمز الحساب */
 function signAccountToken(account) {
     return jwt.sign(
-        { accountId: account.id, username: account.username, type: 'account' },
+        { accountId: account.id, username: account.username, role: account.role || 'user', type: 'account' },
         JWT_SECRET,
         { expiresIn: '30d' }
     );
 }
-
 /* رمز المستخدم */
 function signUserToken(user, accountId) {
     return jwt.sign(
@@ -131,7 +130,7 @@ app.post('/api/account/register', async function(req, res) {
         var hashed = bcrypt.hashSync(password, 10);
         var accountId = await db.createAccount(username, hashed);
 
-        var account = { id: accountId, username: username };
+        var account = { id: accountId, username: username, role: 'user' };
         var token = signAccountToken(account);
         setCookie(res, 'account_token', token, 30);
 
@@ -165,7 +164,7 @@ app.post('/api/account/login', async function(req, res) {
         var token = signAccountToken(account);
         setCookie(res, 'account_token', token, 30);
 
-        res.json({ ok: true, account: { id: account.id, username: account.username }, token: token });
+        res.json({ ok: true, account: { id: account.id, username: account.username, role: account.role || 'user' }, token: token });
     } catch (err) {
         console.error('Login error:', err);
         res.status(500).json({ error: 'server_error', message: 'خطأ في السيرفر' });
@@ -186,7 +185,7 @@ app.get('/api/account/me', accountAuthRequired, async function(req, res) {
         if (!account) {
             return res.status(404).json({ error: 'not_found' });
         }
-        res.json({ account: { id: account.id, username: account.username } });
+        res.json({ account: { id: account.id, username: account.username, role: account.role || 'user' } });
     } catch (err) {
         res.status(500).json({ error: 'server_error' });
     }
@@ -1885,14 +1884,19 @@ app.get('/api/parent/children/:userId/focus', parentAuthRequired, async function
 /* ============================================================
    لوحة المدير (للحساب ayoub_jawedi فقط)
    ============================================================ */
-var ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'ayoub_jawedi';
-
 function adminRequired(req, res, next) {
-    accountAuthRequired(req, res, function() {
-        if (req.accountUsername !== ADMIN_USERNAME) {
-            return res.status(403).json({ error: 'forbidden' });
+    accountAuthRequired(req, res, async function() {
+        try {
+            var account = await db.findAccountByIdWithRole(req.accountId);
+            if (!account || account.role !== 'admin') {
+                return res.status(403).json({ error: 'forbidden' });
+            }
+            req.isAdmin = true;
+            next();
+        } catch (e) {
+            console.error('adminRequired error:', e);
+            res.status(500).json({ error: 'server_error' });
         }
-        next();
     });
 }
 
