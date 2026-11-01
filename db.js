@@ -405,24 +405,37 @@ async function createTutoringItem(sessionId, data) {
 }
 
 /* تحديث تمرين */
-async function updateTutoringItem(itemId, data) {
-    await pool.query(`
-        UPDATE tutoring_items SET
-            label = COALESCE($1, label),
-            checked = COALESCE($2, checked),
-            note = COALESCE($3, note)
-        WHERE id = $4
+async function updateTutoringItem(itemId, userId, data) {
+    var result = await pool.query(`
+        UPDATE tutoring_items ti SET
+            label = COALESCE($1, ti.label),
+            checked = COALESCE($2, ti.checked),
+            note = COALESCE($3, ti.note)
+        FROM tutoring_sessions ts
+        WHERE ti.id = $4
+          AND ti.session_id = ts.id
+          AND ts.user_id = $5
+        RETURNING ti.id
     `, [
         data.label != null ? data.label : null,
         data.checked != null ? (data.checked ? 1 : 0) : null,
         data.note != null ? data.note : null,
-        itemId
+        itemId,
+        userId
     ]);
+    return result.rowCount > 0;
 }
 
 /* حذف تمرين */
-async function deleteTutoringItem(itemId) {
-    await pool.query('DELETE FROM tutoring_items WHERE id = $1', [itemId]);
+async function deleteTutoringItem(itemId, userId) {
+    var result = await pool.query(`
+        DELETE FROM tutoring_items ti
+        USING tutoring_sessions ts
+        WHERE ti.id = $1
+          AND ti.session_id = ts.id
+          AND ts.user_id = $2
+    `, [itemId, userId]);
+    return result.rowCount > 0;
 }
 /* ============================================================
    نظام التقدم اليومي والنقاط والـ Streak
