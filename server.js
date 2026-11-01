@@ -17,8 +17,16 @@ function parseJsonField(value, fallback) {
 var app = express();
 var PORT = process.env.PORT || 3000;
 
-var JWT_SECRET = process.env.JWT_SECRET || 'study-portal-secret-' + Date.now();
-
+var JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    console.error('❌ FATAL: JWT_SECRET غير موجود في Environment Variables');
+    console.error('   اذهب إلى Render → Environment → أضف JWT_SECRET بقيمة عشوائية طويلة');
+    process.exit(1);
+}
+if (JWT_SECRET.length < 32) {
+    console.error('❌ FATAL: JWT_SECRET قصير جداً (32 حرف على الأقل)');
+    process.exit(1);
+}
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
