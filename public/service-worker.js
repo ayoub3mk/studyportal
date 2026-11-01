@@ -1,12 +1,9 @@
-var CACHE_NAME = 'study-portal-v3';
+var CACHE_NAME = 'study-portal-v4';
 var urlsToCache = [
     '/',
     '/manifest.json',
     '/icon-192.png',
-    '/icon-512.png',
-    '/css/main.css',
-    '/js/utils.js',
-    '/js/data.js'
+    '/icon-512.png'
 ];
 
 self.addEventListener('install', function(event) {
